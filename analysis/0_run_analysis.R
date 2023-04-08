@@ -5,7 +5,7 @@ library(sratio)
 
 n_cores <- 4 # Cores for parallel processing
 bin_width <- 5 # May need to change for different species
-species_codes <- c(21740, 21720, 10210, 10261, 10110, 10112, 10130, 10285, 471, 68580, 68560, 69322, 69323)
+species_codes <- c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68580, 68560, 69322, 69323) # 10112
 seed <- 909823 # RNG seed
 
 # 2. Get data ----
@@ -173,11 +173,17 @@ for(jj in 1:length(species_codes)) {
   bootstrap_quantiles <- bootstrap_df |>
     dplyr::group_by(LEN_MIDPOINT) |>
     dplyr::summarise(q025 = quantile(fit, 0.025),
-                     q975 = quantile(fit, 0.975)) |> 
+                     q975 = quantile(fit, 0.975),
+                     q25 = quantile(fit, 0.25),
+                     q75 = quantile(fit, 0.75)) |> 
     dplyr::mutate(p_q025 = inv_logit(q025),
                   sratio_q025 = 1/inv_logit(q025)-1,
                   p_q975 = inv_logit(q975),
-                  sratio_q975 = 1/inv_logit(q975)-1) |>
+                  sratio_q975 = 1/inv_logit(q975)-1,
+                  p_q25 = inv_logit(q25),
+                  sratio_q25 = 1/inv_logit(q25)-1,
+                  p_q75 = inv_logit(q75),
+                  sratio_q75 = 1/inv_logit(q75)-1) |>
     dplyr::mutate(type = "Observed")
   
   # Make plots of catch ratio and selectivity ratio ----
@@ -194,6 +200,14 @@ for(jj in 1:length(species_codes)) {
                               max = p_q975),
                 alpha = 0.5,
                 fill = "grey20") +
+    geom_path(data = bootstrap_quantiles,
+              mapping = aes(x = LEN_MIDPOINT,
+                            y = p_q25),
+              linetype = 3) +
+    geom_path(data = bootstrap_quantiles,
+              mapping = aes(x = LEN_MIDPOINT,
+                            y = p_q75),
+              linetype = 3) +
     geom_path(data = observed_prediction_df |>
                 dplyr::filter(model == "logit"),
               mapping = aes(x = LEN_MIDPOINT,
@@ -221,6 +235,14 @@ for(jj in 1:length(species_codes)) {
                               max = sratio_q975),
                 alpha = 0.5,
                 fill = "grey20") +
+    geom_path(data = bootstrap_quantiles,
+                mapping = aes(x = LEN_MIDPOINT,
+                              y = sratio_q25),
+              linetype = 3) +
+    geom_path(data = bootstrap_quantiles,
+              mapping = aes(x = LEN_MIDPOINT,
+                            y = sratio_q75),
+              linetype = 3) +
     geom_path(data = observed_prediction_df |>
                 dplyr::filter(model == "logit"),
               mapping = aes(x = LEN_MIDPOINT,
