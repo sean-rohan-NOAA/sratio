@@ -134,10 +134,12 @@ get_data <- function(species_codes) {
     dplyr::group_by(CRUISE) |>
     dplyr::summarise(n = n())
   
+  
   lengths |>
     dplyr::mutate(YEAR = floor(CRUISE/100)) |>
     dplyr::group_by(SPECIES_CODE, YEAR) |>
-    dplyr::summarise(n = sum(FREQUENCY))
+    dplyr::summarise(n = sum(FREQUENCY)) |>
+    write.csv(file = here::here("plots", "sample_sizes_1530.csv"), row.names = FALSE)
   
   
   # Get crab carapace data ----

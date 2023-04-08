@@ -44,6 +44,7 @@ for(jj in 1:length(species_codes)) {
   len_breaks <- seq(len_min, len_max, bin_width)
   len_mid <- (len_breaks + bin_width/2)[1:(length(len_breaks) - 1)]
   
+  # Set knots based on number of length bins
   gam_knots <- (length(len_mid)-1)-3
   
   if(gam_knots > 10) {
