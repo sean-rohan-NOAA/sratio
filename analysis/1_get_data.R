@@ -81,7 +81,6 @@ get_data <- function(species_codes) {
   
   message("The following stations/cruises have no pair and will be removed:", no_pair)
   
-  
   all_hauls <- dplyr::anti_join(all_hauls, no_pair)
   
   all_hauls <- dplyr::select(all_hauls, STATIONID, CRUISE) |>
@@ -144,6 +143,33 @@ get_data <- function(species_codes) {
   
   # Get crab carapace data ----
   
+  crab <- RODBC::sqlQuery(channel = channel,
+                                  paste0("select species_code, sex, shell_condition, length, width, weight, vessel, cruise, haul, sampling_factor frequency from crab.ebscrab_15_30_comparison_project
+                  where species_code in (", paste(species_codes, collapse = ","), ")")) |>
+    dplyr::inner_join(dplyr::select(all_hauls, VESSEL, CRUISE, HAUL, HAULJOIN) |>
+                        unique())
+  
+  crab$FREQUENCY[is.na(crab$FREQUENCY)] <- 1
+  
+  saveRDS(object = crab, file = here::here("data", "crab_size_1530.rds"))
+  
+  dplyr::select(crab, VESSEL, CRUISE, HAUL) |>
+    unique() |>
+    dplyr::group_by(CRUISE) |>
+    dplyr::summarise(n = n())
+  
+  crab_fish <- dplyr::bind_rows(crab, lengths)
+  
+  test <- dplyr::filter(crab_fish, SPECIES_CODE %in% c(68580, 68560, 69322))
+  
+  saveRDS(object = crab_fish, file = here::here("data", "fish_crab_size_1530.rds"))
+  
+  crab_fish |>
+    dplyr::mutate(YEAR = floor(CRUISE/100)) |>
+    dplyr::group_by(SPECIES_CODE, YEAR) |>
+    dplyr::summarise(n = sum(FREQUENCY)) |>
+    write.csv(file = here::here("plots", "sample_sizes_1530.csv"), row.names = FALSE)
+
 }
 
 get_data(species_codes = species_codes)

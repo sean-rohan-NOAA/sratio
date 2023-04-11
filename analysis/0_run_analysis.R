@@ -4,17 +4,17 @@
 library(sratio)
 
 n_cores <- 4 # Cores for parallel processing
-bin_width <- 5 # May need to change for different species
-species_codes <- c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68580, 68560, 69322) # 10112
+bin_width <- c(rep(5, 8), c(10, 5, 10))  # May need to change for different species
+species_codes <- c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68560, 68580, 69322) # 10112, 68580
+measurement_label <- c(rep("Fork length (cm)", 7), "Total length (cm)", rep("Carapace width (mm)", 2), "Carapace length (mm)")
 seed <- 909823 # RNG seed
 
 # 2. Get data ----
 source(here::here("analysis", "1_get_data.R"))
 
-
 cpue_comparison_df <- data.frame()
 
-for(jj in 1:length(species_codes)) {
+for(jj in 11:length(species_codes)) {
   
   sel_species <- species_codes[jj]
   
@@ -102,27 +102,32 @@ for(jj in 1:length(species_codes)) {
   
   
   # Setup length data
-  length_df <- readRDS(file = here::here("data", "fish_lengths_1530.rds")) |>
+  length_df <- readRDS(file = here::here("data", "fish_crab_size_1530.rds")) |>
     dplyr::filter(SPECIES_CODE == sel_species)
   
-  if(nrow(length_df) < 1) {
+  if(nrow(length_df) < 0) {
     next
   }
+  
+  if(sum(length_df$FREQUENCY) < 150) {
+    next
+  }
+  
+  if(sel_species %in% c(68580, 68560)) {
+    length_df$LENGTH <- length_df$WIDTH
+  }
+  
+  # if(sel_species %in% c(68580, 68560, 69322, 69323)) {
+  #   length_df$FREQUENCY <- 1
+  # }
   
   # Setup length bins
   len_min <- min(length_df$LENGTH)
   len_max <- max(length_df$LENGTH)
-  len_min <- len_min - len_min %% bin_width
-  len_max <- len_max + (bin_width - len_max %% bin_width)
-  len_breaks <- seq(len_min, len_max, bin_width)
-  len_mid <- (len_breaks + bin_width/2)[1:(length(len_breaks) - 1)]
-  
-  # Set knots based on number of length bins
-  gam_knots <- (length(len_mid)-1)-3
-  
-  if(gam_knots > 10) {
-    gam_knots <- 8
-  }
+  len_min <- len_min - len_min %% bin_width[jj]
+  len_max <- len_max + (bin_width[jj] - len_max %% bin_width[jj])
+  len_breaks <- seq(len_min, len_max, bin_width[jj])
+  len_mid <- (len_breaks + bin_width[jj]/2)[1:(length(len_breaks) - 1)]
   
   length_df <- length_df |>
     dplyr::mutate(LEN_MIDPOINT = as.numeric(as.character(cut(LENGTH, breaks = len_breaks, labels = len_mid)))) |>
@@ -141,6 +146,14 @@ for(jj in 1:length(species_codes)) {
     tidyr::pivot_wider(names_from = TREATMENT_COL, values_from = FREQUENCY) |>
     dplyr::mutate(LEN_MIDPOINT = as.numeric(LEN_MIDPOINT)) |>
     dplyr::arrange(MATCHUP, LEN_MIDPOINT)
+  
+  # Set knots based on number of length bins
+  
+  gam_knots <- (length(len_mid)-1)-3
+  
+  if(gam_knots > 10) {
+    gam_knots <- 8
+  }
   
   pratio_df <- data.frame()
   unique_matchups <- unique(haul_df$MATCHUP)
@@ -286,7 +299,7 @@ for(jj in 1:length(species_codes)) {
                 dplyr::filter(model == "logit"),
               mapping = aes(x = LEN_MIDPOINT,
                             y = p)) +
-    scale_x_continuous(name = "Fork Length (cm)") +
+    scale_x_continuous(name = measurement_label[jj]) +
     scale_y_continuous(name = expression(italic(p['L,30,15']))) +
     scale_color_tableau() +
     scale_fill_tableau() +
@@ -297,7 +310,7 @@ for(jj in 1:length(species_codes)) {
                    mapping = aes(x = LEN_MIDPOINT),
                    bins = length(unique(pratio_df$LEN_MIDPOINT)),
                    fill = "grey70") +
-    scale_x_continuous(name = "Fork Length (cm)", expand = c(0,0)) +
+    scale_x_continuous(name = measurement_label[jj], expand = c(0,0)) +
     scale_y_continuous(name = "Matchups (#)") +
     theme_bw()
   
@@ -321,7 +334,7 @@ for(jj in 1:length(species_codes)) {
                 dplyr::filter(model == "logit"),
               mapping = aes(x = LEN_MIDPOINT,
                             y = sratio)) +
-    scale_x_continuous(name = "Fork Length (cm)") +
+    scale_x_continuous(name = measurement_label[jj]) +
     scale_y_log10(name = expression(italic(S['L,15,30']))) +
     scale_color_tableau() +
     scale_fill_tableau() +
