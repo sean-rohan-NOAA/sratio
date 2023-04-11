@@ -5,12 +5,14 @@ library(sratio)
 
 n_cores <- 4 # Cores for parallel processing
 bin_width <- 5 # May need to change for different species
-species_codes <- c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68580, 68560, 69322, 69323) # 10112
+species_codes <- c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68580, 68560, 69322) # 10112
 seed <- 909823 # RNG seed
 
 # 2. Get data ----
 source(here::here("analysis", "1_get_data.R"))
 
+
+cpue_comparison_df <- data.frame()
 
 for(jj in 1:length(species_codes)) {
   
@@ -29,12 +31,83 @@ for(jj in 1:length(species_codes)) {
   # Setup catch data
   catch_df <- readRDS(file = here::here("data", "catch_1530.rds")) |>
     dplyr::filter(SPECIES_CODE == sel_species) |>
-    dplyr::inner_join(dplyr::select(haul_df, HAULJOIN, MATCHUP))
+    dplyr::inner_join(dplyr::select(haul_df, HAULJOIN, MATCHUP, TREATMENT)) |>
+    dplyr::select(WEIGHT, NUMBER_FISH, MATCHUP, TREATMENT) |>
+    dplyr::mutate(NUMBER_FISH_COL = paste0("NUMBER_FISH_", TREATMENT),
+                  WEIGHT_COL = paste0("WEIGHT_", TREATMENT)) |>
+    dplyr:::select(-TREATMENT) |>
+    dplyr::arrange(MATCHUP) |>
+    tidyr::pivot_wider(names_from = c(NUMBER_FISH_COL, WEIGHT_COL),
+                       values_from = c(NUMBER_FISH, WEIGHT),
+                       values_fill = 0) |>
+    dplyr::inner_join(area_swept_df)
+  
+  names(catch_df)[1:5] <- c("MATCHUP", "NUMBER_FISH_30", "NUMBER_FISH_15", "WEIGHT_30", "WEIGHT_15")
+  
+  catch_df <- catch_df |>
+    dplyr::mutate(CPUE_WEIGHT_30 = WEIGHT_30/AREA_SWEPT_KM2_30,
+                  CPUE_WEIGHT_15 = WEIGHT_15/AREA_SWEPT_KM2_15,
+                  CPUE_NUMBER_FISH_30 = NUMBER_FISH_30/AREA_SWEPT_KM2_30,
+                  CPUE_NUMBER_FISH_15 = NUMBER_FISH_15/AREA_SWEPT_KM2_15,
+                  OFFSET = AREA_SWEPT_KM2_15/AREA_SWEPT_KM2_30,
+                  RATIO = WEIGHT_30/WEIGHT_15)
+  
+  catch_mod <- gam(log(CPUE_WEIGHT_15+1) ~ s(log(CPUE_WEIGHT_30+1), bs = "cr"),
+                   data = catch_df)
+
+  catch_fit_df <- data.frame(CPUE_WEIGHT_30 = exp(seq(log(min(catch_df$CPUE_WEIGHT_30 + 1)),
+                                                      log(max(catch_df$CPUE_WEIGHT_30 + 1)),
+                                                      length = 100)) - 1)
+  
+  catch_fit_df$FIT_CPUE_WEIGHT_15 <- predict(catch_mod, 
+                                             newdata = catch_fit_df)
+  
+  catch_fit_df$FIT_SE_CPUE_WEIGHT_15 <- predict(catch_mod, 
+                                                newdata = catch_fit_df, se.fit = TRUE)$se
+  
+  # bias_correction_factor <- summary(catch_mod)$sigma^2/2
+  bias_correction_factor <- 0
+  
+  catch_fit_df$FIT_LOWER_CPUE_WEIGHT_15 <- (exp(catch_fit_df$FIT_CPUE_WEIGHT_15 - catch_fit_df$FIT_SE_CPUE_WEIGHT_15 + bias_correction_factor)-1)
+  catch_fit_df$FIT_UPPER_CPUE_WEIGHT_15 <- (exp(catch_fit_df$FIT_CPUE_WEIGHT_15 + catch_fit_df$FIT_SE_CPUE_WEIGHT_15 + bias_correction_factor)-1)
+  catch_fit_df$FIT_CPUE_WEIGHT_15 <- (exp(catch_fit_df$FIT_CPUE_WEIGHT_15 + bias_correction_factor)-1)
+
+  
+  ragg::agg_png(file = here::here("plots", paste0(sel_species, "_gam_1530.png")), width = 70, height = 70, units = "mm", res = 600)
+  print(
+  ggplot() +
+    geom_ribbon(data = catch_fit_df,
+                mapping = aes(x = CPUE_WEIGHT_30,
+                              ymin = FIT_LOWER_CPUE_WEIGHT_15,
+                              ymax = FIT_UPPER_CPUE_WEIGHT_15),
+                alpha = 0.3,
+                color = NA) +
+    geom_path(data = catch_fit_df,
+              mapping = aes(x = CPUE_WEIGHT_30, 
+                            y = FIT_CPUE_WEIGHT_15),
+              color = "blue",
+              linewidth = 1.5) +
+    geom_abline(slope = 1, intercept = 0, linetype = 2) +
+    geom_point(data = catch_df,
+               mapping = aes(x = CPUE_WEIGHT_30, CPUE_WEIGHT_15)) +
+    theme_bw() +
+    scale_x_continuous(name = expression(CPUE[30]~(kg %.%km^-2))) +
+    scale_y_continuous(name = expression(CPUE[15]~(kg %.%km^-2)))
+  )
+  dev.off()
+  
+  cpue_comparison_df <- data.frame(SPECIES_CODE = sel_species) |>
+    dplyr::bind_cols(as.data.frame(calculate_performance_metrics(x = catch_df$CPUE_WEIGHT_15, y = catch_df$CPUE_WEIGHT_30))) |>
+    dplyr::bind_rows(cpue_comparison_df)
   
   
   # Setup length data
   length_df <- readRDS(file = here::here("data", "fish_lengths_1530.rds")) |>
     dplyr::filter(SPECIES_CODE == sel_species)
+  
+  if(nrow(length_df) < 1) {
+    next
+  }
   
   # Setup length bins
   len_min <- min(length_df$LENGTH)
@@ -255,7 +328,7 @@ for(jj in 1:length(species_codes)) {
     theme_bw()
   
   # Write plots to file
-  png(file = here::here("plots", paste0(sel_species, "_trawl_height_three_panel_ratios_n.png")), width = 169, height = 70, units = "mm", res = 600)
+  ragg::agg_png(file = here::here("plots", paste0(sel_species, "_trawl_height_three_panel_ratios_n.png")), width = 169, height = 70, units = "mm", res = 600)
   print(cowplot::plot_grid(plot_pratio,
                            plot_obs_histogram,
                            plot_sratio,
@@ -278,3 +351,7 @@ for(jj in 1:length(species_codes)) {
        gam_beta, 
        file = here::here("output", sel_species, paste0("sratio_output_", sel_species, ".rda")))
 }
+
+write.csv(cpue_comparison_df,
+          file = here::here("plots", "cpue_comparison_metrics.csv"), 
+          row.names = FALSE)
