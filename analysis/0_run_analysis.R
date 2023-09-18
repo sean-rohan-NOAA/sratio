@@ -14,7 +14,7 @@ source(here::here("analysis", "1_get_data.R"))
 
 cpue_comparison_df <- data.frame()
 
-for(jj in 11:length(species_codes)) {
+for(jj in 1:length(species_codes)) {
   
   sel_species <- species_codes[jj]
   
@@ -147,12 +147,15 @@ for(jj in 11:length(species_codes)) {
     dplyr::mutate(LEN_MIDPOINT = as.numeric(LEN_MIDPOINT)) |>
     dplyr::arrange(MATCHUP, LEN_MIDPOINT)
   
-  # Set knots based on number of length bins
-  
+  # Set knots based on number of length bins, but only use 5 knots for red king crab
   gam_knots <- (length(len_mid)-1)-3
   
   if(gam_knots > 10) {
     gam_knots <- 8
+  }
+  
+  if(sel_species == 69322) {
+    gam_knots <- 5
   }
   
   pratio_df <- data.frame()
@@ -164,10 +167,12 @@ for(jj in 11:length(species_codes)) {
     sel_catch <- dplyr::filter(catch_df, MATCHUP == unique_matchups[ii])
     sel_length <- dplyr::filter(length_df, MATCHUP == unique_matchups[ii])
     
-    sel_length$p <- selectivity_ratio(count1 = sel_length$N_30, 
+    sel_length$p <- suppressMessages(
+      selectivity_ratio(count1 = sel_length$N_30, 
                                       count2 = sel_length$N_15, 
                                       effort1 = sel_area_swept$AREA_SWEPT_KM2_30, 
                                       effort2 = sel_area_swept$AREA_SWEPT_KM2_15)$p12
+      )
     
     pratio_df <- dplyr::bind_rows(pratio_df, sel_length)
     

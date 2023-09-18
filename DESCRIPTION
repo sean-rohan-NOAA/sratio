@@ -1,7 +1,7 @@
 Package: sratio
 Type: Package
 Title: Selectivity ratio
-Version: 0.0.1
+Version: 2024.09.18
 Authors@R: c(person("Sean", "Rohan", email = "sean.rohan@noaa.gov", role = c("aut", "cre")))
 Maintainer: Sean Rohan <sean.rohan@noaa.gov>
 Depends: R (>= 4.0.0), plyr, dplyr, ggplot2, stats, utils, lubridate, RODBC, getPass, gtools, mgcv, mgcViz, foreach, caret, doParallel, scales, ggthemes
