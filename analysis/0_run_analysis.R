@@ -5,7 +5,7 @@ library(sratio)
 
 n_cores <- 4 # Cores for parallel processing
 bin_width <- c(rep(5, 8), c(10, 5, 10))  # May need to change for different species
-species_codes <- c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68560, 68580, 69322) # 10112, 68580
+species_codes <- c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68560, 68580, 69322) # 10112
 measurement_label <- c(rep("Fork length (cm)", 7), "Total length (cm)", rep("Carapace width (mm)", 2), "Carapace length (mm)")
 seed <- 909823 # RNG seed
 
@@ -88,9 +88,16 @@ for(jj in 1:length(species_codes)) {
               color = "blue",
               linewidth = 1.5) +
     geom_abline(slope = 1, intercept = 0, linetype = 2) +
-    geom_point(data = catch_df,
-               mapping = aes(x = CPUE_WEIGHT_30, CPUE_WEIGHT_15)) +
+    geom_point(data = dplyr::mutate(haul_df,
+                                    YEAR = floor(CRUISE/100)) |> 
+                 dplyr::select(YEAR, MATCHUP, VESSEL) |>
+                 dplyr::inner_join(catch_df),
+               mapping = aes(x = CPUE_WEIGHT_30,
+                             # shape = factor(YEAR)
+                             y = CPUE_WEIGHT_15,
+                             )) +
     theme_bw() +
+    # scale_shape(name = "Year", solid = FALSE) +
     scale_x_continuous(name = expression(CPUE[30]~(kg %.%km^-2))) +
     scale_y_continuous(name = expression(CPUE[15]~(kg %.%km^-2)))
   )
