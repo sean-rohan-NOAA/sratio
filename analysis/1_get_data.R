@@ -179,6 +179,15 @@ get_data <- function(species_codes) {
   crab <- RODBC::sqlQuery(channel = channel,
                                   paste0("select species_code, sex, shell_condition, length, width, weight, vessel, cruise, haul, sampling_factor frequency from crab.ebscrab_15_30_comparison_project
                   where species_code in (", paste(species_codes, collapse = ","), ")")) |>
+    dplyr::mutate(VESSEL = as.numeric(VESSEL),
+                  CRUISE = as.numeric(CRUISE),
+                  HAUL = as.numeric(HAUL),
+                  SPECIES_CODE = as.numeric(SPECIES_CODE),
+                  SEX = as.numeric(SEX),
+                  SHELL_CONDITION = as.numeric(SHELL_CONDITION),
+                  LENGTH = as.numeric(LENGTH),
+                  WIDTH = as.numeric(WIDTH),
+                  FREQUENCY = as.numeric(FREQUENCY)) |>
     dplyr::inner_join(dplyr::select(all_hauls, VESSEL, CRUISE, HAUL, HAULJOIN) |>
                         unique())
   
