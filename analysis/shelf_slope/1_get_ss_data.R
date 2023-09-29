@@ -52,15 +52,39 @@ get_ss_data <- function(species_codes) {
     dplyr::mutate(LENGTH = LENGTH/10) |>
     dplyr::select(VESSEL, CRUISE, HAUL, SPECIES_CODE, LENGTH, FREQUENCY, SEX, HAULJOIN)
   
+  
+  ss_crab <- RODBC::sqlQuery(channel = channel,
+                               paste0("select species_code, sex, shell_condition, length, width, weight, vessel, cruise, haul, sampling_factor frequency from crab.ebscrab_15_30_slope_shelf_comparison_2023tows
+                  where species_code in (", paste(species_codes, collapse = ","), ")")) |>
+    dplyr::mutate(VESSEL = as.numeric(VESSEL),
+                  CRUISE = as.numeric(CRUISE),
+                  HAUL = as.numeric(HAUL),
+                  SPECIES_CODE = as.numeric(SPECIES_CODE),
+                  SEX = as.numeric(SEX),
+                  SHELL_CONDITION = as.numeric(SHELL_CONDITION),
+                  LENGTH = as.numeric(LENGTH),
+                  WIDTH = as.numeric(WIDTH),
+                  FREQUENCY = as.numeric(FREQUENCY)) |>
+    dplyr::inner_join(dplyr::select(ss_haul_2023, VESSEL, CRUISE, HAUL, HAULJOIN) |>
+                        unique())
+  
+  ss_crab$FREQUENCY[is.na(ss_crab$FREQUENCY)] <- 1
+  
+  
+  ss_crab_fish <- dplyr::bind_rows(ss_crab, ss_length_2023)
+  
+  
   saveRDS(ss_haul_2023, file = here::here("analysis", "shelf_slope", "data", "ss_haul.rds"))
   saveRDS(ss_catch_2023, file = here::here("analysis", "shelf_slope", "data", "ss_catch.rds"))
   saveRDS(ss_length_2023, file = here::here("analysis", "shelf_slope", "data", "ss_length.rds"))
+  saveRDS(object = ss_crab, file = here::here("analysis", "shelf_slope", "data", "ss_crab.rds"))
+  saveRDS(object = ss_crab_fish, file = here::here("analysis", "shelf_slope", "data", "ss_fish_crab_size.rds"))
   
-  ss_length_2023 |>
+  ss_crab_fish |>
     dplyr::mutate(YEAR = floor(CRUISE/100)) |>
     dplyr::group_by(SPECIES_CODE, YEAR) |>
     dplyr::summarise(n = sum(FREQUENCY)) |>
-    write.csv(file = here::here("analysis", "shelf_slope", "plots", "sample_sizes_1530.csv"), row.names = FALSE)
+    write.csv(file = here::here("analysis", "shelf_slope", "plots", "ss_sample_sizes.csv"), row.names = FALSE)
   
   ss_haul_2023 |>
     dplyr::group_by(CRUISE) |>

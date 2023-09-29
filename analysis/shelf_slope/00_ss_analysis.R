@@ -5,8 +5,8 @@ library(sratio)
 
 n_cores <- 4 # Cores for parallel processing
 bin_width <- c(5, 5, 4, 4, 5, 5)  # May need to change for different species
-species_codes <- c(21740, 21720, 10130, 10110, 471, 10112) #, 68560, 68580, 69322)
-measurement_label <- c(rep("Fork length (cm)", 7), "Total length (cm)", rep("Carapace width (mm)", 2), "Carapace length (mm)")
+species_codes <- c(21740, 21720, 10130, 10115, 471, 69322, 68580, 10110, 10112, 68560) #, 68560, 69322)
+measurement_label <- c(rep("Fork length (cm)", 4), "Total length (cm)", "Carapace length (mm)", "Carapace width (mm)", rep("Fork length (cm)", 2), "Carapace width (mm)")
 seed <- 5251315 # RNG seed
 
 # 2. Get data ----
@@ -14,13 +14,13 @@ source(here::here("analysis", "shelf_slope", "1_get_ss_data.R"))
 
 cpue_comparison_df <- data.frame()
 
-for(jj in 1:length(species_codes)) {
+for(jj in 6:length(species_codes)) {
   
   sel_species <- species_codes[jj]
   
   dir.create(here::here("analysis", "shelf_slope", "output", sel_species), showWarnings = FALSE)
   
-  # Setup area spet data
+  # Setup effort data
   haul_df <- readRDS(file = here::here("analysis", "shelf_slope", "data", "ss_haul.rds"))
   
   area_swept_df <- dplyr::select(haul_df, MATCHUP, AREA_SWEPT_KM2, GEAR) |>
@@ -115,7 +115,7 @@ for(jj in 1:length(species_codes)) {
   
   
   # Setup length data
-  length_df <- readRDS(file = here::here("analysis", "shelf_slope", "data", "ss_length.rds")) |>
+  length_df <- readRDS(file = here::here("analysis", "shelf_slope", "data", "ss_fish_crab_size.rds")) |>
     dplyr::filter(SPECIES_CODE == sel_species)
   
   if(nrow(length_df) < 0) {

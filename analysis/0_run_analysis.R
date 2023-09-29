@@ -20,7 +20,7 @@ for(jj in 1:length(species_codes)) {
   
   dir.create(here::here("output", sel_species), showWarnings = FALSE)
   
-  # Setup area spet data
+  # Setup effort data
   haul_df <- readRDS(file = here::here("data", "hauls_1530.rds"))
   
   area_swept_df <- dplyr::select(haul_df, MATCHUP, AREA_SWEPT_KM2, TREATMENT) |>
