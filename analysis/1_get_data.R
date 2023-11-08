@@ -223,6 +223,14 @@ get_data <- function(species_codes) {
   
   saveRDS(object = crab_fish, file = here::here("data", "fish_crab_size_1530.rds"))
   
+  data_1530 <- list(
+    project = "15/30 Minute Tow Comparison",
+    catch = catch,
+    haul = all_hauls,
+    size = crab_fish)
+  
+  save(data_1530, file = here::here("data", "data_1530.rda"))
+  
   crab_fish |>
     dplyr::mutate(YEAR = floor(CRUISE/100)) |>
     dplyr::group_by(SPECIES_CODE, YEAR) |>

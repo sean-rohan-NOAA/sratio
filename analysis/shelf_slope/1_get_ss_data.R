@@ -73,6 +73,13 @@ get_ss_data <- function(species_codes) {
   
   ss_crab_fish <- dplyr::bind_rows(ss_crab, ss_length_2023)
   
+  data_ss <- list(
+    project = "Shelf/Slope Tow Comparison",
+    catch = ss_catch_2023,
+    haul = ss_haul_2023,
+    size = ss_crab_fish)
+  
+  save(data_ss, file = here::here("data", "data_ss.rda"))
   
   saveRDS(ss_haul_2023, file = here::here("analysis", "shelf_slope", "data", "ss_haul.rds"))
   saveRDS(ss_catch_2023, file = here::here("analysis", "shelf_slope", "data", "ss_catch.rds"))
