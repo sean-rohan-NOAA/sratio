@@ -10,7 +10,8 @@ get_ss_data <- function(species_codes) {
                                         and haul_type = 20
                                         and vessel in (134, 162)
                                         and performance >= 0")  |>
-    dplyr::mutate(AREA_SWEPT_KM2 = NET_WIDTH/1000*DISTANCE_FISHED)
+    dplyr::mutate(AREA_SWEPT_KM2 = NET_WIDTH/1000*DISTANCE_FISHED,
+                  TREATMENT = GEAR)
   
   ss_matchups_2023 <- dplyr::group_by(ss_haul_2023, STATIONID, CRUISE) |>
     dplyr::summarise(n = n()) |>
@@ -20,7 +21,8 @@ get_ss_data <- function(species_codes) {
     dplyr::ungroup() |>
     dplyr::mutate(MATCHUP = dplyr::row_number())
   
-  ss_haul_2023 <- dplyr::inner_join(ss_haul_2023, ss_matchups_2023)
+  ss_haul_2023 <- dplyr::inner_join(ss_haul_2023, ss_matchups_2023) |>
+    dplyr::mutate(YEAR = floor(CRUISE/100))
   
   
   ss_matchups_2023 <- dplyr::select(ss_haul_2023, STATIONID, CRUISE) |>
@@ -69,7 +71,6 @@ get_ss_data <- function(species_codes) {
                         unique())
   
   ss_crab$FREQUENCY[is.na(ss_crab$FREQUENCY)] <- 1
-  
   
   ss_crab_fish <- dplyr::bind_rows(ss_crab, ss_length_2023)
   

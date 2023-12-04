@@ -119,7 +119,8 @@ get_data <- function(species_codes) {
   all_hauls <- dplyr::select(all_hauls, STATIONID, CRUISE) |>
     unique() |>
     dplyr::mutate(MATCHUP = dplyr::row_number()) |>
-    dplyr::inner_join(all_hauls)
+    dplyr::inner_join(all_hauls) |>
+    dplyr::mutate(YEAR = floor(CRUISE/100))
   
   saveRDS(object = all_hauls, file = here::here("data", "hauls_1530.rds"))
   
@@ -138,7 +139,8 @@ get_data <- function(species_codes) {
                          and region = 'BS'
                          and species_code in (", paste(species_codes, collapse = ","),  ")")) |>
     dplyr::inner_join(unique(dplyr::select(all_hauls, VESSEL, CRUISE, HAUL))) |>
-    dplyr::select(VESSEL, CRUISE, HAUL, SPECIES_CODE, WEIGHT, NUMBER_FISH, HAULJOIN)
+    dplyr::select(VESSEL, CRUISE, HAUL, SPECIES_CODE, WEIGHT, NUMBER_FISH, HAULJOIN) |>
+    dplyr::inner_join(dplyr::select(all_hauls, HAULJOIN, MATCHUP))
   
   saveRDS(object = catch, file = here::here("data", "catch_1530.rds"))
   
@@ -156,7 +158,8 @@ get_data <- function(species_codes) {
                          and species_code in (", paste(species_codes, collapse = ","),  ")")) |>
     dplyr::inner_join(unique(dplyr::select(all_hauls, VESSEL, CRUISE, HAUL))) |>
     dplyr::mutate(LENGTH = LENGTH/10) |>
-    dplyr::select(VESSEL, CRUISE, HAUL, SPECIES_CODE, LENGTH, FREQUENCY, SEX, HAULJOIN)
+    dplyr::select(VESSEL, CRUISE, HAUL, SPECIES_CODE, LENGTH, FREQUENCY, SEX, HAULJOIN) |>
+    dplyr::inner_join(dplyr::select(all_hauls, HAULJOIN, MATCHUP))
   
   saveRDS(object = lengths, file = here::here("data", "fish_lengths_1530.rds"))
   
@@ -206,7 +209,8 @@ get_data <- function(species_codes) {
     dplyr::inner_join(dplyr::select(all_hauls, VESSEL, CRUISE, HAUL, HAULJOIN) |>
                         unique())
   
-  crab <- dplyr::bind_rows(crab, crab_2023)
+  crab <- dplyr::bind_rows(crab, crab_2023) |>
+    dplyr::inner_join(dplyr::select(all_hauls, HAULJOIN, MATCHUP))
   
   crab$FREQUENCY[is.na(crab$FREQUENCY)] <- 1
   

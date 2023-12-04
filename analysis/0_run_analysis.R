@@ -3,14 +3,16 @@
 # 1. Setup ----
 library(sratio)
 
+# 2. Get data ----
+source(here::here("analysis", "1_get_data.R"))
+
+cpue_df <- sratio:::make_cpue_wide(sratio::data_1530)
+
 n_cores <- 4 # Cores for parallel processing
 bin_width <- c(rep(5, 8), c(10, 5, 10))  # May need to change for different species
 species_codes <- c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68560, 68580, 69322) # 10112
 measurement_label <- c(rep("Fork length (cm)", 7), "Total length (cm)", rep("Carapace width (mm)", 2), "Carapace length (mm)")
 seed <- 909823 # RNG seed
-
-# 2. Get data ----
-source(here::here("analysis", "1_get_data.R"))
 
 cpue_comparison_df <- data.frame()
 
@@ -18,98 +20,62 @@ for(jj in 1:length(species_codes)) {
   
   sel_species <- species_codes[jj]
   
+  sel_cpue <- dplyr::filter(cpue_df, SPECIES_CODE == sel_species)
+  
   dir.create(here::here("output", sel_species), showWarnings = FALSE)
   
-  # Setup effort data
-  haul_df <- readRDS(file = here::here("data", "hauls_1530.rds"))
-  
-  area_swept_df <- dplyr::select(haul_df, MATCHUP, AREA_SWEPT_KM2, TREATMENT) |>
-    dplyr::mutate(TREATMENT_COL = paste0("AREA_SWEPT_KM2_", TREATMENT)) |>
-    dplyr::select(-TREATMENT) |>
-    tidyr::pivot_wider(names_from = TREATMENT_COL, values_from = AREA_SWEPT_KM2)
-  
-  # Setup catch data
-  catch_df <- readRDS(file = here::here("data", "catch_1530.rds")) |>
-    dplyr::filter(SPECIES_CODE == sel_species) |>
-    dplyr::inner_join(dplyr::select(haul_df, HAULJOIN, MATCHUP, TREATMENT)) |>
-    dplyr::select(WEIGHT, NUMBER_FISH, MATCHUP, TREATMENT) |>
-    dplyr::mutate(NUMBER_FISH_COL = paste0("NUMBER_FISH_", TREATMENT),
-                  WEIGHT_COL = paste0("WEIGHT_", TREATMENT)) |>
-    dplyr:::select(-TREATMENT) |>
-    dplyr::arrange(MATCHUP) |>
-    tidyr::pivot_wider(names_from = c(NUMBER_FISH_COL, WEIGHT_COL),
-                       values_from = c(NUMBER_FISH, WEIGHT),
-                       values_fill = 0) |>
-    dplyr::inner_join(area_swept_df)
-  
-  names(catch_df)[1:5] <- c("MATCHUP", "NUMBER_FISH_30", "NUMBER_FISH_15", "WEIGHT_30", "WEIGHT_15")
-  
-  catch_df <- catch_df |>
-    dplyr::mutate(CPUE_WEIGHT_30 = WEIGHT_30/AREA_SWEPT_KM2_30,
-                  CPUE_WEIGHT_15 = WEIGHT_15/AREA_SWEPT_KM2_15,
-                  CPUE_NUMBER_FISH_30 = NUMBER_FISH_30/AREA_SWEPT_KM2_30,
-                  CPUE_NUMBER_FISH_15 = NUMBER_FISH_15/AREA_SWEPT_KM2_15,
-                  OFFSET = AREA_SWEPT_KM2_15/AREA_SWEPT_KM2_30,
-                  RATIO = WEIGHT_30/WEIGHT_15)
-  
-  catch_mod <- gam(log(CPUE_WEIGHT_15+1) ~ s(log(CPUE_WEIGHT_30+1), bs = "cr"),
-                   data = catch_df)
+  catch_mod <- gam(log(CPUE_KGKM2_15+1) ~ s(log(CPUE_KGKM2_30+1), bs = "cr"),
+                   data = sel_cpue)
 
-  catch_fit_df <- data.frame(CPUE_WEIGHT_30 = exp(seq(log(min(catch_df$CPUE_WEIGHT_30 + 1)),
-                                                      log(max(catch_df$CPUE_WEIGHT_30 + 1)),
+  catch_fit_df <- data.frame(CPUE_KGKM2_30 = exp(seq(log(min(sel_cpue$CPUE_KGKM2_30 + 1)),
+                                                      log(max(sel_cpue$CPUE_KGKM2_30 + 1)),
                                                       length = 100)) - 1)
   
-  catch_fit_df$FIT_CPUE_WEIGHT_15 <- predict(catch_mod, 
+  catch_fit_df$FIT_CPUE_KGKM2_15 <- predict(catch_mod, 
                                              newdata = catch_fit_df)
   
-  catch_fit_df$FIT_SE_CPUE_WEIGHT_15 <- predict(catch_mod, 
+  catch_fit_df$FIT_SE_CPUE_KGKM2_15 <- predict(catch_mod, 
                                                 newdata = catch_fit_df, se.fit = TRUE)$se
   
   # bias_correction_factor <- summary(catch_mod)$sigma^2/2
   bias_correction_factor <- 0
   
-  catch_fit_df$FIT_LOWER_CPUE_WEIGHT_15 <- (exp(catch_fit_df$FIT_CPUE_WEIGHT_15 - catch_fit_df$FIT_SE_CPUE_WEIGHT_15 + bias_correction_factor)-1)
-  catch_fit_df$FIT_UPPER_CPUE_WEIGHT_15 <- (exp(catch_fit_df$FIT_CPUE_WEIGHT_15 + catch_fit_df$FIT_SE_CPUE_WEIGHT_15 + bias_correction_factor)-1)
-  catch_fit_df$FIT_CPUE_WEIGHT_15 <- (exp(catch_fit_df$FIT_CPUE_WEIGHT_15 + bias_correction_factor)-1)
+  catch_fit_df$FIT_LOWER_CPUE_KGKM2_15 <- (exp(catch_fit_df$FIT_CPUE_KGKM2_15 - catch_fit_df$FIT_SE_CPUE_KGKM2_15 + bias_correction_factor)-1)
+  catch_fit_df$FIT_UPPER_CPUE_KGKM2_15 <- (exp(catch_fit_df$FIT_CPUE_KGKM2_15 + catch_fit_df$FIT_SE_CPUE_KGKM2_15 + bias_correction_factor)-1)
+  catch_fit_df$FIT_CPUE_KGKM2_15 <- (exp(catch_fit_df$FIT_CPUE_KGKM2_15 + bias_correction_factor)-1)
 
   
   ragg::agg_png(file = here::here("plots", paste0(sel_species, "_gam_1530.png")), width = 70, height = 70, units = "mm", res = 600)
   print(
   ggplot() +
     geom_ribbon(data = catch_fit_df,
-                mapping = aes(x = CPUE_WEIGHT_30,
-                              ymin = FIT_LOWER_CPUE_WEIGHT_15,
-                              ymax = FIT_UPPER_CPUE_WEIGHT_15),
+                mapping = aes(x = CPUE_KGKM2_30,
+                              ymin = FIT_LOWER_CPUE_KGKM2_15,
+                              ymax = FIT_UPPER_CPUE_KGKM2_15),
                 alpha = 0.3,
                 color = NA) +
     geom_path(data = catch_fit_df,
-              mapping = aes(x = CPUE_WEIGHT_30, 
-                            y = FIT_CPUE_WEIGHT_15),
+              mapping = aes(x = CPUE_KGKM2_30, 
+                            y = FIT_CPUE_KGKM2_15),
               color = "blue",
               linewidth = 1.5) +
     geom_abline(slope = 1, intercept = 0, linetype = 2) +
-    geom_point(data = dplyr::mutate(haul_df,
-                                    YEAR = floor(CRUISE/100)) |> 
-                 dplyr::select(YEAR, MATCHUP, VESSEL) |>
-                 dplyr::inner_join(catch_df),
-               mapping = aes(x = CPUE_WEIGHT_30,
-                             # shape = factor(YEAR)
-                             y = CPUE_WEIGHT_15,
-                             )) +
+    geom_point(data = sel_cpue,
+               mapping = aes(x = CPUE_KGKM2_30,
+                             y = CPUE_KGKM2_15)) +
     theme_bw() +
-    # scale_shape(name = "Year", solid = FALSE) +
     scale_x_continuous(name = expression(CPUE[30]~(kg %.%km^-2))) +
     scale_y_continuous(name = expression(CPUE[15]~(kg %.%km^-2)))
   )
   dev.off()
   
   cpue_comparison_df <- data.frame(SPECIES_CODE = sel_species) |>
-    dplyr::bind_cols(as.data.frame(calculate_performance_metrics(x = catch_df$CPUE_WEIGHT_15, y = catch_df$CPUE_WEIGHT_30))) |>
+    dplyr::bind_cols(as.data.frame(calculate_performance_metrics(x = sel_cpue$CPUE_KGKM2_15, y = sel_cpue$CPUE_KGKM2_30))) |>
     dplyr::bind_rows(cpue_comparison_df)
   
   
   # Setup length data
-  length_df <- readRDS(file = here::here("data", "fish_crab_size_1530.rds")) |>
+  length_df <- sratio::data_1530$size |>
     dplyr::filter(SPECIES_CODE == sel_species)
   
   if(nrow(length_df) < 0) {
@@ -147,7 +113,7 @@ for(jj in 1:length(species_codes)) {
   length_df <- tidyr::pivot_longer(length_df, cols = 2:ncol(length_df)) |>
     dplyr::rename(LEN_MIDPOINT = name,
                   FREQUENCY = value) |>
-    dplyr::inner_join(dplyr::select(haul_df, HAULJOIN, TREATMENT, MATCHUP)) |>
+    dplyr::inner_join(dplyr::select(sratio::data_1530$haul, HAULJOIN, TREATMENT, MATCHUP)) |>
     dplyr::mutate(TREATMENT_COL = paste0("N_", TREATMENT)) |>
     dplyr::select(-HAULJOIN, -TREATMENT) |>
     tidyr::pivot_wider(names_from = TREATMENT_COL, values_from = FREQUENCY) |>
@@ -166,19 +132,19 @@ for(jj in 1:length(species_codes)) {
   }
   
   pratio_df <- data.frame()
-  unique_matchups <- unique(haul_df$MATCHUP)
+  unique_matchups <- unique(sratio::data_1530$haul$MATCHUP)
   
   for(ii in 1:length(unique_matchups)) {
     
-    sel_area_swept <- dplyr::filter(area_swept_df, MATCHUP == unique_matchups[ii])
-    sel_catch <- dplyr::filter(catch_df, MATCHUP == unique_matchups[ii])
+    sel_cpue_df <- dplyr::filter(cpue_df, MATCHUP == unique_matchups[ii])
+    sel_catch <- dplyr::filter(sratio::data_1530$catch, MATCHUP == unique_matchups[ii])
     sel_length <- dplyr::filter(length_df, MATCHUP == unique_matchups[ii])
     
     sel_length$p <- suppressMessages(
       selectivity_ratio(count1 = sel_length$N_30, 
-                                      count2 = sel_length$N_15, 
-                                      effort1 = sel_area_swept$AREA_SWEPT_KM2_30, 
-                                      effort2 = sel_area_swept$AREA_SWEPT_KM2_15)$p12
+                        count2 = sel_length$N_15, 
+                        effort1 = sel_cpue_df$AREA_SWEPT_KM2_30, 
+                        effort2 = sel_cpue_df$AREA_SWEPT_KM2_15)$p12
       )
     
     pratio_df <- dplyr::bind_rows(pratio_df, sel_length)
@@ -368,10 +334,7 @@ for(jj in 1:length(species_codes)) {
        rmse_df, 
        bootstrap_df, 
        bootstrap_fits, 
-       observed_prediction_df, 
-       haul_df, 
-       length_df, 
-       catch_df, 
+       observed_prediction_df,
        gam_logit, 
        gam_beta, 
        file = here::here("output", sel_species, paste0("sratio_output_", sel_species, ".rda")))
