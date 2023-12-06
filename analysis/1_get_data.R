@@ -91,7 +91,24 @@ get_data <- function(species_codes) {
                             and h.cruise = 202301
                             and h.region = 'BS'") |>
     dplyr::inner_join(unique(dplyr::select(hauls_short_2023, STATIONID, CRUISE)))
-  
+# 1995 hauls (manual selection). Not added into all_hauls.rds
+  hauls_1995 <- RODBC::sqlQuery(channel = channel,
+                                query = "select h.hauljoin, h.net_measured, h.wire_length, 
+                            h.start_time, 
+                            h.performance, h.vessel, h.cruise, 
+                            h.haul, h.region, h.duration, h.distance_fished, h.net_width, 
+                            h.net_height, h.start_latitude, h.end_latitude, h.start_longitude, 
+                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
+                            h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
+                            from racebase.haul h  
+                            where cruise = 199501
+                            and vessel in (88, 89)
+                            and haul_type = 7
+                            and performance >= 0")|>
+    dplyr::filter(
+      (VESSEL == 88 & HAUL %in% c(192:196, 204, 205, 209, 211, 212, 215, 217, 223, 225, 228, 229, 234, 235, 237, 239, 245:247, 254, 258:261))|
+        (VESSEL == 89 & HAUL %in% c(207:211, 217, 218, 222, 224, 225, 228, 230:232, 234, 236, 239, 240, 246, 247, 251:253, 260, 262, 263))) 
+    
   all_hauls <- dplyr::bind_rows(hauls_2021,
                                 hauls_short_2022,
                                 hauls_normal_2022,
