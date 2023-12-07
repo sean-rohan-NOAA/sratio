@@ -12,23 +12,33 @@ library(plotly)
 
 map_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3338")
 
-channel <- get_connected(schema = "AFSC")
-
-# Retrieve data from the 15/30 hauls from Pam Goddard's thesis
-# Goddard, P. D. 1997. The effects of tow duration and subsampling on CPUE, species composition and 
-#   length distributions of bottom trawl survey catches. University of Washington. 119 pp.
-hauls_1995 <- RODBC::sqlQuery(channel = channel,
-                              query = "select * from racebase.haul
+get_goddard <- function(){
+  channel <- get_connected(schema = "AFSC")
+  
+  # Retrieve data from the 15/30 hauls from Pam Goddard's thesis
+  # Goddard, P. D. 1997. The effects of tow duration and subsampling on CPUE, species composition and 
+  #   length distributions of bottom trawl survey catches. University of Washington. 119 pp.
+  hauls_1995 <- RODBC::sqlQuery(channel = channel,
+                                query = "select * from racebase.haul
                                         where cruise = 199501
                                         and vessel in (88, 89)
-                                        and haul_type = 7") |>
-  dplyr::filter(!is.na(NET_WIDTH),
-                !is.na(DISTANCE_FISHED),
-                PERFORMANCE >= 0) |>
-  dplyr::filter(DISTANCE_FISHED > 0,
-                START_TIME > as.POSIXct("1995-07-24 PDT")) |>
-  dplyr::filter(!(HAUL %in% c(218) & VESSEL == 88),
-                HAUL < 267)
+                                        and haul_type = 7
+                                        and performance >= 0") |>
+    dplyr::filter(!is.na(NET_WIDTH),
+                  !is.na(DISTANCE_FISHED),
+                  PERFORMANCE >= 0) |>
+    dplyr::filter(DISTANCE_FISHED > 0,
+                  START_TIME > as.POSIXct("1995-07-24 PDT")) |>
+    dplyr::filter(!(HAUL %in% c(218) & VESSEL == 88),
+                  HAUL < 267) |>
+    dplyr::filter(
+      (VESSEL == 88 & HAUL %in% c(192:196, 204, 205, 209, 211, 212, 215, 217, 223, 225, 228, 229, 234, 235, 237, 239, 245:247, 254, 258:261))|
+        (VESSEL == 89 & HAUL %in% c(207:211, 217, 218, 222, 224, 225, 228, 230:232, 234, 236, 239, 240, 246, 247, 251:253, 260, 262, 263))) 
+  saveRDS(hauls_1995, here::here("data", "hauls_1995.rds"))
+  
+}
+
+get_goddard()
 
 # Make an sf object showing haul paths (estimated as a straight line between start and end positions)
 hauls_1995_sf <- hauls_1995 |>
