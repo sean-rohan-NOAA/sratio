@@ -1,10 +1,10 @@
 Package: sratio
 Type: Package
 Title: Selectivity ratio
-Version: 2023.11.08
+Version: 2023.12.27
 Authors@R: c(person("Sean", "Rohan", email = "sean.rohan@noaa.gov", role = c("aut", "cre")))
 Maintainer: Sean Rohan <sean.rohan@noaa.gov>
-Depends: R (>= 4.0.0), plyr, dplyr, ggplot2, stats, utils, lubridate, RODBC, getPass, gtools, mgcv, mgcViz, foreach, caret, doParallel, scales, ggthemes
+Depends: R (>= 4.0.0), plyr, dplyr, ggplot2, stats, utils, lubridate, RODBC, getPass, gtools, mgcv, mgcViz, foreach, caret, doParallel, scales, ggthemes, brms
 Description: A preliminiary power analysis to estimate the sample size necessary to detect a significant difference in fishery longline and bottom trawl survey selectivity for Pacific cod. Calculate selectivity ratio.
 License: GPL (>=2)
 Encoding: UTF-8

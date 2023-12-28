@@ -1,10 +1,13 @@
+# Model 
+
+
 library(lme4)
 library(ggplot2)
 library(tidyr)
 
 dat <- dplyr::inner_join(readRDS(file = here::here("data", "catch_1530.rds")),
                          readRDS(file = here::here("data", "hauls_1530.rds")), 
-                         by = c("VESSEL", "CRUISE", "HAUL", "HAULJOIN")) |>
+                         by = c("VESSEL", "CRUISE", "HAUL", "HAULJOIN", "MATCHUP")) |>
   dplyr::mutate(TREATMENT = factor(TREATMENT)) |>
   dplyr::mutate(CPUE_KGKM2 = WEIGHT/AREA_SWEPT_KM2,
                 CPUE_NKM2  = NUMBER_FISH/AREA_SWEPT_KM2,
@@ -60,43 +63,46 @@ fit_cpue_weight_models <- function(catch_weight,
                            haul_duration = haul_duration,
                            treatment = treatment,
                            matchup = matchup,
-                           log_offset = log_offset)
+                           log_offset = log_offset,
+                           dummy_var = 1)
 
   if(!is.null(haul_duration)) {
-    m1 <- mgcv::gamm(formula = log(catch_weight + log_offset) ~ treatment + 0, 
-                     random = list(matchup = ~1),
+    m1 <- mgcv::gam(formula = log(catch_weight + log_offset) ~ treatment + 
+                      s(matchup, bs = "re", by = dummy_var) + 0, 
                      offset = haul_duration,
                      family = family,
                      data = input_data)
     
-    m3 <- mgcv::gamm(formula = log(catch_weight + log_offset) ~ treatment + s(log(haul_duration) + 0, bs = "tp"), 
-                     random = list(matchup = ~1),
+    m3 <- mgcv::gam(formula = log(catch_weight + log_offset) ~ treatment + 
+                      s(log(haul_duration), bs = "tp") + 
+                      s(matchup, bs = "re", by = dummy_var) + 0, 
                      family = family,
                      data = input_data)
     
-    m5 <- mgcv::gamm(formula = log(catch_weight + log_offset) ~ treatment + s(log(haul_duration) + 0, bs = "tp"), 
-                     random = list(matchup = ~1),
+    m5 <- mgcv::gam(formula = log(catch_weight + log_offset) ~ treatment + 
+                       s(log(haul_duration), bs = "tp") + 
+                       s(matchup, bs = "re", by = dummy_var) + 0, 
                      offset = haul_duration,
                      family = family,
                      data = input_data)
   }
 
   if(!is.null(area_swept)) {
-    m2 <- mgcv::gamm(formula = log(catch_weight + log_offset) ~ treatment + 0, 
-                     random = list(matchup = ~1),
+    m2 <- mgcv::gam(formula = log(catch_weight + log_offset) ~ treatment + 
+                      s(matchup, bs = "re", by = dummy_var) + 0, 
                      offset = area_swept,
                      family = family,
                      data = input_data)
     
-    m4 <- mgcv::gamm(formula = log(catch_weight + log_offset) ~ treatment + s(log(area_swept) + 0, bs = "tp"), 
-                     random = list(matchup = ~1),
+    m4 <- mgcv::gam(formula = log(catch_weight + log_offset) ~ treatment + 
+                      s(log(area_swept), bs = "tp") + 
+                      s(matchup, bs = "re", by = dummy_var) + 0, 
                      family = family,
                      data = input_data)
     
-    
-    
-    m6 <- mgcv::gamm(formula = log(catch_weight + log_offset) ~ treatment + s(log(area_swept) + 0, bs = "tp"), 
-                     random = list(matchup = ~1),
+    m6 <- mgcv::gam(formula = log(catch_weight + log_offset) ~ treatment + 
+                      s(log(area_swept), bs = "tp") + 
+                      s(matchup, bs = "re", by = dummy_var) + 0, 
                      offset = area_swept,
                      family = family,
                      data = input_data)

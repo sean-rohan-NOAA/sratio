@@ -3,15 +3,16 @@
 # 1. Setup ----
 library(sratio)
 
+n_cores <- 4 # Cores for parallel processing
+bin_width <- c(rep(5, 8), c(10, 5, 10))  # May need to change for different species
+species_codes <- c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68560, 68580, 69322) # 10112
+measurement_label <- c(rep("Fork length (cm)", 7), "Total length (cm)", rep("Carapace width (mm)", 2), "Carapace length (mm)")
+
 # 2. Get data ----
 source(here::here("analysis", "1_get_data.R"))
 
 cpue_df <- sratio:::make_cpue_wide(sratio::data_1530)
 
-n_cores <- 4 # Cores for parallel processing
-bin_width <- c(rep(5, 8), c(10, 5, 10))  # May need to change for different species
-species_codes <- c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68560, 68580, 69322) # 10112
-measurement_label <- c(rep("Fork length (cm)", 7), "Total length (cm)", rep("Carapace width (mm)", 2), "Carapace length (mm)")
 seed <- 909823 # RNG seed
 
 cpue_comparison_df <- data.frame()
@@ -89,10 +90,6 @@ for(jj in 1:length(species_codes)) {
   if(sel_species %in% c(68580, 68560)) {
     length_df$LENGTH <- length_df$WIDTH
   }
-  
-  # if(sel_species %in% c(68580, 68560, 69322, 69323)) {
-  #   length_df$FREQUENCY <- 1
-  # }
   
   # Setup length bins
   len_min <- min(length_df$LENGTH)
@@ -207,7 +204,8 @@ for(jj in 1:length(species_codes)) {
   
   gam_beta <- gam(p_scaled ~ s(LEN_MIDPOINT, bs = "cr", k = gam_knots) + s(MATCHUP, bs = "re", by = dummy_var), 
                   data = pratio_df |>
-                    dplyr::mutate(MATCHUP = factor(MATCHUP)),
+                    dplyr::mutate(MATCHUP = factor(MATCHUP),
+                                  dummy_var = 1),
                   family = betar(link = "logit"))
   
   logit_summary <- summary(gam_logit)
