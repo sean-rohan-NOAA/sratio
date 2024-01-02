@@ -108,7 +108,8 @@ source(here::here("analysis", "09_plot_catch_at_length_model.R"))
 #     (10-4) ./plots/cpue_log_model_scatterplot.png (regression fits between log10(CPUE15)~log10(CPUE30))
 source(here::here("analysis/10_cpue_model.R"))
 
-# 11. Mean bias and other metrics comparing CPUE between 15 and 30 minute tows
+# 11. Mean bias and other metrics ---- 
+#  Compare CPUE between 15 and 30 minute tows
 # Inputs:
 #     (1-6) ./data/data_1530.rda (built-in data set; sratio::data_1530)
 # Outputs:
@@ -116,8 +117,9 @@ source(here::here("analysis/10_cpue_model.R"))
 source(here::here("analysis", "11_performance_metrics.R"))
 
 
-# 90. Map of annual samples
+# 90. Map of annual samples ----
 # Inputs:
 #     (1-6) ./data/data_1530.rda (built-in data set; sratio::data_1530)
 # Outputs:
 #     (90-1) ./plots/map_samples_by_stratum.png (samples by stratum for project plan and presentations)
+source(here::here("analysis", "90_sample_map.R"))
