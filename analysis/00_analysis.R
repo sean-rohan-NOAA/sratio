@@ -35,7 +35,6 @@ source(here::here("analysis", "02_prepare_data.R"))
 #     (2-1) ./output/catch_at_length_1530.rds
 # Outputs: 
 #     (3-1) ./output/{species_code}/bootstrap_samples_{species_code}.rds
-
 source(here::here("analysis", "03_bootstrap_samples.R"))
 
 
@@ -96,6 +95,7 @@ source(here::here("analysis", "08_bootstrap_catch_at_length_model.R"))
 #     (9-2) ./plots/{species_code}_total_catch_gam_ratio_lines.png
 source(here::here("analysis", "09_plot_catch_at_length_model.R"))
 
+
 # 10. Total catch model ----
 # Bayesian zero-intercept linear regression model between log10(CPUE) from 15 and 30 minute hauls
 # to evaluate whether there is a one-to-one relationship between CPUE from 15 and 30 minute hauls (i.e. slope = 1)
@@ -107,6 +107,7 @@ source(here::here("analysis", "09_plot_catch_at_length_model.R"))
 #     (10-3) ./plots/cpue_model_boxplot.png (boxplot of regression slope 95% credible intervals)
 #     (10-4) ./plots/cpue_log_model_scatterplot.png (regression fits between log10(CPUE15)~log10(CPUE30))
 source(here::here("analysis/10_cpue_model.R"))
+
 
 # 11. Mean bias and other metrics ---- 
 #  Compare CPUE between 15 and 30 minute tows
