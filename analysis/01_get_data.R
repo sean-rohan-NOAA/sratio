@@ -107,7 +107,7 @@ get_data <- function(species_codes) {
                             and performance >= 0")|>
     dplyr::filter(
       (VESSEL == 88 & HAUL %in% c(192:196, 204, 205, 209, 211, 212, 215, 217, 223, 225, 228, 229, 234, 235, 237, 239, 245:246, 258:261))|
-        (VESSEL == 89 & HAUL %in% c(207:211, 217, 218, 222, 224, 225, 228, 230:232, 234, 236, 239, 240, 247, 251:252, 262, 263))) |> #removed V89 H 253, 260; V88 H 247, 254 (bc out of station grid)
+        (VESSEL == 89 & HAUL %in% c(207:211, 217, 218, 222, 224, 225, 228, 230:232, 234, 236, 239, 240, 246, 247, 251:252, 262, 263))) |>  #removed V89 H 253, 260; V88 H 247, 254 (bc out of station grid)
     #remove digits prior to station identification and format station numbers into double digits
     dplyr:: mutate(STATIONID = stringr::str_replace(gsub("^\\d+", "", STATIONID), "\\d+", function(x) sprintf('%02d', as.numeric(x)))) |>
     #hard code in new station ids for stations with multiple pairs to assign unique matchup id
@@ -149,6 +149,7 @@ get_data <- function(species_codes) {
                       STATIONID == "L-18" & HAUL == 193 | HAUL == 208 ~ "L-18.d",
                       TRUE ~ STATIONID
                     ))
+                    
     
     
   all_hauls <- dplyr::bind_rows(hauls_2021,
@@ -213,7 +214,7 @@ get_data <- function(species_codes) {
   # Get length data ----
   lengths <- RODBC::sqlQuery(channel = channel,
                              query = paste0("select * from racebase.length
-                         where cruise > 199500
+                         where cruise = 199501 OR cruise >202100
                          and region = 'BS'
                          and species_code in (", paste(species_codes, collapse = ","),  ")")) |>
     dplyr::inner_join(unique(dplyr::select(all_hauls, VESSEL, CRUISE, HAUL))) |>
