@@ -12,7 +12,7 @@ species_codes <- unique(dat_binned$SPECIES_CODE)
 for(ii in 1:length(species_codes)) {
   
   spp_dat <- dplyr::filter(dat_binned, SPECIES_CODE == species_codes[ii])
-  # spp_dat$dummy_var <- 1
+  spp_dat$dummy_var <- 1
   
   gam_knots <- (length(unique(spp_dat $SIZE_BIN))-1)-3
   
@@ -33,7 +33,7 @@ for(ii in 1:length(species_codes)) {
     
     training_df <- spp_dat[fold, ]
     validation_df <- spp_dat[-fold, ]
-    # validation_df$dummy_var <- 0
+    validation_df$dummy_var <- 0
     
     # Add in dummy station variable for predictions, to be added back in for output
     out_matchup <- validation_df$MATCHUP[1]
