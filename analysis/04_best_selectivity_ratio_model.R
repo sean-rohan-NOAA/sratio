@@ -5,6 +5,10 @@ library(sratio)
 dat_sratio <- readRDS(file = here::here("output", "n_by_treatment_1530.rds"))
 
 species_codes <- unique(dat_sratio$SPECIES_CODE)
+
+#temp species drop
+species_codes <- species_codes[-which(species_codes == 68580)]
+
 unique_matchups <- unique(dat_sratio$MATCHUP)
 
 n_cores <- 4
