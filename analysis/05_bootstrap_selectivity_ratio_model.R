@@ -53,10 +53,7 @@ for(ii in 1:length(bootstrap_sample_path)) {
                        "Binomial" = binomial(link = "logit"),
                        "Beta" = betar(link = "logit"))
   
-  gam_formula <- switch(best_model,
-                        "Binomial" =  p ~ s(SIZE_BIN, k = gam_knots, bs = 'tp') + s(MATCHUP, bs = 're', by = dummy_var),
-                        "Beta" =  p_scaled ~ s(SIZE_BIN, k = gam_knots, bs = 'tp') + s(MATCHUP, bs = 're', by = dummy_var))
-  
+ 
   boot_dat <- lapply(boot_dat, make_sratio_df)
   
   lengths <- seq(min(unlist(lapply(boot_dat, FUN = function(x) {min(x$SIZE_BIN)}))), 
@@ -70,6 +67,10 @@ for(ii in 1:length(bootstrap_sample_path)) {
   bootstrap_output <- foreach::foreach(iter = 1:length(boot_dat), .packages = c("mgcv", "dplyr")) %dopar% {
     
     boot_df <- boot_dat[[iter]]
+    
+    gam_formula <- switch(best_model,
+                          "Binomial" =  p ~ s(SIZE_BIN, k = gam_knots, bs = 'tp') + s(MATCHUP, bs = 're', by = dummy_var),
+                          "Beta" =  p_scaled ~ s(SIZE_BIN, k = gam_knots, bs = 'tp') + s(MATCHUP, bs = 're', by = dummy_var))
     
     model <- mgcv::gam(formula = gam_formula,
                        family = gam_family,

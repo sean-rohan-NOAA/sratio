@@ -6,9 +6,9 @@ bootstrap_results_path <- list.files(here::here("output"),
                                      pattern = "cal_model_bootstrap_results_", 
                                      full.names = TRUE)
 
-for(ii in 1:length(species_codes)) {
+for(ii in 1:length(bootstrap_results_path)) {
   
-  sp_code <- as.numeric(gsub("[^0-9]", "", basename(bootstrap_sample_path[ii])))
+  sp_code <- as.numeric(gsub("[^0-9]", "", basename(bootstrap_results_path[ii])))
   
   boot_fit <- readRDS(file = bootstrap_results_path[ii])
   
@@ -55,7 +55,7 @@ for(ii in 1:length(species_codes)) {
   boot_wide$ratio <- boot_wide[, ncol(boot_wide)]/boot_wide[, (ncol(boot_wide)-1)]
   
   boot_fit_ratio <- boot_wide |>
-    dplyr::group_by(SPECIES_CODE, SIZE) |>
+    dplyr::group_by(SIZE_BIN) |>
     dplyr::summarise(q025 = quantile(ratio, 0.025),
                      q250 = quantile(ratio, 0.25),
                      q500 = quantile(ratio, 0.5),

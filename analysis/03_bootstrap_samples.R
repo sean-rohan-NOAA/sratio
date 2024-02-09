@@ -14,6 +14,8 @@ species_codes <- unique(dat$SPECIES_CODE)
 
 for(jj in 1:length(species_codes)) {
   
+  dir.create(here::here("output", species_codes[jj]))
+  
   sel_dat <- dplyr::filter(dat, SPECIES_CODE == species_codes[jj]) |>
     dplyr::group_by(HAULJOIN, SPECIES_CODE, MATCHUP, SIZE_BIN, AREA_SWEPT_KM2, TREATMENT) |>
     dplyr::summarize(FREQ_EXPANDED = sum(FREQ_EXPANDED), .groups = "keep") |>

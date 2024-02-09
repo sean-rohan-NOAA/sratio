@@ -15,7 +15,7 @@ library(sratio)
 #     (1-6) ./data/data_1530.rda (built-in data set; sratio::data_1530)
 #     (1-7) ./plots/sample_sizes_1530.csv (sample size table)
 #     (1-8) ./plots/n_hauls.csv (hauls by year table)
-source(here::here("analysis", "1_get_data.R"))
+source(here::here("analysis", "01_get_data.R"))
 
 
 # 2. Format the built-in data ----
@@ -30,7 +30,7 @@ source(here::here("analysis", "02_prepare_data.R"))
 
 # 3. Two-stage bootstrap samples ----
 # Draw two-stage bootstrap samples for selectivity ratio and catch-at-length models using sratio::two_stage_bootstrap and sratio::nested_bootstrap
-# In the two stage boostrap, matchups are randomly drawn first then lengths are randomly drawn from each match-up and treatment. 
+# In the two stage bootstrap, matchups are randomly drawn first then lengths are randomly drawn from each match-up and treatment. 
 # Input: 
 #     (2-1) ./output/catch_at_length_1530.rds
 # Outputs: 
