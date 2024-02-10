@@ -72,7 +72,7 @@ two_stage_bootstrap <- function(x, group, frequency = NULL, draws) {
 #' 
 #' @param x A vector of the variable to be sampled
 #' @param group A vector of grouping variables for x.
-#' @param frequency A numeric vector giving the frequency of x. Used for probabalistic sample draws. Default = NULL assigns equal sampling probability to each item x.
+#' @param frequency A numeric vector giving the frequency of x. Used for probabilistic sample draws. Default = NULL assigns equal sampling probability to each item x.
 #' @param draw_group Number of group samples to draw
 #' @returns A list containing a list of samples and associated group from which the samples were drawn.
 #' @export

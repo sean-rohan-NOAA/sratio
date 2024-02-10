@@ -9,7 +9,7 @@ nested_bootstrap(x, frequency = NULL, group, draw_group, draw_index)
 \arguments{
 \item{x}{A vector of the variable to be sampled}
 
-\item{frequency}{A numeric vector giving the frequency of x. Used for probabalistic sample draws. Default = NULL assigns equal sampling probability to each item x.}
+\item{frequency}{A numeric vector giving the frequency of x. Used for probabilistic sample draws. Default = NULL assigns equal sampling probability to each item x.}
 
 \item{group}{A vector of grouping variables for x.}
 
