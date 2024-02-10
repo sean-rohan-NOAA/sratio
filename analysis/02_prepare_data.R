@@ -5,23 +5,25 @@ treatments <- factor(c(15,30))
 
 # Load built-in data sets
 catch_df <- sratio::data_1530$catch |>
-  dplyr::filter(CRUISE %in% use_cruises)
+  dplyr::filter(CRUISE %in% use_cruises,
+                USE_FOR_SELECTIVITY)
 
 haul_df <- sratio::data_1530$haul |>
   dplyr::filter(CRUISE %in% use_cruises)
 
 size_df <- sratio::data_1530$size |>
-  dplyr::filter(CRUISE %in% use_cruises)
+  dplyr::filter(CRUISE %in% use_cruises,
+                USE_FOR_SELECTIVITY)
 
 # Data setup ---------------------------------------------------------------------------------------
-dat <- merge(haul_df,
+dat <- dplyr::inner_join(haul_df,
              size_df,
-             all = FALSE) |>
+             by = c("CRUISE", "MATCHUP", "HAULJOIN", "VESSEL", "HAUL")) |>
   dplyr::select(HAULJOIN, SPECIES_CODE, MATCHUP, CRUISE, FREQUENCY, LENGTH, WIDTH, TREATMENT, DISTANCE_FISHED, NET_WIDTH) |>
   dplyr::mutate(AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH / 1000,
-                MATCHUP = factor(MATCHUP)) |>
+                MATCHUP = MATCHUP) |>
   dplyr::group_by(HAULJOIN, SPECIES_CODE, MATCHUP, CRUISE, LENGTH, WIDTH, TREATMENT, AREA_SWEPT_KM2) |>
-  dplyr::summarize(FREQUENCY = sum(FREQUENCY)) |>
+  dplyr::summarize(FREQUENCY = sum(FREQUENCY), .groups = "keep") |>
   as.data.frame()
 
 # Select measurement to use for size (length or width)
@@ -30,12 +32,12 @@ dat$SIZE <- ifelse(!is.na(dat$LENGTH), dat$LENGTH, dat$WIDTH)
 # Expand raw length-frequency data to haul-level counts
 sampling_factor <- dat |>
   dplyr::group_by(HAULJOIN, SPECIES_CODE) |>
-  dplyr::summarize(LEN_COUNT = sum(FREQUENCY)) |>
-  dplyr::inner_join(catch_df) |>
+  dplyr::summarize(LEN_COUNT = sum(FREQUENCY), .groups = "keep") |>
+  dplyr::inner_join(catch_df, by = c("HAULJOIN", "SPECIES_CODE")) |>
   dplyr::mutate(SAMPLING_FACTOR = NUMBER_FISH/LEN_COUNT) |> # sampling factor
   dplyr::select(HAULJOIN, SPECIES_CODE, SAMPLING_FACTOR, NUMBER_FISH)
 
-dat <- dplyr::inner_join(dat, sampling_factor)
+dat <- dplyr::inner_join(dat, sampling_factor, by = c("HAULJOIN", "SPECIES_CODE"))
 
 # Expand size-frequency based on sampling factor calculated from total count in catch
 dat$FREQ_EXPANDED <- dat$FREQUENCY * dat$SAMPLING_FACTOR
