@@ -99,8 +99,8 @@ for(ii in 1:length(bootstrap_results_path)) {
               mapping = aes(x = SIZE_BIN,
                             y = sratio_q500)) +
     scale_x_continuous(name = sratio:::species_code_label(sp_code)) +
-    scale_y_continuous(name = expression(italic(S['L,15,30'])), expand = c(0.05, 0.05)) +
-    # scale_y_log10(name = expression(italic(S['L,15,30'])), expand = c(0.05, 0.05)) +
+    # scale_y_continuous(name = expression(italic(S['L,15,30'])), expand = c(0.05, 0.05)) +
+    scale_y_log10(name = expression(italic(S['L,15,30'])), expand = c(0.05, 0.05)) +
     scale_color_tableau() +
     scale_fill_tableau() +
     theme_bw()

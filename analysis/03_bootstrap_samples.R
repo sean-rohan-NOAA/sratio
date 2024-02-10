@@ -51,7 +51,6 @@ for(jj in 1:length(sp_code)) {
       dplyr::inner_join(dplyr::select(sel_dat,
                                       MATCHUP, TREATMENT, AREA_SWEPT_KM2, HAULJOIN) |>
                           unique(), by = c('MATCHUP', 'TREATMENT')) |>
-      dplyr::mutate(MATCHUP = MATCHUP) |>
       as.data.frame()
     
   }

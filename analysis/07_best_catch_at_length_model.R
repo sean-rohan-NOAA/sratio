@@ -11,7 +11,8 @@ species_codes <- unique(dat_binned$SPECIES_CODE)
 
 for(ii in 1:length(species_codes)) {
   
-  spp_lengths <- dplyr::filter(dat_binned, SPECIES_CODE == species_codes[ii])
+  spp_lengths <- dplyr::filter(dat_binned, SPECIES_CODE == species_codes[ii]) |>
+    dplyr::mutate(MATCHUP = factor(MATCHUP))
   spp_lengths$dummy_var <- 1
   
   gam_knots <- (length(unique(spp_lengths $SIZE_BIN))-1)-3
