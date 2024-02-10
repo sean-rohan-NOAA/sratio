@@ -2,6 +2,11 @@
 # Selectivity ratio, catch-at-length, and total catch rate models.
 library(sratio)
 
+# Vector of cruises to include in analyses  ----
+use_cruises <- c(199501, 199801, 202101, 202201, 202301)
+# use_cruises <- c(202101, 202201, 202301)
+# use_cruises <- c(199801, 202101, 202201, 202301)
+
 # 1. Retrieve groundfish and crab data from 15/30 hauls ----
 # Assigns matchups
 # Data will be saved as .rda files. Build and install the package to include the data as a built-in data set.
@@ -107,7 +112,6 @@ source(here::here("analysis", "09_plot_catch_at_length_model.R"))
 #     (10-3) ./plots/cpue_model_boxplot.png (boxplot of regression slope 95% credible intervals)
 #     (10-4) ./plots/cpue_log_model_scatterplot.png (regression fits between log10(CPUE15)~log10(CPUE30))
 source(here::here("analysis/10_cpue_model.R"))
-
 
 # 11. Mean bias and other metrics ---- 
 #  Compare CPUE between 15 and 30 minute tows

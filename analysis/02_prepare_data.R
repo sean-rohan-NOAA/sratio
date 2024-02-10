@@ -4,9 +4,14 @@ library(sratio)
 treatments <- factor(c(15,30))
 
 # Load built-in data sets
-catch_df <- sratio::data_1530$catch
-haul_df <- sratio::data_1530$haul
-size_df <- sratio::data_1530$size
+catch_df <- sratio::data_1530$catch |>
+  dplyr::filter(CRUISE %in% use_cruises)
+
+haul_df <- sratio::data_1530$haul |>
+  dplyr::filter(CRUISE %in% use_cruises)
+
+size_df <- sratio::data_1530$size |>
+  dplyr::filter(CRUISE %in% use_cruises)
 
 # Data setup ---------------------------------------------------------------------------------------
 dat <- merge(haul_df,
@@ -74,7 +79,7 @@ for(ii in 1:length(species_codes)) {
                                     cols = 4:ncol(sratio_dat), 
                                     names_to = "SIZE_BIN", 
                                     values_to = "FREQ_EXPANDED") |>
-    dplyr::inner_join(dplyr::select(sratio::data_1530$haul, HAULJOIN, TREATMENT, AREA_SWEPT_KM2), by = "HAULJOIN")
+    dplyr::inner_join(dplyr::select(haul_df, HAULJOIN, TREATMENT, AREA_SWEPT_KM2), by = "HAULJOIN")
 
   sratio_dat <- sratio_dat |> 
     dplyr::mutate(TREATMENT_COL = paste0("N_", TREATMENT)) |>

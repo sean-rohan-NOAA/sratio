@@ -1,9 +1,16 @@
 library(sratio)
 
-sp_codes <- sort(unique(sratio::data_1530$catch$SPECIES_CODE))
+# Load built-in data sets
+catch_df <- sratio::data_1530$catch |>
+  dplyr::filter(CRUISE %in% use_cruises)
 
-cpue_dat <- sratio::data_1530$catch |>
-  dplyr::inner_join(sratio::data_1530$haul) |>
+haul_df <- sratio::data_1530$haul |>
+  dplyr::filter(CRUISE %in% use_cruises)
+
+sp_codes <- sort(unique(catch_df$SPECIES_CODE))
+
+cpue_dat <- catch_df |>
+  dplyr::inner_join(haul_df) |>
   dplyr::select(MATCHUP, SPECIES_CODE, WEIGHT, MATCHUP, TREATMENT) |>
   dplyr::mutate(TREATMENT = paste0("WEIGHT_", TREATMENT)) |>
   tidyr::pivot_wider(names_from = TREATMENT, values_from = WEIGHT, values_fill = 0) |>
@@ -16,26 +23,43 @@ cpue_dat <- sratio::data_1530$catch |>
   dplyr::mutate(LOG10_CPUE_30 = log10(CPUE_30+0.001),
                 LOG10_CPUE_15 = log10(CPUE_15+0.001))
 
+sp_codes <- sort(unique(catch_df$SPECIES_CODE))
 
-sp_codes <- sort(unique(sratio::data_1530$catch$SPECIES_CODE))
-
-cpue_fit <- data.frame()
-
+# May need to run species by species to avoid crashing --- 
 for(ii in 1:length(sp_codes)) {
+  
+  print(ii)
   
   sel_spp <- dplyr::filter(cpue_dat, SPECIES_CODE == sp_codes[ii])
   
   mod <- brms::brm(formula = LOG10_CPUE_15 ~ LOG10_CPUE_30 + 0, 
                    data = sel_spp, 
                    iter = 5000, 
-                   chains = 4, 
+                   chains = 4,
                    warmup = 2000)
   
   posterior_df <- brms::as_draws_df(mod)
   
   posterior_df$SPECIES_CODE <- sp_codes[ii]
   
-  cpue_fit <- rbind(posterior_df, cpue_fit)
+  saveRDS(object = posterior_df, 
+          file = here::here("output", sp_codes[ii], paste0("cpue_brms_zeroint_posterior_", sp_codes[ii], ".rds")))
+  
+  rm(mod, posterior_df)
+  
+}
+
+zeroint_paths <-list.files(path = here::here("output"), 
+                           pattern = "cpue_brms_zeroint_posterior", 
+                           recursive = TRUE, 
+                           full.names = TRUE)
+
+
+cpue_fit <- data.frame()
+
+for(jj in 1:length(zeroint_paths)) {
+  
+  cpue_fit <- dplyr::bind_rows(cpue_fit, readRDS(zeroint_paths[jj]))
   
 }
 

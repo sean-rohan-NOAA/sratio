@@ -2,8 +2,12 @@
 library(akgfmaps)
 library(sratio)
 
+# Load built-in data sets
+haul_df <- sratio::data_1530$haul |>
+  dplyr::filter(CRUISE %in% use_cruises)
 
-haul_loc_df <- sratio::data_1530$haul |>
+
+haul_loc_df <- haul_df  |>
   dplyr::mutate(LATITUDE = (START_LATITUDE + END_LATITUDE) /2,
                 LONGITUDE = (START_LONGITUDE + END_LONGITUDE) /2,
                 YEAR = floor(CRUISE/100)) |>
