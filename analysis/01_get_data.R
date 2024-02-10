@@ -6,92 +6,7 @@ get_data <- function(species_codes) {
   
   # Get haul data ----
   
-  # 2021: All hauls in 2021 had haul_type = 20
-  hauls_2021 <- RODBC::sqlQuery(channel = channel,
-                                query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
-                            h.performance, h.vessel, h.cruise, 
-                            h.haul, h.region, h.duration, h.distance_fished, h.net_width, 
-                            h.net_height, h.start_latitude, h.end_latitude, h.start_longitude, 
-                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
-                            h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
-                            from racebase.haul h 
-                            where h.haul_type = 20
-                            and h.performance >= 0
-                            and h.cruise > 202100
-                            and h.cruise < 202199
-                            and h.region = 'BS'") |>
-    dplyr::arrange(VESSEL, START_TIME)
-  
-  # 2021: Only stations with successful side-by-side comparisons
-  hauls_2021 <- hauls_2021 |>
-    dplyr::group_by(STATIONID) |>
-    dplyr::summarise(n = n()) |>
-    dplyr::filter(n > 1) |>
-    dplyr::select(STATIONID) |>
-    dplyr::inner_join(hauls_2021)
-  
-  # 2022: 15 minute hauls were conducted alongside normal hauls in 2022 so comparison hauls have a mix of haul_types 3 and 20. 
-  hauls_short_2022 <- RODBC::sqlQuery(channel = channel,
-                                      query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
-                            h.performance, h.vessel, h.cruise, 
-                            h.haul, h.region, h.duration, h.distance_fished, h.net_width, 
-                            h.net_height, h.start_latitude, h.end_latitude, h.start_longitude, 
-                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
-                            h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
-                            from racebase.haul h 
-                            where h.haul_type = 20
-                            and h.cruise > 202200
-                            and h.cruise < 202299
-                            and h.region = 'BS'") |>
-    dplyr::arrange(VESSEL, START_TIME)
-  
-  hauls_normal_2022 <- RODBC::sqlQuery(channel = channel,
-                                       query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
-                            h.performance, h.vessel, h.cruise, 
-                            h.haul, h.region, h.duration, h.distance_fished, h.net_width, 
-                            h.net_height, h.start_latitude, h.end_latitude, h.start_longitude, 
-                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
-                            h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
-                            from racebase.haul h 
-                            where h.haul_type = 3
-                            and performance >= 0
-                            and h.cruise > 202200
-                            and h.cruise < 202299
-                            and h.region = 'BS'") |>
-    dplyr::arrange(VESSEL, START_TIME) |>
-    dplyr::inner_join(unique(dplyr::select(hauls_short_2022, STATIONID, CRUISE)))
-  
-  # 2323: 15 minute hauls were conducted opportunistically in 2023 at crab special project stations (L. Zacher). 
-  # Haul types are a mix of 4 (15 minute) and 3
-  
-  hauls_short_2023 <- RODBC::sqlQuery(channel = channel,
-                                       query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
-                            h.performance, h.vessel, h.cruise, 
-                            h.haul, h.region, h.duration, h.distance_fished, h.net_width, 
-                            h.net_height, h.start_latitude, h.end_latitude, h.start_longitude, 
-                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
-                            h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
-                            from racebase.haul h 
-                            where h.haul_type = 4
-                            and performance >= 0
-                            and h.cruise = 202301
-                            and h.region = 'BS'") |>
-    dplyr::arrange(VESSEL, START_TIME)
-  
-  hauls_normal_2023 <- RODBC::sqlQuery(channel = channel,
-                                       query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
-                            h.performance, h.vessel, h.cruise, 
-                            h.haul, h.region, h.duration, h.distance_fished, h.net_width, 
-                            h.net_height, h.start_latitude, h.end_latitude, h.start_longitude, 
-                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
-                            h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
-                            from racebase.haul h 
-                            where h.haul_type = 3
-                            and performance >= 0
-                            and h.cruise = 202301
-                            and h.region = 'BS'") |>
-    dplyr::inner_join(unique(dplyr::select(hauls_short_2023, STATIONID, CRUISE)))
-# 1995 hauls (manual selection). Not added into all_hauls.rds
+  # 1995 hauls (manual selection). Not added into all_hauls.rds
   hauls_1995 <- RODBC::sqlQuery(channel = channel,
                                 query = "select h.hauljoin, h.net_measured, h.wire_length, 
                             h.start_time, 
@@ -149,14 +64,152 @@ get_data <- function(species_codes) {
                       STATIONID == "L-18" & HAUL == 193 | HAUL == 208 ~ "L-18.d",
                       TRUE ~ STATIONID
                     ))
-                    
-    
+  
+  # 1998: Hauls in Bristol Bay had haul_type = 18, 15 minute hauls outside of Bristol Bay also had haul_type 18; need to include gear code because underbag experiments were also conducted during the same year using haul_type 18 
+  special_tows_1998 <- RODBC::sqlQuery(channel = channel, query = "select hauljoin, net_measured, wire_length, start_time, performance, 
+    vessel, cruise, haul, duration, distance_fished, 
+    net_width, start_latitude, end_latitude, start_longitude, 
+    end_longitude, stationid, gear_depth, bottom_depth, gear, 
+    accessories, haul_type 
+    from racebase.haul 
+    where vessel in (88, 89) 
+    and cruise = 199801
+    and haul_type = 18
+    and performance >= 0
+    and gear = 44
+    and accessories = 15")
+  
+  # Standard tows from 
+  standard_tows_1998 <- RODBC::sqlQuery(channel = channel, query = "select hauljoin, net_measured, wire_length, start_time, performance, 
+    vessel, cruise, haul, duration, distance_fished, 
+    net_width, start_latitude, end_latitude, start_longitude, 
+    end_longitude, stationid, gear_depth, bottom_depth, gear, 
+    accessories, haul_type 
+    from racebase.haul 
+    where vessel in (88, 89) 
+    and cruise = 199801
+    and haul_type = 3
+    and performance >= 0
+    and gear = 44
+    and accessories = 15") |>
+    dplyr::inner_join(anti_join(otto_key_1998, special_tows_1998) |>
+                        dplyr::select(VESSEL, CRUISE, HAUL, TOW_PAIR))
+  
+  hauls_1998 <- special_tows_1998 |>
+    dplyr::inner_join(
+      dplyr::select(otto_key_1998, VESSEL, CRUISE, HAUL, TOW_PAIR)
+    ) |>
+    dplyr::bind_rows(standard_tows_1998)
+  
+  hauls_1998$TOW_SPEED_KNOTS <- hauls_1998$DISTANCE_FISHED/hauls_1998$DURATION * 0.539957
+  
+  # Remove tows where tow speeds are outside of the acceptable range (2.8-3.2 knots)
+  hauls_1998 <- dplyr::filter(hauls_1998, TOW_SPEED_KNOTS >= 2.8, TOW_SPEED_KNOTS <= 3.2)
+  
+  # Remove unpaired hauls
+  hauls_1998 <- hauls_1998 |>
+    dplyr::inner_join(
+      as.data.frame(table(hauls_1998$VESSEL, hauls_1998$TOW_PAIR)) |>
+        dplyr::rename(VESSEL = Var1, TOW_PAIR = Var2) |>
+        dplyr::mutate(VESSEL = as.numeric(as.character(VESSEL)),
+                      TOW_PAIR = as.numeric(as.character(TOW_PAIR))) |>
+        dplyr::filter(Freq > 1) |>
+        dplyr::select(-Freq)
+    ) |>
+    dplyr::mutate(STATIONID = paste0(VESSEL, "-", TOW_PAIR))
+  
+  # 2021: All hauls in 2021 had haul_type = 20
+  hauls_2021 <- RODBC::sqlQuery(channel = channel,
+                                query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
+                            h.performance, h.vessel, h.cruise, 
+                            h.haul, h.duration, h.distance_fished, h.net_width, 
+                            h.start_latitude, h.end_latitude, h.start_longitude, 
+                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
+                            h.accessories, h.gear_temperature, h.haul_type 
+                            from racebase.haul h 
+                            where h.haul_type = 20
+                            and h.performance >= 0
+                            and h.cruise > 202100
+                            and h.cruise < 202199
+                            and h.region = 'BS'") |>
+    dplyr::arrange(VESSEL, START_TIME)
+  
+  # 2021: Only stations with successful side-by-side comparisons
+  hauls_2021 <- hauls_2021 |>
+    dplyr::group_by(STATIONID) |>
+    dplyr::summarise(n = n()) |>
+    dplyr::filter(n > 1) |>
+    dplyr::select(STATIONID) |>
+    dplyr::inner_join(hauls_2021)
+  
+  # 2022: 15 minute hauls were conducted alongside normal hauls in 2022 so comparison hauls have a mix of haul_types 3 and 20. 
+  hauls_short_2022 <- RODBC::sqlQuery(channel = channel,
+                                      query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
+                            h.performance, h.vessel, h.cruise, 
+                            h.haul, h.region, h.duration, h.distance_fished, h.net_width, 
+                            h.net_height, h.start_latitude, h.end_latitude, h.start_longitude, 
+                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
+                            h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
+                            from racebase.haul h 
+                            where h.haul_type = 20
+                            and h.cruise > 202200
+                            and h.cruise < 202299
+                            and h.region = 'BS'") |>
+    dplyr::arrange(VESSEL, START_TIME)
+  
+  hauls_normal_2022 <- RODBC::sqlQuery(channel = channel,
+                                       query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
+                            h.performance, h.vessel, h.cruise, 
+                            h.haul, h.region, h.duration, h.distance_fished, h.net_width, 
+                            h.net_height, h.start_latitude, h.end_latitude, h.start_longitude, 
+                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
+                            h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
+                            from racebase.haul h 
+                            where h.haul_type = 3
+                            and performance >= 0
+                            and h.cruise > 202200
+                            and h.cruise < 202299
+                            and h.region = 'BS'") |>
+    dplyr::arrange(VESSEL, START_TIME) |>
+    dplyr::inner_join(unique(dplyr::select(hauls_short_2022, STATIONID, CRUISE)))
+  
+  # 2023: 15 minute hauls were conducted opportunistically in 2023 at crab special project stations (L. Zacher). 
+  # Haul types are a mix of 4 (15 minute) and 3
+  
+  hauls_short_2023 <- RODBC::sqlQuery(channel = channel,
+                                       query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
+                            h.performance, h.vessel, h.cruise, 
+                            h.haul, h.region, h.duration, h.distance_fished, h.net_width, 
+                            h.net_height, h.start_latitude, h.end_latitude, h.start_longitude, 
+                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
+                            h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
+                            from racebase.haul h 
+                            where h.haul_type = 4
+                            and performance >= 0
+                            and h.cruise = 202301
+                            and h.region = 'BS'") |>
+    dplyr::arrange(VESSEL, START_TIME)
+  
+  hauls_normal_2023 <- RODBC::sqlQuery(channel = channel,
+                                       query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
+                            h.performance, h.vessel, h.cruise, 
+                            h.haul, h.region, h.duration, h.distance_fished, h.net_width, 
+                            h.net_height, h.start_latitude, h.end_latitude, h.start_longitude, 
+                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
+                            h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
+                            from racebase.haul h 
+                            where h.haul_type = 3
+                            and performance >= 0
+                            and h.cruise = 202301
+                            and h.region = 'BS'") |>
+    dplyr::inner_join(unique(dplyr::select(hauls_short_2023, STATIONID, CRUISE)))
     
   all_hauls <- dplyr::bind_rows(hauls_2021,
                                 hauls_short_2022,
                                 hauls_normal_2022,
                                 hauls_short_2023,
                                 hauls_normal_2023,
+                                hauls_1998,
                                 hauls_1995
                                 )  |>
     dplyr::mutate(AREA_SWEPT_KM2 = NET_WIDTH/1000*DISTANCE_FISHED) |>
@@ -270,7 +323,13 @@ get_data <- function(species_codes) {
     dplyr::inner_join(dplyr::select(all_hauls, VESSEL, CRUISE, HAUL, HAULJOIN) |>
                         unique())
   
-  crab <- dplyr::bind_rows(crab, crab_2023) |>
+  # Get Goddard (1997) and Somerton et al. (2002) data
+  crab_1995_1998 <- sratio::crab_size_1995_1998 |>
+    dplyr::select(-STATIONID) |>
+    dplyr::filter(!(SPECIES_CODE %in% c(69322, 69400))) |> # Remove BKC and horsehair crab
+    dplyr::mutate(FREQUENCY = SAMPLING_FACTOR)
+  
+  crab <- dplyr::bind_rows(crab, crab_2023, crab_1995_1998) |>
     dplyr::inner_join(dplyr::select(all_hauls, HAULJOIN, MATCHUP))
   
   crab$FREQUENCY[is.na(crab$FREQUENCY)] <- 1
@@ -283,8 +342,6 @@ get_data <- function(species_codes) {
     dplyr::summarise(n = n())
   
   crab_fish <- dplyr::bind_rows(crab, lengths)
-  
-  # test <- dplyr::filter(crab_fish, SPECIES_CODE %in% c(68580, 68560, 69322))
   
   saveRDS(object = crab_fish, file = here::here("data", "fish_crab_size_1530.rds"))
   
