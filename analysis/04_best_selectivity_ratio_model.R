@@ -15,6 +15,8 @@ n_cores <- 4
 
 rmse_df <- data.frame()
 
+pratio_samples <- data.frame()
+
 for(ii in 1:length(species_codes)) {
   
   pratio_df <- data.frame()
@@ -38,6 +40,9 @@ for(ii in 1:length(species_codes)) {
   }
   
   pratio_df <- dplyr::filter(pratio_df, !is.na(p))
+  
+  pratio_samples <- dplyr::bind_rows(pratio_samples, pratio_df)
+  
   pratio_df$p_scaled <- sratio::scale_for_betareg(pratio_df$p, method = "sv")
   pratio_df$dummy_var <- 1
   
@@ -104,5 +109,7 @@ for(ii in 1:length(species_codes)) {
         dplyr::mutate(best = rmse == min(rmse))
     )
 }
+
+saveRDS(pratio_samples, file = here::here("output", "pratio_samples.rds"))
 
 write.csv(rmse_df, here::here("output", "sratio_model_rmse.csv"), row.names = FALSE)
