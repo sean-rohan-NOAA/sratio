@@ -10,13 +10,13 @@ n_boot_draws <- 1000
 
 dat <- readRDS(here::here("output", "catch_at_length_1530.rds"))
 
-species_codes <- unique(dat$SPECIES_CODE)
+sp_code <- unique(dat$SPECIES_CODE)
 
-for(jj in 1:length(species_codes)) {
+for(jj in 1:length(sp_code)) {
   
-  dir.create(here::here("output", species_codes[jj]))
+  dir.create(here::here("output", sp_code[jj]))
   
-  sel_dat <- dplyr::filter(dat, SPECIES_CODE == species_codes[jj]) |>
+  sel_dat <- dplyr::filter(dat, SPECIES_CODE == sp_code[jj]) |>
     dplyr::group_by(HAULJOIN, SPECIES_CODE, MATCHUP, SIZE_BIN, AREA_SWEPT_KM2, TREATMENT) |>
     dplyr::summarize(FREQ_EXPANDED = sum(FREQ_EXPANDED), .groups = "keep") |>
     as.data.frame()
@@ -51,11 +51,11 @@ for(jj in 1:length(species_codes)) {
       dplyr::inner_join(dplyr::select(sel_dat,
                                       MATCHUP, TREATMENT, AREA_SWEPT_KM2, HAULJOIN) |>
                           unique(), by = c('MATCHUP', 'TREATMENT')) |>
-      dplyr::mutate(MATCHUP = factor(MATCHUP)) |>
+      dplyr::mutate(MATCHUP = MATCHUP) |>
       as.data.frame()
     
   }
   
-  saveRDS(boot_samples, file = here::here("output", species_codes[jj], paste0("bootstrap_samples_", species_codes[jj], ".rds")))
+  saveRDS(boot_samples, file = here::here("output", sp_code[jj], paste0("bootstrap_samples_", sp_code[jj], ".rds")))
   
 }

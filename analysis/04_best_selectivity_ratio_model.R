@@ -4,10 +4,12 @@ library(sratio)
 
 dat_sratio <- readRDS(file = here::here("output", "n_by_treatment_1530.rds"))
 
-species_codes <- unique(dat_sratio$SPECIES_CODE)
+sp_code <- unique(dat_sratio$SPECIES_CODE)
 
 #temp species drop
-species_codes <- species_codes[-which(species_codes == 68580)]
+if(!any(use_cruises %in% c(199501, 199801))) {
+  sp_code <- sp_code[-which(sp_code == 68580)]
+}
 
 unique_matchups <- unique(dat_sratio$MATCHUP)
 
@@ -17,11 +19,11 @@ rmse_df <- data.frame()
 
 pratio_samples <- data.frame()
 
-for(ii in 1:length(species_codes)) {
+for(ii in 1:length(sp_code)) {
   
   pratio_df <- data.frame()
   
-  spp_lengths <- dplyr::filter(dat_sratio, SPECIES_CODE == species_codes[ii])
+  spp_lengths <- dplyr::filter(dat_sratio, SPECIES_CODE == sp_code[ii])
   
   for(jj in 1:length(unique_matchups)) {
     
@@ -53,7 +55,7 @@ for(ii in 1:length(species_codes)) {
     gam_knots <- 8
   }
   
-  if(species_codes[ii] == 69322) {
+  if(sp_code[ii] == 69322) {
     gam_knots <- 5
   }
   
@@ -104,7 +106,7 @@ for(ii in 1:length(species_codes)) {
       data.frame(model = c("Binomial", "Beta"), 
                  rmse = c(sqrt(mean((pratio_df$cv_fit_logit-pratio_df$p_scaled)^2)),
                           sqrt(mean((pratio_df$cv_fit_beta-pratio_df$p_scaled)^2))),
-                 SPECIES_CODE = species_codes[ii],
+                 SPECIES_CODE = sp_code[ii],
                  gam_knots = gam_knots) |>
         dplyr::mutate(best = rmse == min(rmse))
     )
