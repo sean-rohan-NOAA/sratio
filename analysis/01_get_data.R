@@ -1,6 +1,6 @@
 # Get data for selectivity ratio analysis
 
-get_data <- function(species_codes, min_sample_size) {
+get_data <- function(species_codes) {
   
   channel <- get_connected(schema = "AFSC")
   
@@ -327,11 +327,17 @@ get_data <- function(species_codes, min_sample_size) {
 
   crab_fish <- dplyr::bind_rows(crab, lengths)
   
+  
+  
   # Identify matchups to use for selectivity analysis based on minimum sample size ----
   selectivity_flag <- dplyr::select(crab_fish, VESSEL, CRUISE, HAUL, MATCHUP, SPECIES_CODE, FREQUENCY) |>
     dplyr::group_by(VESSEL, CRUISE, HAUL, MATCHUP, SPECIES_CODE) |>
     dplyr::summarise(N_MEASURED = sum(FREQUENCY), .groups = "keep") |>
-    dplyr::mutate(USE_FOR_SELECTIVITY = N_MEASURED > min_sample_size) |>
+    dplyr::inner_join(sratio::species_code_label(x = "all") |> # Sample size function
+                        dplyr::select(SPECIES_CODE, MIN_SAMPLE_SIZE),
+                      by = "SPECIES_CODE") |>
+    dplyr::mutate(USE_FOR_SELECTIVITY = N_MEASURED >= MIN_SAMPLE_SIZE) |>
+    dplyr::select(-MIN_SAMPLE_SIZE) |>
     dplyr::inner_join(dplyr::select(all_hauls, VESSEL, CRUISE, HAUL, MATCHUP, TREATMENT),
                       by = c("VESSEL", "CRUISE", "HAUL", "MATCHUP")) |>
     dplyr::ungroup() |>
@@ -387,5 +393,4 @@ get_data <- function(species_codes, min_sample_size) {
 
 }
 
-get_data(species_codes = c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68560, 68580, 69322),
-         min_sample_size = min_sample_size)
+get_data(species_codes = c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68560, 68580, 69322))

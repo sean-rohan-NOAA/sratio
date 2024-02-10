@@ -7,9 +7,6 @@ use_cruises <- c(199501, 199801, 202101, 202201, 202301)
 # use_cruises <- c(202101, 202201, 202301)
 # use_cruises <- c(199801, 202101, 202201, 202301)
 
-# Minimum number of length/width samples required for a haul to be used ----
-min_sample_size <- 10
-
 start_time <- Sys.time()
 # 1. Retrieve groundfish and crab data from 15/30 hauls ----
 # Assigns matchups
