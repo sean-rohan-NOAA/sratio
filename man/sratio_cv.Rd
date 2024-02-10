@@ -12,8 +12,8 @@ sratio_cv(
   size,
   block,
   k = NULL,
-  n_cores = 1,
-  scale_method = "sv"
+  scale_method = "sv",
+  n_cores = 1
 )
 }
 \arguments{
@@ -32,6 +32,8 @@ sratio_cv(
 \item{k}{k to use for GAMs. Automatically set to the minimum of 8 or 3 less than the number of unique values in size.}
 
 \item{scale_method}{Method to use for scaling the catch comparison rate. "none" = no scaling. For other options see ?scale_for_betareg}
+
+\item{n_cores}{Number of cores to use for parallel processing.}
 }
 \description{
 Block-level selectivity ratio cross validation

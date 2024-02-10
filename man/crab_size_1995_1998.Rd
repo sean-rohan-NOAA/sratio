@@ -19,7 +19,6 @@ A data frame with 12 variables:
     \item{SAMPLING_FACTOR}{Sampling factor}
     \item{CHELA_HEIGHT}{Chela height in millimeters}
     \item{STATIONID}{Survey station name}
-    \item{REFERENCE}{Reference for study information.}
   }
 }
 \usage{

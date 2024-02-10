@@ -10,9 +10,10 @@
 #' @param block Treatment block (i.e. paired sample)
 #' @param k k to use for GAMs. Automatically set to the minimum of 8 or 3 less than the number of unique values in size.
 #' @param scale_method Method to use for scaling the catch comparison rate. "none" = no scaling. For other options see ?scale_for_betareg
+#' @param n_cores Number of cores to use for parallel processing.
 #' @export
 
-sratio_cv <- function(count1, count2, effort1, effort2, size, block, k = NULL, n_cores = 1, scale_method = "sv") {
+sratio_cv <- function(count1, count2, effort1, effort2, size, block, k = NULL, scale_method = "sv", n_cores = 1) {
   
   unique_blocks <- unique(block)
   

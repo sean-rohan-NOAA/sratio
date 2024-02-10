@@ -49,7 +49,6 @@
 #'     \item{SAMPLING_FACTOR}{Sampling factor}
 #'     \item{CHELA_HEIGHT}{Chela height in millimeters}
 #'     \item{STATIONID}{Survey station name}
-#'     \item{REFERENCE}{Reference for study information.}
 #'   }
 #' @references Goddard, P.D., 1997. The effects of tow duration and subsampling on CPUE, species composition and length distributions of bottom trawl survey catches. Master of Science Thesis, University of Washington, Seattle, WA, 119 pp.
 #'  Somerton, D.A., Otto, R.S., and Syrjala, S.E. 2002. Can changes in tow duration on bottom trawl surveys lead to changes in CPUE and mean size? Fisheries Research, 55(1–3), 63–70. https://doi.org/10.1016/S0165-7836(01)00293-4
