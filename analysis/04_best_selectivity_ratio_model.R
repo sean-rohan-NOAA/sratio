@@ -69,6 +69,19 @@ for(ii in 1:length(sp_code)) {
             n_cores = 4,
             scale_method = "sv")
   
+  pratio_df$SPECIES_CODE <- sp_code[ii]
+  
+  # Rename columns to match inputs
+  pratio_df <- pratio_df |> 
+    dplyr::rename(MATCHUP = block,
+                  SIZE_BIN = size,
+                  N_30 = count1,
+                  N_15 = count2,
+                  AREA_SWEPT_KM2_30 = effort1,
+                  AREA_SWEPT_KM2_15 = effort2)
+  
+  pratio_samples <- dplyr::bind_rows(pratio_samples, pratio_df)
+  
   # Setup four clusters and folds for each matchups
   # doParallel::registerDoParallel(parallel::makeCluster(n_cores))
   # 

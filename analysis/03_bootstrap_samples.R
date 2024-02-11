@@ -73,10 +73,11 @@ for(jj in 1:length(sp_code)) {
     
     boot_samples[[ii]] <- boot_samples[[ii]] |>
       dplyr::inner_join(dplyr::select(sel_dat, MATCHUP, TREATMENT, AREA_SWEPT_KM2, HAULJOIN) |>
-                                              unique(),
-                                              by = c('MATCHUP', 'TREATMENT')
-                                            ) |>
+                          unique(),
+                        by = c('MATCHUP', 'TREATMENT')
+      ) |>
       as.data.frame()
+
   }
   
   saveRDS(boot_samples, file = here::here("output", sp_code[jj], paste0("bootstrap_samples_", sp_code[jj], ".rds")))

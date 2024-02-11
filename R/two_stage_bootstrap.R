@@ -15,15 +15,15 @@
 #' @export
 
 two_stage_bootstrap <- function(count1,
-                                    count2,
-                                    size1,
-                                    size2,
-                                    block1,
-                                    block2,
-                                    n_draws,
-                                    seed,
-                                    treatment_name1 = 1,
-                                    treatment_name2 = 2) {
+                                count2,
+                                size1,
+                                size2,
+                                block1,
+                                block2,
+                                n_draws,
+                                seed,
+                                treatment_name1 = 1,
+                                treatment_name2 = 2) {
   
   set.seed(seed)
   boot_1 <- boot_stage_one(x = size1,
@@ -63,7 +63,9 @@ two_stage_bootstrap <- function(count1,
 }
 
 
-#' Two-stage bootstrap draw with resampling
+#' First stage of two-stage bootstrap
+#' 
+#' Draw from paired treatment blocks and samples from first treatment leve
 #' 
 #' @param x A vector of the variable to be sampled.
 #' @param group A vector of grouping variables for x.
@@ -133,7 +135,9 @@ boot_stage_one <- function(x, group, frequency = NULL, draws) {
 }
 
 
-#' Bootstrap draw with resampling
+#' Second stage of two-stage bootstrap
+#' 
+#' Draw from second treatment level using blocks selected for the first stage of two-stage bootstrap
 #' 
 #' @param x A vector of the variable to be sampled
 #' @param group A vector of grouping variables for x.
