@@ -66,7 +66,8 @@ for(ii in 1:length(bootstrap_sample_path)) {
   
   bootstrap_output <- foreach::foreach(iter = 1:length(boot_dat), .packages = c("mgcv", "dplyr")) %dopar% {
     
-    boot_df <- boot_dat[[iter]]
+    boot_df <- boot_dat[[iter]] |>
+      dplyr::mutate(MATCHUP = factor(MATCHUP))
     
     gam_formula <- switch(best_model,
                           "Binomial" =  p ~ s(SIZE_BIN, k = gam_knots, bs = 'tp') + s(MATCHUP, bs = 're', by = dummy_var),

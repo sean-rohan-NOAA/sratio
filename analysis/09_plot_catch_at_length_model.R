@@ -6,6 +6,16 @@ bootstrap_results_path <- list.files(here::here("output"),
                                      pattern = "cal_model_bootstrap_results_", 
                                      full.names = TRUE)
 
+obs_ratio <- readRDS(file = here::here("output", "catch_at_length_1530.rds")) |>
+  dplyr::ungroup() |>
+  dplyr::mutate(CPUE_N_KM2 = FREQ_EXPANDED/AREA_SWEPT_KM2) |>
+  dplyr::select(CPUE_N_KM2, TREATMENT, SPECIES_CODE, MATCHUP, SIZE_BIN) |>
+  tidyr::pivot_wider(id_cols = c("MATCHUP", "SPECIES_CODE", "SIZE_BIN"), 
+                     names_from = "TREATMENT",
+                     values_from = "CPUE_N_KM2",
+                     values_fill = 0) |>
+  dplyr::mutate(obs_ratio = `30`/`15`)
+
 for(ii in 1:length(bootstrap_results_path)) {
   
   sp_code <- as.numeric(gsub("[^0-9]", "", basename(bootstrap_results_path[ii])))
@@ -67,6 +77,10 @@ for(ii in 1:length(bootstrap_results_path)) {
   png(filename = here::here("plots", paste0(sp_code, "_total_catch_gam_ratio_ribbon.png")), width = 120, height = 120, units = "mm", res = 300)
   print(
     ggplot() +
+      geom_point(data = dplyr::filter(obs_ratio, SPECIES_CODE == sp_code),
+                 mapping = aes(x = SIZE_BIN, y = obs_ratio),
+                 size = rel(0.3),
+                 alpha = 0.5) +
       geom_ribbon(data = boot_fit_ratio,
                   mapping = aes(x = SIZE_BIN, ymin = q025, ymax = q975),
                   alpha = 0.2) +
@@ -83,22 +97,22 @@ for(ii in 1:length(bootstrap_results_path)) {
   )
   dev.off()
   
-  png(filename = here::here("plots", paste0(sp_code, "_total_catch_gam_ratio_lines.png")), width = 120, height = 120, units = "mm", res = 300)
-  print(
-    boot_fit_ratio |>
-      tidyr::pivot_longer(cols = c("q025", "q250", "q500", "q750", "q975")) |>
-      dplyr::inner_join(data.frame(name = c("q025", "q250", "q500", "q750", "q975"),
-                                   level = c("95%", "50%", "Median", "50%", "95%"))) |>
-      ggplot() +
-      geom_hline(yintercept = 1, col = "darkblue") +
-      geom_path(mapping = aes(x = SIZE_BIN, y = value, linetype = level, group = name)) +
-      scale_linetype_manual(values = c("95%" = 3, "50%" = 2, "Median" = 1)) +
-      scale_x_continuous(sratio:::species_code_label(x = sp_code))  +
-      scale_y_continuous(name = expression(CPUE['L,30']/CPUE['L,15']),
-                         limits = c(0, ifelse(max(boot_fit_ratio$q975) > 10, 10, max(boot_fit_ratio$q975)))) +
-      theme_bw() +
-      theme(legend.position = "none")
-  )
-  dev.off()
+  # png(filename = here::here("plots", paste0(sp_code, "_total_catch_gam_ratio_lines.png")), width = 120, height = 120, units = "mm", res = 300)
+  # print(
+  #   boot_fit_ratio |>
+  #     tidyr::pivot_longer(cols = c("q025", "q250", "q500", "q750", "q975")) |>
+  #     dplyr::inner_join(data.frame(name = c("q025", "q250", "q500", "q750", "q975"),
+  #                                  level = c("95%", "50%", "Median", "50%", "95%"))) |>
+  #     ggplot() +
+  #     geom_hline(yintercept = 1, col = "darkblue") +
+  #     geom_path(mapping = aes(x = SIZE_BIN, y = value, linetype = level, group = name)) +
+  #     scale_linetype_manual(values = c("95%" = 3, "50%" = 2, "Median" = 1)) +
+  #     scale_x_continuous(sratio:::species_code_label(x = sp_code))  +
+  #     scale_y_continuous(name = expression(CPUE['L,30']/CPUE['L,15']),
+  #                        limits = c(0, ifelse(max(boot_fit_ratio$q975) > 10, 10, max(boot_fit_ratio$q975)))) +
+  #     theme_bw() +
+  #     theme(legend.position = "none")
+  # )
+  # dev.off()
   
 }

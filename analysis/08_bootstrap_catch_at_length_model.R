@@ -37,7 +37,8 @@ for(ii in 1:length(bootstrap_sample_path)) {
   
   bootstrap_output <- foreach::foreach(iter = 1:length(boot_dat), .packages = "mgcv") %dopar% {
     
-    boot_df <- boot_dat[[iter]]
+    boot_df <- boot_dat[[iter]] |>
+      dplyr::mutate(MATCHUP = factor(MATCHUP))
     boot_df$dummy_var <- 1
     
     model <- mgcv::gam(formula = FREQ_EXPANDED ~ s(SIZE_BIN, bs = "tp", k = gam_knots, by = TREATMENT) + s(MATCHUP, bs = "re", by = dummy_var) + offset(I(log(AREA_SWEPT_KM2))),

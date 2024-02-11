@@ -1,16 +1,21 @@
-#' Length label for a species
+#' Length labels and size breaks for each species
 #' 
 #' @param x RACEBASE species code as a numeric vector (e.g. 21740 for pollock)
 #' @param type Type of value to return, either "axis_label", "common_name" or "bin_width"
 #' @param make_factor For common_name, should the common name be returned as an ordered factor
-#' @noRd
+#' @export
 
 species_code_label <- function(x, type = "axis_label", make_factor = FALSE) {
   
   species_info <- data.frame(SPECIES_CODE = c(21740, 21720, 10110, 10112, 10115, 10130, 10210, 10261, 10285, 471, 68560, 68580, 69322),
                          LABEL = c(rep("Fork length (cm)", 9), "Total length (cm)", rep("Carapace width (mm)", 2), "Carapace length (mm)"),
                          COMMON_NAME = c("walleye pollock", "Pacific cod", "arrowooth flounder", "Kamchatka flounder", "Greenland turbot", "flathead sole", "yellowfin sole", "northern rock sole",  "Alaska plaice", "Alaska skate", "Tanner crab", "snow crab", "red king crab"),
-                         SIZE_BIN_WIDTH = c(4, 4, 3, 3, 4, 4, 4, 3, 3, 4, 4, 4, 4))
+                         SIZE_BIN_WIDTH = c(4, 5, 4, 4, 4, 4, 4, 3, 5, 4, 8, 8, 10),
+                         MIN_SAMPLE_SIZE = c(10, 10, 10, 10, 10, 10, 10, 10, 10, 5, 10, 10, 10))
+  
+  if(x == "all") {
+    return(species_info)
+  }
   
   if(type == "axis_label") {
     return(species_info$LABEL[match(x, species_info$SPECIES_CODE)])

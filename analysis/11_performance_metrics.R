@@ -2,10 +2,17 @@
 
 library(sratio)
 
-sp_codes <- sort(unique(sratio::data_1530$catch$SPECIES_CODE))
+# Load built-in data sets
+catch_df <- sratio::data_1530$catch |>
+  dplyr::filter(CRUISE %in% use_cruises)
 
-bias_table <- sratio::data_1530$catch |>
-  dplyr::inner_join(sratio::data_1530$haul) |>
+haul_df <- sratio::data_1530$haul |>
+  dplyr::filter(CRUISE %in% use_cruises)
+
+sp_codes <- sort(unique(catch_df$SPECIES_CODE))
+
+bias_table <- catch_df |>
+  dplyr::inner_join(haul_df) |>
   dplyr::select(MATCHUP, SPECIES_CODE, WEIGHT, MATCHUP, TREATMENT) |>
   dplyr::mutate(TREATMENT = paste0("WEIGHT_", TREATMENT)) |>
   tidyr::pivot_wider(names_from = TREATMENT, values_from = WEIGHT, values_fill = 0) |>

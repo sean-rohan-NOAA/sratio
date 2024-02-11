@@ -9,13 +9,9 @@
 selectivity_ratio <- function(count1, count2, effort1 = NULL, effort2 = NULL) {
   
   if(!is.null(effort1) & !is.null(effort2)) {
-
-    message("selectivity_ratio: Effort values provided. Calculating >>ABSOLUTE<< selectivity ratio")
     count1 <- count1/effort1
     count2 <- count2/effort2
   } else {
-    
-    message("selectivity_ratio: Effort values provided. Calculating >>RELATIVE<< selectivity ratio")
     relative_selectivity <- TRUE
   }
   

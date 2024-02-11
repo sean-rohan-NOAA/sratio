@@ -11,10 +11,11 @@ species_codes <- unique(dat_binned$SPECIES_CODE)
 
 for(ii in 1:length(species_codes)) {
   
-  spp_dat <- dplyr::filter(dat_binned, SPECIES_CODE == species_codes[ii])
-  spp_dat$dummy_var <- 1
+  spp_lengths <- dplyr::filter(dat_binned, SPECIES_CODE == species_codes[ii]) |>
+    dplyr::mutate(MATCHUP = factor(MATCHUP))
+  spp_lengths$dummy_var <- 1
   
-  gam_knots <- (length(unique(spp_dat $SIZE_BIN))-1)-3
+  gam_knots <- (length(unique(spp_lengths $SIZE_BIN))-1)-3
   
   if(gam_knots > 10) {
     gam_knots <- 8
@@ -27,12 +28,12 @@ for(ii in 1:length(species_codes)) {
   # Setup four clusters and folds for each matchups
   doParallel::registerDoParallel(parallel::makeCluster(n_cores))
   
-  folds <- caret::groupKFold(group = interaction(spp_dat$MATCHUP, spp_dat$TREATMENT))
+  folds <- caret::groupKFold(group = interaction(spp_lengths$MATCHUP, spp_lengths$TREATMENT))
   
   cv_results <- foreach::foreach(fold = folds, .packages = "mgcv") %dopar% {
     
-    training_df <- spp_dat[fold, ]
-    validation_df <- spp_dat[-fold, ]
+    training_df <- spp_lengths[fold, ]
+    validation_df <- spp_lengths[-fold, ]
     validation_df$dummy_var <- 0
     
     # Add in dummy station variable for predictions, to be added back in for output
