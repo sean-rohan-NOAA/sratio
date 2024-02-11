@@ -15,6 +15,7 @@ for(ii in 1:length(species_codes)) {
     dplyr::mutate(MATCHUP = factor(MATCHUP))
   spp_lengths$dummy_var <- 1
   
+  # Set GAM knots
   gam_knots <- (length(unique(spp_lengths $SIZE_BIN))-1)-3
   
   if(gam_knots > 10) {
@@ -25,62 +26,30 @@ for(ii in 1:length(species_codes)) {
     gam_knots <- 5
   }
   
-  # Setup four clusters and folds for each matchups
-  doParallel::registerDoParallel(parallel::makeCluster(n_cores))
+  # Run haul level cross-validation on selectivity conditioned on catch-at-length models
+  results <- sratio::sccal_cv(count1 = spp_lengths$FREQ_EXPANDED[spp_lengths$TREATMENT == 30], 
+                              count2 = spp_lengths$FREQ_EXPANDED[spp_lengths$TREATMENT == 15], 
+                              effort1 = spp_lengths$AREA_SWEPT_KM2[spp_lengths$TREATMENT == 30], 
+                              effort2 = spp_lengths$AREA_SWEPT_KM2[spp_lengths$TREATMENT == 15], 
+                              size1 = spp_lengths$SIZE_BIN[spp_lengths$TREATMENT == 30], 
+                              size2 = spp_lengths$SIZE_BIN[spp_lengths$TREATMENT == 15], 
+                              block1 = spp_lengths$MATCHUP[spp_lengths$TREATMENT == 30], 
+                              block2 = spp_lengths$MATCHUP[spp_lengths$TREATMENT == 15],
+                              treatment_name1 = 30,
+                              treatment_name2 = 15,
+                              k = gam_knots, 
+                              n_cores = 4)
   
-  folds <- caret::groupKFold(group = interaction(spp_lengths$MATCHUP, spp_lengths$TREATMENT))
-  
-  cv_results <- foreach::foreach(fold = folds, .packages = "mgcv") %dopar% {
-    
-    training_df <- spp_lengths[fold, ]
-    validation_df <- spp_lengths[-fold, ]
-    validation_df$dummy_var <- 0
-    
-    # Add in dummy station variable for predictions, to be added back in for output
-    out_matchup <- validation_df$MATCHUP[1]
-    validation_df$MATCHUP <- training_df$MATCHUP[1]
-    
-    mod_tw <- mgcv::gam(formula = FREQ_EXPANDED ~ s(SIZE_BIN, k = gam_knots, bs = "tp", by = TREATMENT) + 
-                          s(MATCHUP, 
-                            by = dummy_var,
-                            bs = "re") + 
-                          offset(I(log(AREA_SWEPT_KM2))), 
-                        data = training_df,
-                        family = tw(link = "log"))
-    
-    mod_nb <- mgcv::gam(formula = FREQ_EXPANDED ~ s(SIZE_BIN, k = gam_knots, bs = "tp", by = TREATMENT) + 
-                          s(MATCHUP, 
-                            by = dummy_var,
-                            bs = "re") + 
-                          offset(I(log(AREA_SWEPT_KM2))), 
-                        data = training_df,
-                        family = nb(link = "log"))
-    
-    mod_poisson <- mgcv::gam(formula = FREQ_EXPANDED ~ s(SIZE_BIN, k = gam_knots, bs = "tp", by = TREATMENT) + 
-                               s(MATCHUP, 
-                                 by = dummy_var,
-                                 bs = "re") + 
-                               offset(I(log(AREA_SWEPT_KM2))), 
-                             data = training_df,
-                             family = poisson(link = "log"))
-    
-    validation_df$tw <- predict(mod_tw, newdata = validation_df, type = "response")
-    validation_df$nb <- predict(mod_nb, newdata = validation_df, type = "response")
-    validation_df$poisson <- predict(mod_poisson, newdata = validation_df, type = "response")
-    
-    # Reset matchup and dummy variable for fitting final models
-    validation_df$MATCHUP <- out_matchup
-    validation_df$dummy_var <- 1
-    
-    return(validation_df)
-  }
-  
-  results <- do.call("rbind", cv_results)
-  
-  doParallel::stopImplicitCluster()
+  # Rename columns
+  results <- results |> 
+    dplyr::rename(FREQ_EXPANDED = count,
+                  SIZE_BIN = size,
+                  AREA_SWEPT_KM2 = effort,
+                  MATCHUP = block,
+                  TREATMENT = treatment)
   
   rmse_df <- results |>
-    tidyr::pivot_longer(cols = c("tw", "nb", "poisson")) |>
+    tidyr::pivot_longer(cols = c("n_tw", "n_nb", "n_poisson")) |>
     dplyr::mutate(resid = (value-FREQ_EXPANDED)^2) |>
     dplyr::group_by(name) |>
     dplyr::summarize(rmse = sqrt(mean(resid, na.rm = TRUE))) |>
