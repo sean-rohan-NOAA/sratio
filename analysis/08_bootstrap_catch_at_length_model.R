@@ -1,9 +1,5 @@
 library(sratio)
 
-n_cores <- 4
-
-treatments <- factor(c(15,30))
-
 bootstrap_sample_path <- list.files(here::here("output"), 
                                     recursive = TRUE, 
                                     pattern = "bootstrap_samples_", 
@@ -19,51 +15,26 @@ for(ii in 1:length(bootstrap_sample_path)) {
   
   best_family <- cal_rmse_df$name[cal_rmse_df$LOWEST_RMSE & cal_rmse_df$SPECIES_CODE == sp_code]
   
-  gam_family <- switch(best_family,
-                        tw = tw(link = "log"),
-                        nb = nb(link = "log"),
-                        poisson = poisson(link = "log"))
-  
   gam_knots <- cal_rmse_df$gam_knots[cal_rmse_df$LOWEST_RMSE & cal_rmse_df$SPECIES_CODE == sp_code]
   
+  bootstrap_df <- sratio::sccal_fit_bootstrap(x = boot_dat,
+                                              treatment_order = c(30, 15),
+                                              size_col = "SIZE_BIN",
+                                              block_col = "MATCHUP",
+                                              treatment_col = "TREATMENT",
+                                              count_col = "FREQ_EXPANDED",
+                                              effort_col = "AREA_SWEPT_KM2",
+                                              gam_family = best_family,
+                                              k = gam_knots,
+                                              n_cores = 4)
   
-  lengths <- seq(min(unlist(lapply(boot_dat, FUN = function(x) {min(x$SIZE_BIN)}))), 
-                 max(unlist(lapply(boot_dat, FUN = function(x) {max(x$SIZE_BIN)}))),
-                 by = 1)
+  # Rename output columns
+  bootstrap_df <- bootstrap_df |> 
+    select(-effort) |>
+    dplyr::rename(SIZE_BIN = size,
+                  MATCHUP = block)
   
-  
-  cl <- parallel::makeCluster(n_cores)
-  doParallel::registerDoParallel(cl)
-  
-  bootstrap_output <- foreach::foreach(iter = 1:length(boot_dat), .packages = "mgcv") %dopar% {
-    
-    boot_df <- boot_dat[[iter]] |>
-      dplyr::mutate(MATCHUP = factor(MATCHUP))
-    boot_df$dummy_var <- 1
-    
-    model <- mgcv::gam(formula = FREQ_EXPANDED ~ s(SIZE_BIN, bs = "tp", k = gam_knots, by = TREATMENT) + s(MATCHUP, bs = "re", by = dummy_var) + offset(I(log(AREA_SWEPT_KM2))),
-                       family = gam_family,
-                       data = boot_df)
-    
-    fit_df <- expand.grid(SIZE_BIN = lengths,
-                         MATCHUP = boot_dat[[iter]]$MATCHUP[1],
-                         TREATMENT = treatments,
-                         AREA_SWEPT_KM2 = 1,
-                         dummy_var = 0,
-                         draw = iter) # random effects off
-    
-    fit_df$fit <- predict(model, newdata = fit_df, type = "response")
-    
-    return(fit_df)
-    
-    
-  }
-  
-  doParallel::stopImplicitCluster()
-  
-  bootstrap_df <- do.call("rbind", bootstrap_output)
-  
-  saveRDS(bootstrap_df, file = here::here("output", sp_code,  paste0("cal_model_bootstrap_results_", sp_code, ".rds")))
+  saveRDS(bootstrap_df, file = here::here("output", sp_code,  paste0("sccal_model_bootstrap_results_", sp_code, ".rds")))
   
 }
 
