@@ -17,9 +17,23 @@
 
 sratio_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatment_col, count_col, effort_col, gam_family, k, scale_method = "sv", n_cores = 1) {
   
-  format_bootstrap <- function(x, size_col, block_col, treatment_col, count_col, effort_col, treatment_order) {
+  # Make treatment_order a factor and retain the rank order from input
+  if(class(treatment_order) != "factor") {
+    factor(treatment_order, levels = treatment_order)
+  }
+  
+  # Function to reformat list of bootstrap samples
+  format_sratio_bootstrap <- function(x, size_col, block_col, treatment_col, count_col, effort_col, treatment_order) {
     
     names(x)[match(c(size_col, block_col, treatment_col, count_col, effort_col), table = names(x))] <- c("size", "block", "treatment", "count", "effort")
+    
+    if(class(x$block) != "factor") {
+      x$block <- factor(x$block)
+    }
+    
+    if(class(x$treatment) != "factor") {
+      x$treatment <- factor(x$treatment, levels = treatment_order)
+    }
     
     lengths <- x |>
       dplyr::mutate(treatment_val = paste0("n_", treatment)) |>
@@ -48,9 +62,9 @@ sratio_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatm
     
   }
   
-  
-  x <- lapply(x, 
-              FUN = format_bootstrap, 
+  # Format bootstrap data.frames
+  x <- lapply(X = x, 
+              FUN = format_sratio_bootstrap, 
               size_col = size_col, 
               block_col = block_col, 
               treatment_col = treatment_col, 
@@ -58,7 +72,8 @@ sratio_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatm
               effort_col = effort_col,
               treatment_order = treatment_order)
   
-  lengths <- seq(min(unlist(lapply(x, FUN = function(z) {min(z[["size"]])}))), 
+  # Get prediction range for sizes
+  size_values <- seq(min(unlist(lapply(x, FUN = function(z) {min(z[["size"]])}))), 
                  max(unlist(lapply(x, FUN = function(z) {max(z[["size"]])}))),
                  by = 1)
   
@@ -69,24 +84,24 @@ sratio_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatm
                                        .packages = c("mgcv", "dplyr")) %dopar% {
   
     boot_df <- x[[iter]]
-    boot_df$block <- factor(boot_df$block)
     
-    if(tolower(gam_family) == "binomial") {
+    if(gam_family == "binomial") {
       model <- mgcv::gam(formula = p ~ s(block, bs = 're', by = dummy_var) + s(size, k = k, bs = 'tp'),
                          family = stats::binomial(link = "logit"),
                          data = boot_df)
     }
     
-    if(tolower(gam_family) == "beta") {
+    if(gam_family == "beta") {
     model <- mgcv::gam(formula = p_scaled ~ s(size, k = k, bs = 'tp') + s(block, bs = 're', by = dummy_var),
                        family = mgcv::betar(link = "logit"),
                        data = boot_df)
     }
     
-    fit_df <- data.frame(size = lengths,
+    fit_df <- data.frame(size = size_values,
                          block = x[[iter]]$block[1],
                          dummy_var = 0) # random effects off
     
+    # Calculate selectivity ratio
     fit_df$p12 <- predict(model, newdata = fit_df, type = "response")
     fit_df$s21 <- 1/fit_df$p12-1
     
@@ -96,10 +111,10 @@ sratio_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatm
   
   doParallel::stopImplicitCluster()
   
-  bootstrap_df <- do.call("rbind", bootstrap_output)
+  results <- do.call("rbind", bootstrap_output)
   
-  names(bootstrap_df)[match(c("size", "block"), table = names(bootstrap_df))] <- c(size_col, block_col)
+  names(results)[match(c("size", "block"), table = names(results))] <- c(size_col, block_col)
   
-  return(bootstrap_df)
+  return(results)
   
 }

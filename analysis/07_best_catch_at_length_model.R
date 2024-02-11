@@ -49,7 +49,7 @@ for(ii in 1:length(species_codes)) {
                   TREATMENT = treatment)
   
   rmse_df <- results |>
-    tidyr::pivot_longer(cols = c("n_tw", "n_nb", "n_poisson")) |>
+    tidyr::pivot_longer(cols = c("tw", "nb", "poisson")) |>
     dplyr::mutate(resid = (value-FREQ_EXPANDED)^2) |>
     dplyr::group_by(name) |>
     dplyr::summarize(rmse = sqrt(mean(resid, na.rm = TRUE))) |>

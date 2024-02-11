@@ -70,9 +70,9 @@ sccal_cv <- function(count1, count2, effort1, effort2, size1, size2, block1, blo
                              data = training_df,
                              family = poisson(link = "log"))
     
-    validation_df$n_tw <- predict(mod_tw, newdata = validation_df, type = "response")
-    validation_df$n_nb <- predict(mod_nb, newdata = validation_df, type = "response")
-    validation_df$n_poisson <- predict(mod_poisson, newdata = validation_df, type = "response")
+    validation_df$tw <- predict(mod_tw, newdata = validation_df, type = "response")
+    validation_df$nb <- predict(mod_nb, newdata = validation_df, type = "response")
+    validation_df$poisson <- predict(mod_poisson, newdata = validation_df, type = "response")
     
     return(validation_df)
   }
