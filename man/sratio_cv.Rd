@@ -36,5 +36,5 @@ sratio_cv(
 \item{n_cores}{Number of cores to use for parallel processing.}
 }
 \description{
-Block-level selectivity ratio cross validation
+Block-level cross validation for selectivity ratio binomial and beta binomial generalized additive models.
 }

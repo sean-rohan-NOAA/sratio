@@ -1,6 +1,6 @@
 #' Selectivity ratio cross-validation
 #' 
-#' Block-level selectivity ratio cross validation
+#' Block-level cross validation for selectivity ratio binomial and beta binomial generalized additive models.
 #' 
 #' @param count1 Numeric vector of catch-at-size/age for gear #1
 #' @param count2 Numeric vector of catch-at-size/age for gear #2
