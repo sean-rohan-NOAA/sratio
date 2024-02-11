@@ -7,7 +7,7 @@
 #' @param effort1 Numeric vector of effort for for gear #1
 #' @param effort2 Numeric vector of effort for for gear #2
 #' @param size  Numeric vector of sizes or ages
-#' @param block Treatment block (i.e. paired sample)
+#' @param block Sample block (i.e. paired sample)
 #' @param k k to use for GAMs. Automatically set to the minimum of 8 or 3 less than the number of unique values in size.
 #' @param scale_method Method to use for scaling the catch comparison rate for beta regression. See ?scale_for_betareg
 #' @param n_cores Number of cores to use for parallel processing.

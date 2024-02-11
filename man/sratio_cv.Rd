@@ -27,11 +27,11 @@ sratio_cv(
 
 \item{size}{Numeric vector of sizes or ages}
 
-\item{block}{Treatment block (i.e. paired sample)}
+\item{block}{Sample block (i.e. paired sample)}
 
 \item{k}{k to use for GAMs. Automatically set to the minimum of 8 or 3 less than the number of unique values in size.}
 
-\item{scale_method}{Method to use for scaling the catch comparison rate. "none" = no scaling. For other options see ?scale_for_betareg}
+\item{scale_method}{Method to use for scaling the catch comparison rate for beta regression. See ?scale_for_betareg}
 
 \item{n_cores}{Number of cores to use for parallel processing.}
 }

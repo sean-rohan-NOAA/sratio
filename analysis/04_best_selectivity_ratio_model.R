@@ -25,29 +25,6 @@ for(ii in 1:length(sp_code)) {
   
   spp_lengths <- dplyr::filter(dat_sratio, SPECIES_CODE == sp_code[ii])
   
-  # for(jj in 1:length(unique_matchups)) {
-  #   
-  #   sel_length <- dplyr::filter(spp_lengths, MATCHUP == unique_matchups[jj])
-  #   
-  #   # Calculate absolute selectivity ratio
-  #   sel_length$p <- suppressMessages(
-  #     selectivity_ratio(count1 = sel_length$N_30, 
-  #                       count2 = sel_length$N_15, 
-  #                       effort1 = sel_length$AREA_SWEPT_KM2_30, 
-  #                       effort2 = sel_length$AREA_SWEPT_KM2_15)$p12
-  #   )
-  #   
-  #   pratio_df <- dplyr::bind_rows(pratio_df, sel_length)
-  #   
-  # }
-  
-  # pratio_df <- dplyr::filter(pratio_df, !is.na(p))
-  # 
-  # pratio_samples <- dplyr::bind_rows(pratio_samples, pratio_df)
-  # 
-  # pratio_df$p_scaled <- sratio::scale_for_betareg(pratio_df$p, method = "sv")
-  # pratio_df$dummy_var <- 1
-  
   # Set knots based on number of length bins, but only use 5 knots for red king crab
   gam_knots <- length(unique(spp_lengths$SIZE_BIN))-4
   
@@ -59,6 +36,7 @@ for(ii in 1:length(sp_code)) {
     gam_knots <- 5
   }
   
+  # Run match-up level cross validation
   pratio_df <- sratio_cv(count1 = spp_lengths$N_30,
             count2 = spp_lengths$N_15,
             effort1 = spp_lengths$AREA_SWEPT_KM2_30,
@@ -81,52 +59,10 @@ for(ii in 1:length(sp_code)) {
                   AREA_SWEPT_KM2_15 = effort2)
   
   pratio_samples <- dplyr::bind_rows(pratio_samples, pratio_df)
-  
-  # Setup four clusters and folds for each matchups
-  # doParallel::registerDoParallel(parallel::makeCluster(n_cores))
-  # 
-  # folds <- caret::groupKFold(group = pratio_df$MATCHUP)
-  # 
-  # cv_results <- foreach::foreach(fold = folds, .packages = c("mgcv", "dplyr")) %dopar% {
-  #   
-  #   training_df <- pratio_df[fold, ]
-  #   validation_df <- pratio_df[-fold, ]
-  #   validation_df$dummy_var <- 0
-  #   
-  #   # Add in dummy station variable for predictions, to be added back in for output
-  #   out_matchup <- validation_df$MATCHUP[1]
-  #   validation_df$MATCHUP <- training_df$MATCHUP[1]
-  #   
-  #   gam_logit <- mgcv::gam(p_scaled ~ s(SIZE_BIN, bs = "tp", k = gam_knots) + s(MATCHUP, bs = "re", by = dummy_var),
-  #                          data = training_df |>
-  #                            dplyr::mutate(MATCHUP = factor(MATCHUP)),
-  #                          family = binomial(link = "logit"))
-  #   
-  #   gam_beta <- mgcv::gam(p_scaled ~ s(SIZE_BIN, bs = "tp", k = gam_knots) + s(MATCHUP, bs = "re", by = dummy_var),
-  #                         data = training_df |>
-  #                           dplyr::mutate(MATCHUP = factor(MATCHUP)),
-  #                         family = mgcv::betar(link = "logit"))
-  #   
-  #   fitted_logit <- predict(gam_logit, newdata = validation_df, type = "response")
-  #   fitted_beta <- predict(gam_beta, newdata = validation_df, type = "response")
-  #   
-  #   validation_df$cv_fit_logit <- fitted_logit
-  #   validation_df$cv_fit_beta <- fitted_beta
-  #   
-  #   # Reset matchup and dummy variable for fitting final models
-  #   validation_df$MATCHUP <- out_matchup
-  #   validation_df$dummy_var <- 1
-  #   
-  #   return(validation_df)
-  # }
-  # 
-  # doParallel::stopImplicitCluster()
-  # 
-  # pratio_df <- do.call("rbind", cv_results)
 
   rmse_df <- rmse_df |>
     dplyr::bind_rows(
-      data.frame(model = c("Binomial", "Beta"), 
+      data.frame(model = c("binomial", "beta"), 
                  rmse = c(sqrt(mean((pratio_df$cv_fit_logit-pratio_df$p)^2)),
                           sqrt(mean((pratio_df$cv_fit_beta-pratio_df$p)^2))),
                  SPECIES_CODE = sp_code[ii],
