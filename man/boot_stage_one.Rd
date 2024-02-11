@@ -2,7 +2,7 @@
 % Please edit documentation in R/two_stage_bootstrap.R
 \name{boot_stage_one}
 \alias{boot_stage_one}
-\title{Two-stage bootstrap draw with resampling}
+\title{First stage of two-stage bootstrap}
 \usage{
 boot_stage_one(x, group, frequency = NULL, draws)
 }
@@ -19,5 +19,5 @@ boot_stage_one(x, group, frequency = NULL, draws)
 A list containing a list of samples and associated group from which the samples were drawn.
 }
 \description{
-Two-stage bootstrap draw with resampling
+Draw from paired treatment blocks and samples from first treatment leve
 }

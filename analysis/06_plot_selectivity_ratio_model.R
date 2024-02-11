@@ -35,7 +35,8 @@ for(ii in 1:length(bootstrap_results_path)) {
   
   # Make plots of catch ratio and selectivity ratio ----
   plot_pratio <- ggplot() +
-    geom_point(data = dplyr::filter(pratio_samples, SPECIES_CODE == sp_code),
+    geom_point(data = dplyr::filter(pratio_samples, 
+                                    SPECIES_CODE == sp_code),
                mapping = aes(x = SIZE_BIN, y = p),
                size = rel(0.3),
                alpha = 0.5) +

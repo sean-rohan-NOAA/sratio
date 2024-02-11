@@ -49,47 +49,56 @@ for(ii in 1:length(bootstrap_sample_path)) {
   
   gam_knots <- sratio_rmse_df$gam_knots[sratio_rmse_df$best & sratio_rmse_df$SPECIES_CODE == sp_code]
   
-  gam_family <- switch(best_model,
-                       "Binomial" = binomial(link = "logit"),
-                       "Beta" = betar(link = "logit"))
+  test <- sratio_bootstrap(x = boot_dat, 
+                   size_col = "SIZE_BIN", 
+                   block_col = "MATCHUP", 
+                   treatment_col = "TREATMENT", 
+                   count_col = "FREQ_EXPANDED", 
+                   effort_col = "AREA_SWEPT_KM2", 
+                   gam_family = best_model, 
+                   k = gam_knots, 
+                   scale_method = "sv", 
+                   n_cores = 4)
   
- 
-  boot_dat <- lapply(boot_dat, make_sratio_df)
+  # gam_family <- switch(best_model,
+  #                      "Binomial" = binomial(link = "logit"),
+  #                      "Beta" = betar(link = "logit"))
+  # 
+  # boot_dat <- lapply(boot_dat, make_sratio_df)
+  # 
+  # lengths <- seq(min(unlist(lapply(boot_dat, FUN = function(x) {min(x$SIZE_BIN)}))), 
+  #                max(unlist(lapply(boot_dat, FUN = function(x) {max(x$SIZE_BIN)}))),
+  #                by = 1)
   
-  lengths <- seq(min(unlist(lapply(boot_dat, FUN = function(x) {min(x$SIZE_BIN)}))), 
-                 max(unlist(lapply(boot_dat, FUN = function(x) {max(x$SIZE_BIN)}))),
-                 by = 1)
-  
-  
-  cl <- parallel::makeCluster(n_cores)
-  doParallel::registerDoParallel(cl)
-  
-  bootstrap_output <- foreach::foreach(iter = 1:length(boot_dat), .packages = c("mgcv", "dplyr")) %dopar% {
-    
-    boot_df <- boot_dat[[iter]] |>
-      dplyr::mutate(MATCHUP = factor(MATCHUP))
-    
-    gam_formula <- switch(best_model,
-                          "Binomial" =  p ~ s(SIZE_BIN, k = gam_knots, bs = 'tp') + s(MATCHUP, bs = 're', by = dummy_var),
-                          "Beta" =  p_scaled ~ s(SIZE_BIN, k = gam_knots, bs = 'tp') + s(MATCHUP, bs = 're', by = dummy_var))
-    
-    model <- mgcv::gam(formula = gam_formula,
-                       family = gam_family,
-                       data = boot_df)
-    
-    fit_df <- data.frame(SIZE_BIN = lengths,
-                         MATCHUP = boot_dat[[iter]]$MATCHUP[1],
-                         dummy_var = 0) # random effects off
-    
-    fit_df$fit <- predict(model, newdata = fit_df, type = "link")
-    
-    return(fit_df)
-    
-  }
-  
-  doParallel::stopImplicitCluster()
-  
-  bootstrap_df <- do.call("rbind", bootstrap_output)
+  # cl <- parallel::makeCluster(n_cores)
+  # doParallel::registerDoParallel(cl)
+  # 
+  # bootstrap_output <- foreach::foreach(iter = 1:length(boot_dat), .packages = c("mgcv", "dplyr")) %dopar% {
+  #   
+  #   boot_df <- boot_dat[[iter]] |>
+  #     dplyr::mutate(MATCHUP = factor(MATCHUP))
+  #   
+  #   gam_formula <- switch(best_model,
+  #                         "Binomial" =  p ~ s(SIZE_BIN, k = gam_knots, bs = 'tp') + s(MATCHUP, bs = 're', by = dummy_var),
+  #                         "Beta" =  p_scaled ~ s(SIZE_BIN, k = gam_knots, bs = 'tp') + s(MATCHUP, bs = 're', by = dummy_var))
+  #   
+  #   model <- mgcv::gam(formula = gam_formula,
+  #                      family = gam_family,
+  #                      data = boot_df)
+  #   
+  #   fit_df <- data.frame(SIZE_BIN = lengths,
+  #                        MATCHUP = boot_dat[[iter]]$MATCHUP[1],
+  #                        dummy_var = 0) # random effects off
+  #   
+  #   fit_df$fit <- predict(model, newdata = fit_df, type = "link")
+  #   
+  #   return(fit_df)
+  #   
+  # }
+  # 
+  # doParallel::stopImplicitCluster()
+  # 
+  # bootstrap_df <- do.call("rbind", bootstrap_output)
   
   saveRDS(bootstrap_df, here::here("output", sp_code, paste0("sratio_bootstrap_results_", sp_code, ".rds")))
   
