@@ -85,14 +85,14 @@ source(here::here("analysis", "07_best_catch_at_length_model.R"))
 #     (3-1) ./output/{species_code}/bootstrap_samples_{species_code}.rds
 #     (7-1) ./output/cal_model_rmse.csv (RMSE table showing the best model for each species)
 # Outputs:
-#     (8-1) ./output/{species_code}/cal_model_bootstrap_results_{species_code}.rds
+#     (8-1) ./output/{species_code}/sccal_model_bootstrap_results_{species_code}.rds
 source(here::here("analysis", "08_bootstrap_catch_at_length_model.R"))
 
 
 # 9. Plot catch-at-size bootstrap results ----
 # Plot catch-at-size fits
 # Inputs: 
-#     (8-1) ./output/{species_code}/cal_model_bootstrap_results_{species_code}.rds
+#     (8-1) ./output/{species_code}/sccal_model_bootstrap_results_{species_code}.rds
 # Outputs:
 #     (9-1) ./plots/{species_code}_total_catch_gam_ratio_ribbon.png
 #     (9-2) ./plots/{species_code}_total_catch_gam_ratio_lines.png
