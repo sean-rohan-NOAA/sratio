@@ -15,22 +15,17 @@ for(ii in 1:length(bootstrap_results_path)) {
   
   bootstrap_quantiles <- bootstrap_df |>
     dplyr::group_by(SIZE_BIN) |>
-    dplyr::summarise(q025 = quantile(fit, 0.025),
-                     q975 = quantile(fit, 0.975),
-                     q500 = quantile(fit, 0.500),
-                     q250 = quantile(fit, 0.25),
-                     q750 = quantile(fit, 0.75)) |> 
-    dplyr::mutate(p_q025 = inv_logit(q025),
-                  sratio_q025 = 1/inv_logit(q025)-1,
-                  p_q975 = inv_logit(q975),
-                  sratio_q975 = 1/inv_logit(q975)-1,
-                  p_q500 = inv_logit(q500),
-                  sratio_q500 = 1/inv_logit(q500)-1,
-                  p_q250 = inv_logit(q250),
-                  sratio_q250 = 1/inv_logit(q250)-1,
-                  p_q750 = inv_logit(q750),
-                  sratio_q750 = 1/inv_logit(q750)-1) |>
-    dplyr::mutate(type = "Observed")
+    dplyr::summarise(p_q025 = quantile(p12, 0.025),
+                     p_q250 = quantile(p12, 0.25),
+                     p_q500 = quantile(p12, 0.5),
+                     p_q750 = quantile(p12, 0.75),
+                     p_q975 = quantile(p12, 0.975),
+                     sratio_q025 = quantile(s21, 0.025),
+                     sratio_q250 = quantile(s21, 0.25),
+                     sratio_q500 = quantile(s21, 0.5),
+                     sratio_q750 = quantile(s21, 0.75),
+                     sratio_q975 = quantile(s21, 0.975)) |>
+    dplyr::mutate(type = "Bootstrap")
   
   
   # Make plots of catch ratio and selectivity ratio ----
@@ -101,13 +96,13 @@ for(ii in 1:length(bootstrap_results_path)) {
                             y = sratio_q500)) +
     scale_x_continuous(name = sratio:::species_code_label(sp_code)) +
     # scale_y_continuous(name = expression(italic(S['L,15,30'])), expand = c(0.05, 0.05)) +
-    scale_y_log10(name = expression(italic(S['L,15,30'])), expand = c(0.05, 0.05)) +
+    scale_y_log10(name = expression(italic(S['L,15,30'])~(SR)), expand = c(0.05, 0.05)) +
     scale_color_tableau() +
     scale_fill_tableau() +
     theme_bw()
   
   # Write plots to file
-  ragg::agg_png(file = here::here("plots", paste0(sp_code, "_trawl_height_two_panel_ratios_n.png")), width = 113, height = 70, units = "mm", res = 300)
+  ragg::agg_png(file = here::here("plots", paste0(sp_code, "_sratio_two_panel.png")), width = 113, height = 70, units = "mm", res = 300)
   print(cowplot::plot_grid(plot_pratio,
                            plot_sratio,
                            nrow = 1,
@@ -115,7 +110,7 @@ for(ii in 1:length(bootstrap_results_path)) {
   dev.off()
   
   # Write plots to file
-  ragg::agg_png(file = here::here("plots", paste0(sp_code, "_trawl_height_three_panel_ratios_n.png")), width = 169, height = 70, units = "mm", res = 300)
+  ragg::agg_png(file = here::here("plots", paste0(sp_code, "_sratio_three_panel.png")), width = 169, height = 70, units = "mm", res = 300)
   print(cowplot::plot_grid(plot_obs_histogram,
                            plot_pratio,
                            plot_sratio,
