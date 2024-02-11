@@ -7,11 +7,11 @@
 #' @param effort1 Numeric vector of effort for for gear #1
 #' @param effort2 Numeric vector of effort for for gear #2
 #' @param size1  Numeric vector of sizes or ages for gear #1
-#' @param size1  Numeric vector of sizes or ages for gear #2
+#' @param size2  Numeric vector of sizes or ages for gear #2
 #' @param block1 Sample block (i.e. paired sample) for gear #1
 #' @param block2 Sample block (i.e. paired sample) for gear #2
-#' @param treatment1_name 1L vector for the name of the first treatment
-#' @param treatment2_name 1L vector for the name of the second treatment
+#' @param treatment_name1 1L vector for the name of the first treatment
+#' @param treatment_name2 1L vector for the name of the second treatment
 #' @param k k to use for GAMs. Automatically set to the minimum of 8 or 3 less than the number of unique values in size.
 #' @param n_cores Number of cores to use for parallel processing.
 #' @returns Returns a data.frame with predicted catch for Poisson, negative binomial, and Tweedie models.

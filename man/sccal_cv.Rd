@@ -28,19 +28,21 @@ sccal_cv(
 
 \item{effort2}{Numeric vector of effort for for gear #2}
 
-\item{size1}{Numeric vector of sizes or ages for gear #2}
+\item{size1}{Numeric vector of sizes or ages for gear #1}
+
+\item{size2}{Numeric vector of sizes or ages for gear #2}
 
 \item{block1}{Sample block (i.e. paired sample) for gear #1}
 
 \item{block2}{Sample block (i.e. paired sample) for gear #2}
 
+\item{treatment_name1}{1L vector for the name of the first treatment}
+
+\item{treatment_name2}{1L vector for the name of the second treatment}
+
 \item{k}{k to use for GAMs. Automatically set to the minimum of 8 or 3 less than the number of unique values in size.}
 
 \item{n_cores}{Number of cores to use for parallel processing.}
-
-\item{treatment1_name}{1L vector for the name of the first treatment}
-
-\item{treatment2_name}{1L vector for the name of the second treatment}
 }
 \value{
 Returns a data.frame with predicted catch for Poisson, negative binomial, and Tweedie models.

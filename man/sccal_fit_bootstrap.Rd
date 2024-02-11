@@ -37,8 +37,6 @@ sccal_fit_bootstrap(
 \item{k}{k for mgcv spline for size}
 
 \item{n_cores}{Number of cores to use for parallel processing.}
-
-\item{scale_method}{Method to use for scaling the catch comparison rate for beta regression. See ?scale_for_betareg}
 }
 \description{
 Uses the output of two_stage_bootstrap to Poisson, negative binomial, or Tweedie generalized additive mixed models to catch at length data, then calculates selectivity ratio.

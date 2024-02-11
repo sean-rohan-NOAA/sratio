@@ -11,7 +11,6 @@
 #' @param effort_col Character vector; name of the column containing effort
 #' @param gam_family "binomial" or "beta"
 #' @param k k for mgcv spline for size
-#' @param scale_method Method to use for scaling the catch comparison rate for beta regression. See ?scale_for_betareg
 #' @param n_cores Number of cores to use for parallel processing.
 #' @export
 
