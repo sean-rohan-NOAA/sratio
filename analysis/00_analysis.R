@@ -64,7 +64,8 @@ source(here::here("analysis", "05_bootstrap_selectivity_ratio_model.R"))
 # Inputs:
 #     (5-1) ./output/{species_code}/sratio_bootstrap_results_{species_code}.rds (bootstrap fits)
 # Outputs:
-#     (6-1) ./plots/{species_code}_trawl_height_two_panel_ratios_n.png (catch comparison rate/selectivity ratio plot)
+#     (6-1) ./plots/{species_code}_sratio_two_panel.png (catch comparison rate/selectivity ratio plot)
+#     (6-2) ./plots/{species_code}_sratio_three_panel.png (catch comparison rate/selectivity ratio plot w/ sample histogram)
 source(here::here("analysis", "06_plot_selectivity_ratio_model.R"))
 
 
