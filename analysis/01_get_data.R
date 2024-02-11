@@ -282,7 +282,7 @@ get_data <- function(species_codes) {
   # 1998: Get Goddard (1997) and Somerton et al. (2002) data
   crab_1995_1998 <- sratio::crab_size_1995_1998 |>
     dplyr::select(-STATIONID) |>
-    dplyr::filter(!(SPECIES_CODE %in% c(69322, 69400))) |> # Remove BKC and horsehair crab
+    dplyr::filter(!(SPECIES_CODE %in% c(69323, 69400))) |> # Remove BKC and horsehair crab
     dplyr::mutate(FREQUENCY = SAMPLING_FACTOR)
   
   

@@ -19,6 +19,10 @@ start_time <- Sys.time()
 #     (1-4) ./plots/sample_sizes_no_filter_1530.csv (sample size table without sample size restrictions in a haul)
 source(here::here("analysis", "01_get_data.R"))
 
+#--------------------------------------------------------------------------------------------------#
+#--------------------------- REBUILD THE PACKAGE BEFORE CONTINUING TO 2 ---------------------------#
+#--------------------------------------------------------------------------------------------------#
+
 
 # 2. Format the built-in data ----
 # Setup data for selectivity ratio and catch-at-size models 
@@ -40,7 +44,7 @@ source(here::here("analysis", "02_prepare_data.R"))
 source(here::here("analysis", "03_bootstrap_samples.R"))
 
 
-# 4. Select best binomial and beta selectivity ratio models (parallel processing) ----
+# 4. Select best binomial and beta selectivity ratio models (parallelized) ----
 # Fit GAMMs to catch comparison rate data and select the best model based on leave-one-out cross validation.
 # Input: 
 #     (2-2) ./output/n_by_treatment_1530.rds
@@ -49,7 +53,7 @@ source(here::here("analysis", "03_bootstrap_samples.R"))
 source(here::here("analysis", "04_best_selectivity_ratio_model.R"))
 
 
-# 5. Bootstrap selectivity ratio models (parallel processing) ----
+# 5. Bootstrap selectivity ratio models (parallelized) ----
 # For each species, fit the best model to bootstrapped sample data to estimate confidence intervals.
 # Inputs:
 #     (3-1) ./output/{species_code}/bootstrap_samples_{species_code}.rds
@@ -70,7 +74,7 @@ source(here::here("analysis", "06_plot_selectivity_ratio_model.R"))
 
 
 
-# 7. Select best catch-at-size models (parallel processing) ----
+# 7. Select best catch-at-size models (parallelized) ----
 # Fit Poisson, Negative Binomial, and Tweedie GAMMs to catch-at-size (in numbers) data and select the best models based on leave-one-out-cross validation.
 # Inputs:
 #     (2-1) ./output/catch_at_length_1530.rds (formatted for catch-at-length models)
@@ -79,7 +83,7 @@ source(here::here("analysis", "06_plot_selectivity_ratio_model.R"))
 source(here::here("analysis", "07_best_catch_at_length_model.R"))
 
 
-# 8. Bootstrap catch-at-size models (parallel processing) ----
+# 8. Bootstrap catch-at-size models (parallelized) ----
 # For each species, fit the best models to bootstrapped sample data to estimate confidence intervals.
 # Inputs:
 #     (3-1) ./output/{species_code}/bootstrap_samples_{species_code}.rds
@@ -94,8 +98,7 @@ source(here::here("analysis", "08_bootstrap_catch_at_length_model.R"))
 # Inputs: 
 #     (8-1) ./output/{species_code}/sccal_model_bootstrap_results_{species_code}.rds
 # Outputs:
-#     (9-1) ./plots/{species_code}_total_catch_gam_ratio_ribbon.png
-#     (9-2) ./plots/{species_code}_total_catch_gam_ratio_lines.png
+#     (9-1) ./plots/{species_code}_sccal_ratio.png
 source(here::here("analysis", "09_plot_catch_at_length_model.R"))
 
 stop_time <- Sys.time()
@@ -113,6 +116,7 @@ stop_time-start_time
 #     (10-3) ./plots/cpue_model_boxplot.png (boxplot of regression slope 95% credible intervals)
 #     (10-4) ./plots/cpue_log_model_scatterplot.png (regression fits between log10(CPUE15)~log10(CPUE30))
 source(here::here("analysis/10_cpue_model.R"))
+
 
 # 11. Mean bias and other metrics ---- 
 #  Compare CPUE between 15 and 30 minute tows
