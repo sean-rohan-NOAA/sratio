@@ -30,9 +30,8 @@ for(ii in 1:length(bootstrap_sample_path)) {
   
   # Rename output columns
   bootstrap_df <- bootstrap_df |> 
-    select(-effort) |>
-    dplyr::rename(SIZE_BIN = size,
-                  MATCHUP = block)
+    select(-AREA_SWEPT_KM2) |>
+    dplyr::mutate(SPECIES_CODE = sp_code)
   
   saveRDS(bootstrap_df, file = here::here("output", sp_code,  paste0("sccal_model_bootstrap_results_", sp_code, ".rds")))
   

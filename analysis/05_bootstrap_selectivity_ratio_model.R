@@ -20,16 +20,17 @@ for(ii in 1:length(bootstrap_sample_path)) {
   
   # Run two-stage bootstrap (stage 1: by matchup, stage 2: by sample within a matchup)
   bootstrap_df <- sratio::sratio_fit_bootstrap(x = boot_dat,
-                                           treatment_order = c(30, 15),
-                                           size_col = "SIZE_BIN",
-                                           block_col = "MATCHUP",
-                                           treatment_col = "TREATMENT",
-                                           count_col = "FREQ_EXPANDED",
-                                           effort_col = "AREA_SWEPT_KM2",
-                                           gam_family = best_model,
-                                           k = gam_knots,
-                                           scale_method = "sv",
-                                           n_cores = 4)
+                                               treatment_order = c(30, 15),
+                                               size_col = "SIZE_BIN",
+                                               block_col = "MATCHUP",
+                                               treatment_col = "TREATMENT",
+                                               count_col = "FREQ_EXPANDED",
+                                               effort_col = "AREA_SWEPT_KM2",
+                                               gam_family = best_model,
+                                               k = gam_knots,
+                                               scale_method = "sv",
+                                               n_cores = 4)
+  bootstrap_df$SPECIES_CODE <- sp_code
   
   saveRDS(bootstrap_df, here::here("output", sp_code, paste0("sratio_bootstrap_results_", sp_code, ".rds")))
   

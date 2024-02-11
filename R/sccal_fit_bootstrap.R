@@ -105,6 +105,8 @@ sccal_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatme
   
   results <- do.call("rbind", bootstrap_output)
   
+  names(results)[match(c("size", "block", "effort"), table = names(results))] <- c(size_col, block_col, effort_col)
+  
   return(results)
   
 }
