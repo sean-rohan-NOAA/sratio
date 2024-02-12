@@ -112,14 +112,13 @@ for(ii in 1:length(bootstrap_results_path)) {
     theme_bw()
   
   # Write plots to file
-  ragg::agg_png(file = here::here("plots", paste0(sp_code, "_sratio_two_panel.png")), width = 113, height = 70, units = "mm", res = 300)
-  print(cowplot::plot_grid(plot_pratio,
-                           plot_sratio,
-                           nrow = 1,
-                           labels = LETTERS[1:2]))
-  dev.off()
+  # ragg::agg_png(file = here::here("plots", paste0(sp_code, "_sratio_two_panel.png")), width = 113, height = 70, units = "mm", res = 300)
+  # print(cowplot::plot_grid(plot_pratio,
+  #                          plot_sratio,
+  #                          nrow = 1,
+  #                          labels = LETTERS[1:2]))
+  # dev.off()
   
-  # Write plots to file
   ragg::agg_png(file = here::here("plots", paste0(sp_code, "_sratio_three_panel.png")), width = 169, height = 70, units = "mm", res = 300)
   print(cowplot::plot_grid(plot_obs_histogram,
                            plot_pratio,
