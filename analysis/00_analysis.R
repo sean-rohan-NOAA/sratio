@@ -19,6 +19,7 @@ start_time <- Sys.time()
 #     (1-4) ./plots/sample_sizes_no_filter_1530.csv (sample size table without sample size restrictions in a haul)
 source(here::here("analysis", "01_get_data.R"))
 
+
 #--------------------------------------------------------------------------------------------------#
 #--------------------------- REBUILD THE PACKAGE BEFORE CONTINUING TO 2 ---------------------------#
 #--------------------------------------------------------------------------------------------------#
