@@ -46,7 +46,7 @@ for(ii in 1:length(bootstrap_results_path)) {
     scale_y_continuous(name = "Matchups (#)") +
     scale_fill_colorblind() +
     theme_bw() +
-    theme(legend.position = c(0.8,0.87),
+    theme(legend.position = c(0.17,0.87),
           legend.title = element_blank(),
           legend.background = element_blank(),
           legend.text = element_text(size = 6.5),

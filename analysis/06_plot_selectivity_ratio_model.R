@@ -5,7 +5,12 @@ bootstrap_results_path <- list.files(here::here("output"),
                                     pattern = "sratio_bootstrap_results_", 
                                     full.names = TRUE)
 
-pratio_samples <- readRDS(here::here("output", "pratio_samples.rds"))
+pratio_samples <- readRDS(here::here("output", "pratio_samples.rds")) |>
+  dplyr::mutate(MATCHUP = as.numeric(as.character(MATCHUP))) |>
+  dplyr::inner_join(sratio::data_1530$haul |>
+                      dplyr::select(MATCHUP, YEAR) |>
+                      unique(),
+                    by = "MATCHUP")
 
 for(ii in 1:length(bootstrap_results_path)) {
   
@@ -62,14 +67,19 @@ for(ii in 1:length(bootstrap_results_path)) {
   hist_df <- dplyr::filter(pratio_samples, SPECIES_CODE == sp_code)
   
   plot_obs_histogram <- ggplot() +
-    geom_histogram(data = hist_df,
-                   mapping = aes(x = SIZE_BIN),
-                   bins = length(unique(hist_df$SIZE_BIN))-1,
-                   fill = "grey50",
-                   color = "grey50") +
+    geom_histogram(data = hist_df ,
+                   mapping = aes(x = SIZE_BIN, fill = factor(YEAR)),
+                   bins = length(unique(hist_df $SIZE_BIN))-1) +
     scale_x_continuous(name = sratio:::species_code_label(sp_code), expand = c(0,0)) +
     scale_y_continuous(name = "Matchups (#)") +
-    theme_bw()
+    scale_fill_colorblind() +
+    theme_bw() +
+    theme(legend.position = c(0.17,0.87),
+          legend.title = element_blank(),
+          legend.background = element_blank(),
+          legend.text = element_text(size = 6.5),
+          legend.key.height = unit(2, units = "mm"),
+          legend.key.width = unit(4, units = "mm"))
   
   plot_sratio <- ggplot() +
     geom_point(data = dplyr::filter(pratio_samples, SPECIES_CODE == sp_code),
