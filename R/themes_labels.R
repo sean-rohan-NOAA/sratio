@@ -13,7 +13,7 @@ species_code_label <- function(x, type = "axis_label", make_factor = FALSE) {
                          SIZE_BIN_WIDTH = c(4, 5, 4, 4, 4, 4, 4, 3, 5, 4, 8, 8, 10),
                          MIN_SAMPLE_SIZE = c(10, 10, 10, 10, 10, 10, 10, 10, 10, 5, 10, 10, 10))
   
-  if(x == "all") {
+  if(x[1] == "all") {
     return(species_info)
   }
   

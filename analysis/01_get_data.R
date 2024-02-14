@@ -383,12 +383,26 @@ get_data <- function(species_codes) {
     dplyr::filter(USE_FOR_SELECTIVITY) |>
     dplyr::group_by(SPECIES_CODE, YEAR) |>
     dplyr::summarise(n = sum(FREQUENCY), .groups = "keep") |>
+    dplyr::arrange(YEAR) |>
     write.csv(file = here::here("plots", "sample_sizes_1530.csv"), row.names = FALSE)
+  
+  crab_fish |>
+    dplyr::mutate(YEAR = floor(CRUISE/100)) |>
+    dplyr::filter(USE_FOR_SELECTIVITY) |>
+    dplyr::group_by(SPECIES_CODE, YEAR) |>
+    dplyr::summarise(n = sum(FREQUENCY), .groups = "keep") |>
+    dplyr::ungroup() |>
+    dplyr::arrange(YEAR) |>
+    tidyr::pivot_wider(names_from = "YEAR", values_from = "n", values_fill = 0) |>
+    dplyr::mutate(COMMON_NAME = sratio::species_code_label(SPECIES_CODE, type = "common_name")) |>
+    write.csv(file = here::here("plots", "sample_sizes_wide_1530.csv"), row.names = FALSE)
+  
   
   crab_fish |>
     dplyr::mutate(YEAR = floor(CRUISE/100)) |>
     dplyr::group_by(SPECIES_CODE, YEAR) |>
     dplyr::summarise(n = sum(FREQUENCY), .groups = "keep") |>
+    dplyr::arrange(YEAR) |>
     write.csv(file = here::here("plots", "sample_sizes_no_filter_1530.csv"), row.names = FALSE)
 
 }
