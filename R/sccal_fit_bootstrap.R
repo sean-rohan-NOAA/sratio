@@ -20,7 +20,7 @@ sccal_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatme
   
   # Make treatment_order a factor and retain the rank order from input
   if(class(treatment_order) != "factor") {
-    factor(treatment_order, levels = treatment_order)
+    treatment_order <- factor(treatment_order, levels = treatment_order)
   }
   
   format_sccal_bootstrap <- function(x, size_col, block_col, treatment_col, count_col, effort_col, treatment_order) {
@@ -109,3 +109,16 @@ sccal_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatme
   return(results)
   
 }
+
+
+test_fn <- function(input) {
+  
+  output <- input |>
+    dplyr::group_by(block, treatment) |>
+    dplyr::summarise(n = sum(count), .groups = "keep")
+  
+  return(output)
+  
+}
+
+

@@ -65,7 +65,7 @@ two_stage_bootstrap <- function(count1,
 
 #' First stage of two-stage bootstrap
 #' 
-#' Draw from paired treatment blocks and samples from first treatment leve
+#' Draw from paired treatment blocks and samples from first treatment level
 #' 
 #' @param x A vector of the variable to be sampled.
 #' @param group A vector of grouping variables for x.
