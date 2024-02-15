@@ -94,7 +94,7 @@ source(here::here("analysis", "07_best_catch_at_length_model.R"))
 source(here::here("analysis", "08_bootstrap_catch_at_length_model.R"))
 
 
-# 9. Plot catch-at-size bootstrap results ----
+# 9. Plot selectivity conditional on catch-at-length (SCCAL) bootstrap results ----
 # Plot catch-at-size fits
 # Inputs: 
 #     (8-1) ./output/{species_code}/sccal_model_bootstrap_results_{species_code}.rds
@@ -102,30 +102,36 @@ source(here::here("analysis", "08_bootstrap_catch_at_length_model.R"))
 #     (9-1) ./plots/{species_code}_sccal_ratio.png
 source(here::here("analysis", "09_plot_catch_at_length_model.R"))
 
+
+# 10. Plot SCCAL and SR on the same plots ----
+# Inputs: 
+#     (5-1) ./output/{species_code}/sratio_bootstrap_results_{species_code}.rds (bootstrap fits)
+#     (8-1) ./output/{species_code}/sccal_model_bootstrap_results_{species_code}.rds
+
 stop_time <- Sys.time()
 
 stop_time-start_time
 
-# 10. Total catch model ----
+# 11. Total catch model ----
 # Bayesian zero-intercept linear regression model between log10(CPUE) from 15 and 30 minute hauls
 # to evaluate whether there is a one-to-one relationship between CPUE from 15 and 30 minute hauls (i.e. slope = 1)
 # Inputs:
 #     (1-1) ./data/data_1530.rda (built-in data set; sratio::data_1530)
 # Outputs:
-#     (10-1) ./plots/cpue_model_density_plot.png (density plots of regression slope 95% credible intervals)
-#     (10-2) ./plots/cpue_model_violin_plot.png (violin plots of regression slope  95% credible intervals)
-#     (10-3) ./plots/cpue_model_boxplot.png (boxplot of regression slope 95% credible intervals)
-#     (10-4) ./plots/cpue_log_model_scatterplot.png (regression fits between log10(CPUE15)~log10(CPUE30))
-source(here::here("analysis/10_cpue_model.R"))
+#     (11-1) ./plots/cpue_model_density_plot.png (density plots of regression slope 95% credible intervals)
+#     (11-2) ./plots/cpue_model_violin_plot.png (violin plots of regression slope  95% credible intervals)
+#     (11-3) ./plots/cpue_model_boxplot.png (boxplot of regression slope 95% credible intervals)
+#     (11-4) ./plots/cpue_log_model_scatterplot.png (regression fits between log10(CPUE15)~log10(CPUE30))
+source(here::here("analysis/11_cpue_model.R"))
 
 
-# 11. Mean bias and other metrics ---- 
+# 12. Mean bias and other metrics ---- 
 #  Compare CPUE between 15 and 30 minute tows
 # Inputs:
 #     (1-1) ./data/data_1530.rda (built-in data set; sratio::data_1530)
 # Outputs:
-#     (11-1) ./plots/bias_table.csv (table of bias, RMSE, MAE by species)
-source(here::here("analysis", "11_performance_metrics.R"))
+#     (12-1) ./plots/bias_table.csv (table of bias, RMSE, MAE by species)
+source(here::here("analysis", "12_performance_metrics.R"))
 
 
 # 90. Map of annual samples ----
@@ -133,4 +139,5 @@ source(here::here("analysis", "11_performance_metrics.R"))
 #     (1-1) ./data/data_1530.rda (built-in data set; sratio::data_1530)
 # Outputs:
 #     (90-1) ./plots/map_samples_by_stratum.png (samples by stratum for project plan and presentations)
+#     (90-2) ./plots/sample_map_1995_2023.png (multi-panel sample map/samples by year)
 source(here::here("analysis", "90_sample_map.R"))
