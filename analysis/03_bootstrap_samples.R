@@ -3,7 +3,7 @@
 library(sratio)
 
 # Treatment levels
-treatments <- factor(c(15,30))
+treatments <- factor(c(30, 15))
 
 seed <- 19710
 n_boot_draws <- 1000

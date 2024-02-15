@@ -19,7 +19,7 @@ sratio_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatm
   
   # Make treatment_order a factor and retain the rank order from input
   if(class(treatment_order) != "factor") {
-    factor(treatment_order, levels = treatment_order)
+    treatment_order <- factor(treatment_order, levels = treatment_order)
   }
   
   # Function to reformat list of bootstrap samples
