@@ -107,6 +107,7 @@ source(here::here("analysis", "09_plot_catch_at_length_model.R"))
 # Inputs: 
 #     (5-1) ./output/{species_code}/sratio_bootstrap_results_{species_code}.rds (bootstrap fits)
 #     (8-1) ./output/{species_code}/sccal_model_bootstrap_results_{species_code}.rds
+source(here::here("analysis", "10_plot_sratio_sccal.R"))
 
 stop_time <- Sys.time()
 
