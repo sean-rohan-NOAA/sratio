@@ -13,22 +13,24 @@ catch_at_size <- function(size,
                           selectivity,
                           n_size_samples) {
   
-  abundance_at_size <- data.frame(fl_adj = size,
-                              abundance = abundance)
+  abundance_at_size <- data.frame(size = size,
+                                  abundance = abundance)
   
   # Draw age/length sample from a multinomial distribution
-  # Assuming homogenous sample, probability of capture = Dirichlet abundance * selectivity
-  comp_df <- rmultinom(1, 
-                       size = n_size_samples, 
-                       prob = gtools::rdirichlet(n = 1, 
-                                                 alpha = abundance_at_size$abundance * selectivity))
+  # Probability of capture = Dirichlet abundance * selectivity
+  comp_df <- stats::rmultinom(1, 
+                              size = n_size_samples, 
+                              prob = gtools::rdirichlet(n = 1, 
+                                                        alpha = abundance_at_size$abundance * selectivity))
   
   sample_comp_df <- abundance_at_size[rep(row.names(abundance_at_size), comp_df), 1:2]
   
   sample_comp_df$specimen_number <- sample(1:nrow(sample_comp_df), 
                                            size = nrow(sample_comp_df), replace = FALSE)
   
-  sample_comp_df <- dplyr::select(sample_comp_df, -abundance)
+  sample_comp_df <- sample_comp_df[, -which(names(sample_comp_df) == "abundance")]
+  
+  rownames(sample_comp_df) <- 1:nrow(sample_comp_df)
   
   return(sample_comp_df)
   

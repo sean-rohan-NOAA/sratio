@@ -17,38 +17,79 @@
 # - Draw index
 # - Settings
 # - Fits (by draw)
+library(sratio)
 
-size = 10:50
+# Function arguments ----
 
+demographic_comp_pars = list(distribution = "normal", mean = 30, sd = 10)
+# demographic_comp_pars <- list(distribution = "sn", xi = 30, omega = 10, alpha = 3)
+
+
+# A vector of sizes
+size <- 10:55
+
+# A vector of abundance-at-size
 abundance = round(dnorm(size, mean = 35, sd = 10) * 1e5 * (1-rnorm(length(size), mean = 0, sd = 0.1)))
 
+# Proportion of the total population that is available to a haul ----
+# availability = 0.0003
+
+availability = list(distribution = "normal", mean = 0.0004, sd = 0.00002)
+
+demographic_comp_pars = list(distribution = "normal", mean = 30, sd = 10)
+
+# Gear efficiency ----
+gear_q1 = 1
+gear_q2 = 0.8
+
+# Effort for the treatments ----
+effort1 = 0.5
+effort2 = 1
+
 selectivity_opts1 = list(type = "asymptotic",
-                          begin_top = 20,
-                          ln_sd1 = 5)
+                         begin_top = 35,
+                         ln_sd1 = 10) 
 
 selectivity_opts2 = list(type = "asymptotic",
                          begin_top = 35,
                          ln_sd1 = 10)
 
-# Setup selectivity
-s_at_size1 <- selectivity_at_size(size = size, 
-                                 selectivity_opts = selectivity_opts1)
-
-s_at_size2 <- selectivity_at_size(size = size, 
-                                 selectivity_opts = selectivity_opts2)
-
-c_at_size1 <- catch_at_size(size = size, 
-                            abundance = abundance, 
-                            selectivity = s_at_size1,
-                            n_size_samples = 10)
-
-plot(size, s_at_size, type = 'l')
-lines(size, s_at_size2, col = "red")
+n_pairs <- 40
 
 
-# Import numbers-at-length/age
+for(ii in 1:n_pairs) {
+  
+}
+  
+  sample1 <- simulate_paired_sample(size = size, 
+                                    abundance = abundance, 
+                                    availability = availability, 
+                                    demographic_comp_pars = demographic_comp_pars, 
+                                    gear_q1 = gear_q1, 
+                                    gear_q2 = gear_q2, 
+                                    effort1 = effort1, 
+                                    effort2 = effort2, 
+                                    selectivity_opts1 = selectivity_opts1, 
+                                    selectivity_opts2 = selectivity_opts2)
 
-# Setup proportion available at-length (numbers * normalized distribution)
+  
+}
+
+# Options for the selectivity function ----
+selectivity_opts1 = list(type = "asymptotic",
+                         begin_top = 35,
+                         ln_sd1 = 10)
+
+selectivity_opts2 = list(type = "asymptotic",
+                         begin_top = 35,
+                         ln_sd1 = 10)
+
+
+
+
+plot(size, s_at_size1*gear_q1, type = 'l')
+lines(size, s_at_size2*gear_q2, col = "red")
+
 
 # Draw from Dirichelet multinomial
 

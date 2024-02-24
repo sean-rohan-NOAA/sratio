@@ -6,14 +6,14 @@
 #' @param size Vector of mean length at age
 #' @param abundance Vector of abundances at size
 #' @param sd_at_age_df Data frame containing standard deviation at age 1 and 20 for the chosen ensemble.
-#' @param length_range Numeric vector of 2L. Maximum and minimum lengths
+#' @param size_range Numeric vector of 2L. Maximum and minimum lengths
 #' @export
 
 make_population_size_comp <- function(age,
                                  size,
                                  abundance,
                                  sd_at_age_df,
-                                 length_range = c(3, 127)) {
+                                 size_range = c(3, 127)) {
   
   # Linear approximation of standard deviation at age
   sd_at_age_vec <- sd_at_age_df$sd_at_age1 + (((age-1) * (sd_at_age_df$sd_at_age20-sd_at_age_df$sd_at_age1))/(20-1))
@@ -30,15 +30,15 @@ make_population_size_comp <- function(age,
     }
     
     # Maximum length at 127 cm
-    while(any(size > length_range[2])) {
-      print(paste0(size[i], " ", length(size[size > length_range[2]])))
-      size[size > length_range[2]] <- round(rnorm(length(size[size > length_range[2]]), size[i],sd_at_age_vec[i]))
+    while(any(size > size_range[2])) {
+      print(paste0(size[i], " ", length(size[size > size_range[2]])))
+      size[size > size_range[2]] <- round(rnorm(length(size[size > size_range[2]]), size[i],sd_at_age_vec[i]))
     }
     
     # Minimum length at 3 cm
-    while(any(size < length_range[1])) {
-      print(paste0(size[i], " ", length(size[size < length_range[1]])))
-      size[size < length_range[1]] <- round(rnorm(length(size[size < length_range[1]]), size[i],sd_at_age_vec[i]))
+    while(any(size < size_range[1])) {
+      print(paste0(size[i], " ", length(size[size < size_range[1]])))
+      size[size < size_range[1]] <- round(rnorm(length(size[size < size_range[1]]), size[i],sd_at_age_vec[i]))
     }
     
     out_df <- as.data.frame(table(size)) %>%

@@ -9,7 +9,7 @@ make_population_size_comp(
   size,
   abundance,
   sd_at_age_df,
-  length_range = c(3, 127)
+  size_range = c(3, 127)
 )
 }
 \arguments{
@@ -21,7 +21,7 @@ make_population_size_comp(
 
 \item{sd_at_age_df}{Data frame containing standard deviation at age 1 and 20 for the chosen ensemble.}
 
-\item{length_range}{Numeric vector of 2L. Maximum and minimum lengths}
+\item{size_range}{Numeric vector of 2L. Maximum and minimum lengths}
 }
 \description{
 Simulate size composition of the population based on numbers-at-age, size-at-age, and standard deviation in size-at-age.
