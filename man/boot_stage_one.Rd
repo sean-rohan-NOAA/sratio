@@ -19,5 +19,5 @@ boot_stage_one(x, group, frequency = NULL, draws)
 A list containing a list of samples and associated group from which the samples were drawn.
 }
 \description{
-Draw from paired treatment blocks and samples from first treatment leve
+Draw from paired treatment blocks and samples from first treatment level
 }

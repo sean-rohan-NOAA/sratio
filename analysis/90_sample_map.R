@@ -57,11 +57,38 @@ haul_locs <- sratio::data_1530$haul |>
   sf::st_transform(crs = "EPSG:3338")
 
 
+crab_layers <- dplyr::bind_rows(sf::st_read(here::here("assets", "Pribilof_RKC_strata.shp")) |>
+                                  dplyr::mutate(area = "Pribilof Islands"),
+                                sf::st_read(here::here("assets", "Pribilof_RKC_strata.shp")) |>
+                                  dplyr::mutate(area = "St. Matthew  Island"),
+                                sf::st_read(here::here("assets", "BBRKC_strata.shp")) |>
+                                  dplyr::mutate(area = "Bristol Bay"),
+                                sf::st_read(here::here("assets", "EBS_CO_CB_strata.shp")) |>
+                                  dplyr::mutate(area = "EBS")
+)
+
+
 ragg::agg_png(filename = here::here("plots", "sample_map_1995_2023.png"), width = 169, height = 120, res = 300, units = "mm")
 print(
   ggplot() +
     geom_sf(data = map_layers$akland) +
     geom_sf(data = map_layers$survey.strata, fill = NA) +
+    geom_sf(data = haul_locs, size = rel(0.8), color = "#49C1ADFF") +
+    facet_wrap(~YEAR) +
+    scale_x_continuous(limits = map_layers$plot.boundary$x,
+                       breaks = map_layers$lon.breaks) +
+    scale_y_continuous(limits = map_layers$plot.boundary$y,
+                       breaks = map_layers$lat.breaks) +
+    theme_bw()
+)
+dev.off()
+
+
+ragg::agg_png(filename = here::here("plots", "sample_map_crab_strata_1995_2023.png"), width = 169, height = 120, res = 300, units = "mm")
+print(
+  ggplot() +
+    geom_sf(data = map_layers$akland) +
+    geom_sf(data = crab_layers, fill = NA) +
     geom_sf(data = haul_locs, size = rel(0.8), color = "#49C1ADFF") +
     facet_wrap(~YEAR) +
     scale_x_continuous(limits = map_layers$plot.boundary$x,
