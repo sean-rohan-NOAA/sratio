@@ -11,9 +11,9 @@ catch_at_size(size, abundance, selectivity, n_size_samples)
 
 \item{abundance}{Vector of numbers-at-size}
 
-\item{n_size_samples}{Number of individuals captured per sample}
+\item{selectivity}{A vector of selectivity-at-size}
 
-\item{selectivity_opts}{A vector of selectivity-at-size}
+\item{n_size_samples}{Number of individuals captured per sample}
 }
 \description{
 Simulate catch-at-size as the product of selectivity and numbers-at-length using a Dirichlet-multinomial distribution.

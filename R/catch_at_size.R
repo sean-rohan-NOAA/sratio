@@ -4,7 +4,7 @@
 #' 
 #' @param size Vector of sizes
 #' @param abundance Vector of numbers-at-size
-#' @param selectivity_opts A vector of selectivity-at-size
+#' @param selectivity A vector of selectivity-at-size
 #' @param n_size_samples Number of individuals captured per sample
 #' @export
 
