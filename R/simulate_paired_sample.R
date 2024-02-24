@@ -11,7 +11,7 @@
 #' @param effort1 Effort for gear/method #1 as a 1L numeric vector
 #' @param effort2 Same as above for gear/method #2.
 #' @param selectivity_opts1 Selectivity model parameters for gear/method #1 as a list. Required named elements of the list vary depending on the selectivity assumption (see ?selectivity_at_size)
-#' @param selectivity_opts1 Same as above for gear/method #2.
+#' @param selectivity_opts2 Same as above for gear/method #2.
 #' @param return_vars If TRUE, returns a list containing variable values used for the simulation. Otherwise, only returns the samples.
 #' @returns A list containing size samples for both gears.
 #' @examples
