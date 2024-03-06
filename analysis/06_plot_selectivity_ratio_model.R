@@ -127,5 +127,12 @@ for(ii in 1:length(bootstrap_results_path)) {
                            labels = LETTERS[1:3]))
   dev.off()
   
+  ragg::agg_png(file = here::here("plots", paste0(sp_code, "_sratio_two_panel.png")), width = 104, height = 70, units = "mm", res = 300)
+  print(cowplot::plot_grid(plot_obs_histogram,
+                           plot_sratio,
+                           nrow = 1,
+                           labels = LETTERS[1:3]))
+  dev.off()
+  
 }
 
