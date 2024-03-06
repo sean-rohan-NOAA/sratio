@@ -12,7 +12,7 @@ two_stage_bootstrap(
   block1,
   block2,
   n_draws,
-  seed,
+  seed = NULL,
   treatment_name1 = 1,
   treatment_name2 = 2
 )

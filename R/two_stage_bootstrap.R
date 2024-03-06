@@ -21,7 +21,7 @@ two_stage_bootstrap <- function(count1,
                                 block1,
                                 block2,
                                 n_draws,
-                                seed,
+                                seed = NULL,
                                 treatment_name1 = 1,
                                 treatment_name2 = 2) {
   
@@ -38,7 +38,7 @@ two_stage_bootstrap <- function(count1,
                            draw_group = boot_1$draws$group, 
                            draw_index = boot_1$draws$draw)
   
-  boot_samples <- vector(mode = "list", length = n_boot_draws)
+  boot_samples <- vector(mode = "list", length = n_draws)
   
   for(kk in 1:n_draws) {
     

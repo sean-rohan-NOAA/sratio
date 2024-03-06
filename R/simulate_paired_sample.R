@@ -100,6 +100,8 @@ simulate_paired_sample <- function(size, abundance, availability, demographic_co
                               selectivity = s_at_size2,
                               n_size_samples = sample_size2)
   
+  c_at_size1$effort <- effort1
+  c_at_size2$effort <- effort2
   c_at_size1$treatment <- 1
   c_at_size2$treatment <- 2
   
@@ -117,7 +119,9 @@ simulate_paired_sample <- function(size, abundance, availability, demographic_co
                        selectivity1 = s_at_size1, 
                        selectivity2 = s_at_size2))
   } else {
+    
     output <- list(samples = samples)
+    
   }
   
   return(output)
