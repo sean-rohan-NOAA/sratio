@@ -80,7 +80,7 @@ sratio_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatm
   cl <- parallel::makeCluster(n_cores)
   doParallel::registerDoParallel(cl)
 
-  bootstrap_output <- foreach::foreach(iter = 1:length(boot_dat),
+  bootstrap_output <- foreach::foreach(iter = 1:length(x),
                                        .packages = c("mgcv", "dplyr")) %dopar% {
   
     boot_df <- x[[iter]]
