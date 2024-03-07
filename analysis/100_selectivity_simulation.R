@@ -78,6 +78,8 @@ settings = list(
   n_cores = n_cores
 )
 
+# Function to run selectivity simulation
+
 run_selectivity_simulation <- function(settings) {
   
   list2env(settings, envir = environment())
@@ -291,9 +293,7 @@ run_selectivity_simulation <- function(settings) {
   
 }
 
-
-test <- run_selectivity_simulation(settings = settings)
-
+# Function to plot simulation results
 
 plot_simulation_results <- function(x) {
   

@@ -77,19 +77,19 @@ simulate_paired_sample <- function(size, abundance, availability, demographic_co
                                     selectivity_opts = selectivity_opts2)
   
   # Total catch in numbers with rounding of fractional values (scales with density) ----
-  sample_size1 <- sum(local_density) * effort1 * gear_q1
+  sample_size1 <- sum(local_density * s_at_size1 * effort1 * gear_q1)
   
   sample_size1 <- sample(x = c(0,1), 
                          size = 1, 
                          prob = c(1-(sample_size1 %% 1), sample_size1 %% 1)) + floor(sample_size1)
   
-  sample_size2 <- sum(local_density) * effort2 * gear_q2
+  sample_size2 <- sum(local_density * s_at_size2 * effort2 * gear_q2)
   
   sample_size2 <- sample(x = c(0,1), 
                          size = 1, 
                          prob = c(1-(sample_size2 %% 1), sample_size2 %% 1)) + floor(sample_size2)
   
-  # Catch-at-size based on Dirchilet-multinomial draws from the product of local abundance and selectivity ----
+  # Catch-at-size based on Dirichlet-multinomial draws from the product of local abundance and selectivity ----
   c_at_size1 <- catch_at_size(size = size, 
                               abundance = local_density, 
                               selectivity = s_at_size1,
