@@ -22,6 +22,11 @@ study_area <- shelf_layers$survey.grid[grepl(paste(stn_pattern, collapse="|"), s
 
 study_bbox <- sf::st_bbox(study_area)
 
+study_area |>
+  dplyr::rename(label = strat_label) |>
+  sf::st_transform(crs = "WGS84") |>
+  sf::st_write(here::here("output", "2024_sample_zones_shelf_slope.shp"), append = FALSE)
+
 ragg::agg_png(filename = here::here("analysis", "shelf_slope", "plots", "ebs_slope_strata.png"), width = 120, height = 120 * 1.21,
               units = "mm", res = 300)
 print(
