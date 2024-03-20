@@ -62,6 +62,11 @@ sample_zones <- dplyr::bind_rows(area_1, area_2, area_3, area_4) |>
   dplyr::group_by(area) |>
   summarise(do_union = TRUE)
 
+sample_zones |>
+  sf::st_transform(crs = "WGS84") |>
+  sf::st_make_valid() |>
+  sf::st_write(here::here("output", "2024_samples_zones_15_30.shp"))
+
 ragg::agg_png(filename = here::here("plots", "map_target_zones_2024.png"), width = 6, height = 4, units = "in", res = 300)
 print(
 ggplot() +
