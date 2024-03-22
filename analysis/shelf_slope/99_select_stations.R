@@ -3,8 +3,8 @@ library(ggthemes)
 
 channel <- sratio::get_connected(schema = "AFSC")
 
-n_stratum_61 <- 16
-n_stratum_11 <- 12
+n_stratum_61 <- 15
+n_stratum_11 <- 13
 
 bad_substrate <- function(performance) {
   
@@ -15,7 +15,7 @@ bad_substrate <- function(performance) {
   
 }
 
-slope_lut <- readxl::read_xlsx(here::here("analysis", "shelf_slope", "docs", "all_slope_stations new.xlsx")) |>
+slope_lut <- readxl::read_xlsx(here::here("analysis", "shelf_slope", "docs", "all_slope_stations_new.xlsx")) |>
   dplyr::filter(CRUISE < 200800) |>
   dplyr::select(VESSEL, CRUISE, HAUL, STRATUM = old_STRATUM, STATIONID = Old_STATIONID, NEW_STRATUM = new_strata, NEW_STATIONID = New_StationID)
 
@@ -73,8 +73,6 @@ project_stations <- dplyr::bind_rows(
 ) |>
   dplyr::inner_join(slope_summary)
 
-project_stations_sf$PRIMARY <- NA
-
 project_stations$PRIMARY[project_stations$STRATUM == 61] <- ifelse(project_stations$SAMPLE_PRIORITY[project_stations$STRATUM == 61] <= n_stratum_61, "Primary", "Alternate")
 project_stations$PRIMARY[project_stations$STRATUM == 11] <- ifelse(project_stations$SAMPLE_PRIORITY[project_stations$STRATUM == 11] <= n_stratum_11, "Primary", "Alternate")
 
@@ -120,6 +118,35 @@ plot_stratum_61 <- ggplot() +
   theme_bw() +
   theme(legend.position = c(0.15, 0.12))
 
+
+# Make shapefiles for navigation software
+project_stations_sf |>
+  dplyr::select(STATIONID, STRATUM, DEPTH = MEAN_BOTTOM_DEPTH, PRIORITY = SAMPLE_PRIORITY, PRIMARY) |>
+  sf::st_write(here::here("analysis", "shelf_slope", "output", "2024_slope_allocation.shp"), 
+               append = FALSE)
+
+slope_hauls |>
+  sf::st_as_sf(coords = c("START_LONGITUDE", "START_LATITUDE"), crs = "WGS84") |>
+  dplyr::select(VESSEL, CRUISE, HAUL, TIME = START_TIME, PERFORMANCE, STATIONID) |>
+  sf::st_write(here::here("analysis", "shelf_slope", "output", "slope_tow_starts.shp"), 
+               append = FALSE)
+
+dplyr::bind_rows(slope_hauls |>
+                   sf::st_as_sf(coords = c("START_LONGITUDE", "START_LATITUDE"), crs = "WGS84"),
+                 slope_hauls |>
+                   sf::st_as_sf(coords = c("END_LONGITUDE", "END_LATITUDE"), crs = "WGS84")
+                 ) |>
+  dplyr::select(VESSEL, CRUISE, HAUL, TIME = START_TIME, PERFORMANCE, STATIONID) |> 
+  dplyr::group_by(VESSEL, CRUISE, HAUL, PERFORMANCE, STATIONID, TIME) |> 
+  dplyr::summarize(do_union = FALSE) |> 
+  sf::st_cast("LINESTRING") |>
+  sf::st_write(here::here("analysis", "shelf_slope", "output", "slope_towpaths.shp"), 
+               append = FALSE)
+  
+
+test <- sf::st_read(here::here("analysis", "shelf_slope", "output", "slope_towpaths.shp"))
+
+# Make plots
 png(filename = here::here("analysis", "shelf_slope", "plots", "sampling_2024_stations.png"), 
               width = 5, height = 6, units = "in", res = 300)
 print(p1)
