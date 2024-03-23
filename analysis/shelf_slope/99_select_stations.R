@@ -22,12 +22,14 @@ slope_lut <- readxl::read_xlsx(here::here("analysis", "shelf_slope", "docs", "al
 slope_hauls <- RODBC::sqlQuery(channel = channel, 
                                query = "select rbh.cruise, rbh.vessel, rbh.haul, rbh.gear_depth, rbh.bottom_depth, rbh.start_time, 
                                rbh.start_latitude, rbh.start_longitude, rbh.end_latitude, rbh.end_longitude, 
-                               rbh.performance, rbh.haul_type, rbh.stratum, rbh.stationid 
-                               from race_data.cruises c, race_data.surveys s, racebase.haul rbh 
+                               rbh.performance, rbh.haul_type, rbh.stratum, rbh.stationid, hpn.note 
+                               from race_data.cruises c, race_data.surveys s, racebase.haul rbh, race_data.haul_performance_codes hpc, race_data.haul_performance_notes hpn 
                                where rbh.cruise = c.cruise 
                                and s.survey_id = c.survey_id 
                                and c.vessel_id = rbh.vessel 
-                               and s.survey_definition_id = 78 
+                               and s.survey_definition_id = 78
+                               and hpn.haul_performance_note_id = hpc.haul_performance_note_id
+                               and rbh.performance = hpc.haul_performance_code
                                and rbh.stratum in (11, 61)")
 
 slope_before_2008 <- dplyr::filter(slope_hauls, CRUISE < 200800) |>
@@ -127,7 +129,7 @@ project_stations_sf |>
 
 slope_hauls |>
   sf::st_as_sf(coords = c("START_LONGITUDE", "START_LATITUDE"), crs = "WGS84") |>
-  dplyr::select(VESSEL, CRUISE, HAUL, TIME = START_TIME, PERFORMANCE, STATIONID) |>
+  dplyr::select(VESSEL, CRUISE, HAUL, TIME = START_TIME, PERFORMANCE, PERFDESC = NOTE, STATIONID) |>
   sf::st_write(here::here("analysis", "shelf_slope", "output", "slope_tow_starts.shp"), 
                append = FALSE)
 
@@ -136,15 +138,12 @@ dplyr::bind_rows(slope_hauls |>
                  slope_hauls |>
                    sf::st_as_sf(coords = c("END_LONGITUDE", "END_LATITUDE"), crs = "WGS84")
                  ) |>
-  dplyr::select(VESSEL, CRUISE, HAUL, TIME = START_TIME, PERFORMANCE, STATIONID) |> 
-  dplyr::group_by(VESSEL, CRUISE, HAUL, PERFORMANCE, STATIONID, TIME) |> 
+  dplyr::select(VESSEL, CRUISE, HAUL, TIME = START_TIME, PERFORMANCE, PERFDESC = NOTE, STATIONID) |> 
+  dplyr::group_by(VESSEL, CRUISE, HAUL, PERFORMANCE, PERFDESC, STATIONID, TIME) |> 
   dplyr::summarize(do_union = FALSE) |> 
   sf::st_cast("LINESTRING") |>
   sf::st_write(here::here("analysis", "shelf_slope", "output", "slope_towpaths.shp"), 
                append = FALSE)
-  
-
-test <- sf::st_read(here::here("analysis", "shelf_slope", "output", "slope_towpaths.shp"))
 
 # Make plots
 png(filename = here::here("analysis", "shelf_slope", "plots", "sampling_2024_stations.png"), 
