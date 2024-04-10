@@ -22,8 +22,8 @@ selectivity_ratio <- function(count1, count2, effort1 = NULL, effort2 = NULL) {
   
   p12 <- r1/(r1+r2)
   
-  s21 <- 1/p12-1
+  s12 <- p12/(1-p12)
   
-  return(data.frame(r1 = r1, r2 = r2, s21 = s21, p12 = p12))
+  return(data.frame(r1 = r1, r2 = r2, s12 = s12, p12 = p12))
   
 }

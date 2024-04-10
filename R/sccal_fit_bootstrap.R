@@ -93,7 +93,7 @@ sccal_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatme
                                                      effort2 = default_effort)
     
     fit_df$p12 <- selectivity_results$p12
-    fit_df$s21 <- selectivity_results$s21
+    fit_df$s12 <- selectivity_results$s12
     
     return(fit_df)
     
@@ -109,16 +109,3 @@ sccal_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatme
   return(results)
   
 }
-
-
-test_fn <- function(input) {
-  
-  output <- input |>
-    dplyr::group_by(block, treatment) |>
-    dplyr::summarise(n = sum(count), .groups = "keep")
-  
-  return(output)
-  
-}
-
-

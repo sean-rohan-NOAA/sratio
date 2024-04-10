@@ -1,10 +1,14 @@
 library(sratio)
 library(ggthemes)
+library(ggrepel)
 
 channel <- sratio::get_connected(schema = "AFSC")
 
-n_stratum_61 <- 15
-n_stratum_11 <- 13
+
+
+n_stratum_61 <- c("61-17", "61-02", "61-03", "61-20", "61-22", "61-06", "61-05", "61-07", "61-21", "61-12", "61-18", "61-13", "61-14", "61-15")
+n_stratum_11 <- c("11-18", "11-20", "11-05", "11-06", "11-23", "11-07", "11-08", "11-36", "11-25", 
+                  "11-33", "11-29", "11-10", "11-28", "11-35")
 
 bad_substrate <- function(performance) {
   
@@ -75,8 +79,7 @@ project_stations <- dplyr::bind_rows(
 ) |>
   dplyr::inner_join(slope_summary)
 
-project_stations$PRIMARY[project_stations$STRATUM == 61] <- ifelse(project_stations$SAMPLE_PRIORITY[project_stations$STRATUM == 61] <= n_stratum_61, "Primary", "Alternate")
-project_stations$PRIMARY[project_stations$STRATUM == 11] <- ifelse(project_stations$SAMPLE_PRIORITY[project_stations$STRATUM == 11] <= n_stratum_11, "Primary", "Alternate")
+project_stations$PRIMARY <- ifelse(project_stations$STATIONID %in% c(n_stratum_61, n_stratum_11) , "Primary", "Alternate")
 
 project_stations_sf <- dplyr::inner_join(slope_stations_sf, project_stations)
 
@@ -121,6 +124,49 @@ plot_stratum_61 <- ggplot() +
   theme(legend.position = c(0.15, 0.12))
 
 
+project_station_labels <- sf::st_coordinates(project_stations_sf) |>
+  dplyr::bind_cols(project_stations_sf) |>
+  as.data.frame()
+
+
+plot_stratum_11_labels <- ggplot() +
+  geom_sf(data = shelf_layers$bathymetry) +
+  geom_sf(data = slope_layers$akland) +
+  geom_sf(data = dplyr::mutate(bssa1_layers$survey.strata, ID = 1) |>
+            dplyr::group_by(ID) |>
+            dplyr::summarise(do_union = TRUE), alpha = 0.5, color = "grey50", fill = "grey50") +
+  geom_sf(data = dplyr::filter(project_stations_sf, STRATUM == 11),
+          mapping = aes(fill = PRIMARY, shape = PRIMARY)) +
+  geom_text_repel(data = dplyr::filter(project_station_labels, STRATUM == 11),
+          mapping = aes(x = X, y = Y, label = STATIONID), size = rel(2)) +
+  scale_fill_colorblind(name = "Priority") +
+  scale_x_continuous(limits = bssa1_layers$plot.boundary$x) +
+  scale_y_continuous(limits = bssa1_layers$plot.boundary$y) +  
+  scale_shape_manual(name = "Priority", values = c(21,22)) +
+  theme_bw() +
+  theme(legend.position = c(0.85, 0.82),
+        axis.title = element_blank(),
+        axis.text = element_text(size = 7.5))
+
+plot_stratum_61_labels <- ggplot() +
+  geom_sf(data = shelf_layers$bathymetry) +
+  geom_sf(data = slope_layers$akland) +
+  geom_sf(data = dplyr::mutate(bssa6_layers$survey.strata, ID = 1) |>
+            dplyr::group_by(ID) |>
+            dplyr::summarise(do_union = TRUE), alpha = 0.5, color = "grey50", fill = "grey50") +
+  geom_sf(data = dplyr::filter(project_stations_sf, STRATUM == 61),
+          mapping = aes(fill = PRIMARY, shape = PRIMARY)) +
+  geom_text_repel(data = dplyr::filter(project_station_labels, STRATUM == 61),
+                  mapping = aes(x = X, y = Y, label = STATIONID), size = rel(2)) +
+  scale_fill_colorblind(name = "Priority") +
+  scale_x_continuous(limits = bssa6_layers$plot.boundary$x) +
+  scale_y_continuous(limits = bssa6_layers$plot.boundary$y) +  
+  scale_shape_manual(name = "Priority", values = c(21,22)) +
+  theme_bw() +
+  theme(legend.position = c(0.80, 0.82),
+        axis.title = element_blank())
+
+
 # Make shapefiles for navigation software
 project_stations_sf |>
   dplyr::select(STATIONID, STRATUM, DEPTH = MEAN_BOTTOM_DEPTH, PRIORITY = SAMPLE_PRIORITY, PRIMARY) |>
@@ -159,6 +205,17 @@ dev.off()
 png(filename = here::here("analysis", "shelf_slope", "plots", "sampling_2024_stations_subarea6.png"), 
     width = 4.2, height = 5, units = "in", res = 300)
 print(plot_stratum_61)
+dev.off()
+
+
+png(filename = here::here("analysis", "shelf_slope", "plots", "sampling_2024_stations_subarea1_lab.png"), 
+    width = 4.2, height = 3, units = "in", res = 300)
+print(plot_stratum_11_labels)
+dev.off()
+
+png(filename = here::here("analysis", "shelf_slope", "plots", "sampling_2024_stations_subarea6_lab.png"), 
+    width = 3.2, height = 4, units = "in", res = 300)
+print(plot_stratum_61_labels)
 dev.off()
 
 write.csv(x = project_stations, file = here::here("analysis", "shelf_slope", "output", "slope_allocation.csv"), row.names = FALSE)

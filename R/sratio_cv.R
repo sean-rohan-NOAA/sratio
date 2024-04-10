@@ -31,7 +31,7 @@ sratio_cv <- function(count1, count2, effort1, effort2, size, block, k = NULL, s
     )
     
     p[block == unique_blocks[jj]] <- s_ratio_df$p12
-    s[block == unique_blocks[jj]] <- s_ratio_df$s21
+    s[block == unique_blocks[jj]] <- s_ratio_df$s12
     
   }
   

@@ -29,11 +29,11 @@ for(ii in 1:length(bootstrap_results_path)) {
   boot_fit <- readRDS(file = bootstrap_results_path[ii])
   
   boot_fit_quantile <- dplyr::group_by(boot_fit, SIZE_BIN, SPECIES_CODE) |>
-    dplyr::summarise(sratio_q025 = quantile(s21, 0.025),
-                     sratio_q250 = quantile(s21, 0.25),
-                     sratio_q500 = quantile(s21, 0.5),
-                     sratio_q750 = quantile(s21, 0.75),
-                     sratio_q975 = quantile(s21, 0.975),
+    dplyr::summarise(sratio_q025 = quantile(s12, 0.025),
+                     sratio_q250 = quantile(s12, 0.25),
+                     sratio_q500 = quantile(s12, 0.5),
+                     sratio_q750 = quantile(s12, 0.75),
+                     sratio_q975 = quantile(s12, 0.975),
                      .groups = "keep")
   
   y_lim <- quantile(boot_fit$s21, c(0.01, 0.99))

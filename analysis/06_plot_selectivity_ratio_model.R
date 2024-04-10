@@ -25,11 +25,11 @@ for(ii in 1:length(bootstrap_results_path)) {
                      p_q500 = quantile(p12, 0.5),
                      p_q750 = quantile(p12, 0.75),
                      p_q975 = quantile(p12, 0.975),
-                     sratio_q025 = quantile(s21, 0.025),
-                     sratio_q250 = quantile(s21, 0.25),
-                     sratio_q500 = quantile(s21, 0.5),
-                     sratio_q750 = quantile(s21, 0.75),
-                     sratio_q975 = quantile(s21, 0.975)) |>
+                     sratio_q025 = quantile(s12, 0.025),
+                     sratio_q250 = quantile(s12, 0.25),
+                     sratio_q500 = quantile(s12, 0.5),
+                     sratio_q750 = quantile(s12, 0.75),
+                     sratio_q975 = quantile(s12, 0.975)) |>
     dplyr::mutate(type = "Bootstrap")
   
   
@@ -83,7 +83,7 @@ for(ii in 1:length(bootstrap_results_path)) {
   
   plot_sratio <- ggplot() +
     geom_point(data = dplyr::filter(pratio_samples, SPECIES_CODE == sp_code),
-               mapping = aes(x = SIZE_BIN, y = 1/p-1),
+               mapping = aes(x = SIZE_BIN, y = p/(1-p)),
                size = rel(0.3),
                alpha = 0.5) +
     geom_hline(yintercept = 1, linetype = 2) +
@@ -106,7 +106,7 @@ for(ii in 1:length(bootstrap_results_path)) {
                             y = sratio_q500)) +
     scale_x_continuous(name = sratio:::species_code_label(sp_code)) +
     # scale_y_continuous(name = expression(italic(S['L,15,30'])), expand = c(0.05, 0.05)) +
-    scale_y_log10(name = expression(italic(S['L,15,30'])~(SR)), expand = c(0.05, 0.05)) +
+    scale_y_log10(name = expression(italic(S['L,30,15'])~(SR)), expand = c(0.05, 0.05)) +
     scale_color_tableau() +
     scale_fill_tableau() +
     theme_bw()
