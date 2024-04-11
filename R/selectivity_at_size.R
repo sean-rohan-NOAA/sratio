@@ -25,7 +25,7 @@ selectivity_at_size <- function(size,
     sel <- (1 + exp(-log(19) * (size - selectivity_opts$begin_top)/selectivity_opts$ln_sd1))^-1
   }
   
-  if(selectivit_opts$type == "flat") {
+  if(selectivity_opts$type == "flat") {
     sel <- rep(selectivity_opts$value, length(size))
   }
   
