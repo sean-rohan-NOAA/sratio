@@ -62,18 +62,14 @@ subarea1 <- ggplot() +
         legend.title = element_text(size = 24),
         axis.text = element_text(size = 24))
 
-ragg::agg_png(filename = here::here("plots", "slope_subarea1_chart.png"), width = 18, height = 24, units = "in", res = 220)
-print(subarea1)
-dev.off()
+# ragg::agg_png(filename = here::here("plots", "slope_subarea1_chart.png"), width = 18, height = 24, units = "in", res = 220)
+# print(subarea1)
+# dev.off()
 
 
 pdf(file = here::here("plots", "slope_subarea1_chart.pdf"), width = 18, height = 24)
 print(subarea1)
 dev.off()
-
-
-
-
 
 
 # Subarea 6 ----
@@ -117,9 +113,9 @@ subarea6 <- ggplot() +
         axis.text = element_text(size = 24))
 
 
-ragg::agg_png(filename = here::here("plots", "slope_subarea6_chart.png"), width = 18, height = 24, units = "in", res = 220)
-print(subarea6)
-dev.off()
+# ragg::agg_png(filename = here::here("plots", "slope_subarea6_chart.png"), width = 18, height = 24, units = "in", res = 220)
+# print(subarea6)
+# dev.off()
 
 
 pdf(file = here::here("plots", "slope_subarea6_chart.pdf"), width = 18, height = 24)
