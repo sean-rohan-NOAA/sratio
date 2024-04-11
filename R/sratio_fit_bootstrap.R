@@ -103,7 +103,7 @@ sratio_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatm
     
     # Calculate selectivity ratio
     fit_df$p12 <- predict(model, newdata = fit_df, type = "response")
-    fit_df$s21 <- 1/fit_df$p12-1
+    fit_df$s12 <- fit_df$p12/(1-fit_df$p12)
     
     return(fit_df)
     

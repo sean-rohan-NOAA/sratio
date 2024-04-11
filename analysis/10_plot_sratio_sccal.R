@@ -67,11 +67,11 @@ for(ii in 1:length(sp_codes)) {
                      p_q500 = quantile(p12, 0.5),
                      p_q750 = quantile(p12, 0.75),
                      p_q975 = quantile(p12, 0.975),
-                     sratio_q025 = quantile(s21, 0.025),
-                     sratio_q250 = quantile(s21, 0.25),
-                     sratio_q500 = quantile(s21, 0.5),
-                     sratio_q750 = quantile(s21, 0.75),
-                     sratio_q975 = quantile(s21, 0.975))
+                     sratio_q025 = quantile(s12, 0.025),
+                     sratio_q250 = quantile(s12, 0.25),
+                     sratio_q500 = quantile(s12, 0.5),
+                     sratio_q750 = quantile(s12, 0.75),
+                     sratio_q975 = quantile(s12, 0.975))
   
   plot_obs_histogram <- ggplot() +
     geom_histogram(data = sp_observations,
@@ -97,7 +97,7 @@ for(ii in 1:length(sp_codes)) {
                alpha = 0.5) +
     geom_point(data = dplyr::filter(pratio_samples, SPECIES_CODE == sp_codes[ii]),
                mapping = aes(x = SIZE_BIN,
-                             y = 1/p-1,
+                             y = p/(1-p),
                              color = method),
                size = rel(0.3),
                alpha = 0.5) +
@@ -121,7 +121,7 @@ for(ii in 1:length(sp_codes)) {
     scale_x_continuous(sratio:::species_code_label(x = sp_codes[ii]))  +
     scale_fill_manual(values = c("SCCAL" = "#01665E", "SR" = "#8C510A")) +
     scale_color_manual(values = c("SCCAL" = "#01665E", "SR" = "#8C510A")) +
-    scale_y_continuous(name = expression(italic(S['L,15,30'])),
+    scale_y_continuous(name = expression(italic(S['L,30,15'])),
                        limits = c(0, ifelse(max(bootstrap_quantiles$sratio_q975) > 10, 10, 
                                             max(bootstrap_quantiles$sratio_q975)))) +
     theme_bw() +
@@ -143,7 +143,7 @@ for(ii in 1:length(sp_codes)) {
     sp_observations |>
       dplyr::select(SPECIES_CODE, SIZE_BIN, MATCHUP, obs_ratio_sccal = obs_ratio),
     dplyr::filter(pratio_samples, SPECIES_CODE == sp_codes[ii]) |>
-      dplyr::mutate(sratio = 1/p-1) |>
+      dplyr::mutate(sratio = p/(1-p)) |>
       dplyr::select(SPECIES_CODE, SIZE_BIN, MATCHUP, obs_ratio_sr = sratio)
   )
   
@@ -151,9 +151,9 @@ for(ii in 1:length(sp_codes)) {
   print(ggplot() +
           geom_abline(intercept = 0, slope = 1) +
           geom_point(data = sccal_vs_sr, mapping = aes(x = obs_ratio_sccal, 
-                                                y = 1/obs_ratio_sr)) +
-          scale_x_continuous(name = expression(italic(S['L,15,30']~(SCCAL)))) +
-          scale_y_continuous(name = expression(italic(S['L,15,30']~(SR)))))
+                                                y = obs_ratio_sr)) +
+          scale_x_continuous(name = expression(italic(S['L,30,15']~(SCCAL)))) +
+          scale_y_continuous(name = expression(italic(S['L,30,15']~(SR)))))
   dev.off()
   
   

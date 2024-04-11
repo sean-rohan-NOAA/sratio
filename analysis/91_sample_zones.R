@@ -20,7 +20,7 @@ area_4 <- dplyr::filter(map_layers$survey.grid,
                                          paste0("V-", 25:28))
 ) |>
   dplyr::mutate(area = "Area 4 (20%)",
-                area_n = "Area 4 (4 hauls)")
+                area_n = "Area 4 (4 stations)")
 
 area_3 <- dplyr::filter(map_layers$survey.grid, 
                         STATIONID %in% c(paste0("Q-", 26:31),
@@ -30,7 +30,7 @@ area_3 <- dplyr::filter(map_layers$survey.grid,
                                          "QP2726", "PO2726")
 ) |>
   dplyr::mutate(area = "Area 3 (20%)",
-                area_n = "Area 3 (4 hauls)")
+                area_n = "Area 3 (4 stations)")
 
 area_2 <- dplyr::filter(map_layers$survey.grid, 
                         STATIONID %in% c("E-22", 
@@ -39,7 +39,7 @@ area_2 <- dplyr::filter(map_layers$survey.grid,
                                          "H-25", "H-26", "I-25", "I-26", "J-25", "J-26")
 ) |>
   dplyr::mutate(area = "Area 2 (20%)",
-                area_n = "Area 2 (4 hauls)")
+                area_n = "Area 2 (4 stations)")
 
 area_1 <- dplyr::filter(map_layers$survey.grid, 
                         STATIONID %in% c(paste0("K-", 10:14),
@@ -60,7 +60,7 @@ area_1 <- dplyr::filter(map_layers$survey.grid,
                                          paste0("D-0", 8:9))
 ) |>
   dplyr::mutate(area = "Area 1 (40%)",
-                area_n = "Area 1 (8 hauls)")
+                area_n = "Area 1 (8 stations)")
 
 sample_zones <- dplyr::bind_rows(area_1, area_2, area_3, area_4) |>
   dplyr::group_by(area, area_n) |>
