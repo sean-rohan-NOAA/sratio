@@ -8,10 +8,28 @@ shelf_layers <- akgfmaps::get_base_layers(select.region = "sebs", set.crs = "WGS
 project_areas <- sf::st_read(here::here("output", "2024_sample_zones_shelf_slope.shp"))
 slope_allocation <- sf::st_read(here::here("analysis", "shelf_slope", "output", "2024_slope_allocation.shp"))
 
-area_1 <- dplyr::filter(project_areas, label %in% c("Stratum 50", "Subarea 1"))
+skate_nursery <- readxl::read_xlsx(path = here::here("analysis", "shelf_slope", "data", "Jerrys Skate nursery sites EBS.xlsx")) |>
+  sf::st_as_sf(coords = c("Longitude", "Latitude"), 
+               crs = "WGS84") |>
+  dplyr::mutate(label = "Skate Nursery (non-HAPC)") |>
+  dplyr::select(label) |>
+  sf::st_buffer(dist = 3000)
+
+skate_hapc <- sf::st_read(here::here("analysis", "shelf_slope", "data", "alaska_hapc.shp")) |>
+  dplyr::filter(grepl(pattern = "Skate Nursery Areas", x = SITENAME_L)) |>
+  sf::st_transform(crs = "WGS84") |>
+  dplyr::mutate(label = "Skate Nursery (HAPC)")
+
+project_areas <- dplyr::bind_rows(project_areas, skate_nursery, skate_hapc)
+
+area_1 <- dplyr::filter(project_areas, label %in% c("Stratum 50", 
+                                                    "Subarea 1", 
+                                                    "Skate Nursery (non-HAPC)", 
+                                                    "Skate Nursery (HAPC)"))
 area_1_stations <- dplyr::filter(area_1, !is.na(STATIONID)) |>
   sf::st_centroid()
 area_1_bbox <- area_1 |> 
+  dplyr::filter(label %in% c("Stratum 50", "Subarea 1")) |>
   sf::st_bbox()
 
 allocation <- read.csv(file = here::here("analysis", "shelf_slope", "output", "slope_allocation.csv"))
@@ -21,7 +39,6 @@ allocation_points <- allocation |>
                crs = "WGS84")
 
 dutch_harbor <- data.frame(x = -166.5417847, y = 53.8940888, label = "Dutch Harbor")
-
 
 subarea1 <- ggplot() +
   geom_sf(data = slope_layers$akland) +
@@ -48,7 +65,10 @@ subarea1 <- ggplot() +
             vjust = 0.1,
             size = rel(6)) +
   annotation_scale(text_cex = 2.3) +
-  scale_fill_brewer(name = "Area") +
+  scale_fill_manual(name = "Area", values = c("Subarea 1" = "#9ECAE1", 
+                                              "Stratum 50" = "#3182BD", 
+                                              "Skate Nursery (non-HAPC)" = "pink", 
+                                              "Skate Nursery (HAPC)" = "red")) +
   scale_color_manual(name = "Priority", values = c("Primary" = "#000000", "Alternate" = "#E69F00")) +
   ggtitle("Shelf/Slope Gear Comparison Project Sample Areas\nSubarea 1 and Stratum 50") +
   scale_shape(name = "Priority") +
@@ -57,7 +77,7 @@ subarea1 <- ggplot() +
   theme_bw() +
   theme(axis.title = element_blank(),
         plot.title = element_text(hjust = 0.5, size = 30),
-        legend.position = c(0.1, 0.1),
+        legend.position = c(0.13, 0.1),
         legend.text = element_text(size = 24),
         legend.title = element_text(size = 24),
         axis.text = element_text(size = 24))
@@ -75,10 +95,14 @@ dev.off()
 # Subarea 6 ----
 
 
-area_6 <- dplyr::filter(project_areas, label %in% c("Stratum 61", "Subarea 6"))
+area_6 <- dplyr::filter(project_areas, label %in% c("Stratum 61", 
+                                                    "Subarea 6", 
+                                                    "Skate Nursery (non-HAPC)", 
+                                                    "Skate Nursery (HAPC)"))
 area_6_stations <- dplyr::filter(area_6, !is.na(STATIONID)) |>
   sf::st_centroid()
 area_6_bbox <- area_6 |> 
+  dplyr::filter(label  %in% c("Stratum 61", "Subarea 6")) |>
   sf::st_bbox()
 
 subarea6 <- ggplot() +
@@ -98,7 +122,10 @@ subarea6 <- ggplot() +
                   mapping = aes(x = MEAN_LONGITUDE, y = MEAN_LATITUDE, label = STATIONID),
                   size = rel(5.5)) +
   annotation_scale(text_cex = 2.3) +
-  scale_fill_brewer(name = "Area", palette = "Purples") +
+  scale_fill_manual(name = "Area", values = c("Subarea 6" = "#BCBDDC", 
+                                              "Stratum 61" = "#756BB1", 
+                                              "Skate Nursery (non-HAPC)" = "pink", 
+                                              "Skate Nursery (HAPC)" = "red")) +
   scale_color_manual(name = "Priority", values = c("Primary" = "#000000", "Alternate" = "#E69F00")) +
   ggtitle("Shelf/Slope Gear Comparison Project Sample Areas\nSubarea 6 and Stratum 61") +
   scale_shape(name = "Priority") +
@@ -107,11 +134,10 @@ subarea6 <- ggplot() +
   theme_bw() +
   theme(axis.title = element_blank(),
         plot.title = element_text(hjust = 0.5, size = 30),
-        legend.position = c(0.1, 0.1),
+        legend.position = c(0.18, 0.1),
         legend.text = element_text(size = 24),
         legend.title = element_text(size = 24),
         axis.text = element_text(size = 24))
-
 
 # ragg::agg_png(filename = here::here("plots", "slope_subarea6_chart.png"), width = 18, height = 24, units = "in", res = 220)
 # print(subarea6)
@@ -121,4 +147,3 @@ subarea6 <- ggplot() +
 pdf(file = here::here("plots", "slope_subarea6_chart.pdf"), width = 18, height = 24)
 print(subarea6)
 dev.off()
-

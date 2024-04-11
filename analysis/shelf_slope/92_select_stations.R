@@ -4,11 +4,11 @@ library(ggrepel)
 
 channel <- sratio::get_connected(schema = "AFSC")
 
+n_stratum_61 <- c("61-17", "61-04", "61-03", "61-20", "61-22", "61-06", "61-05", "61-07", "61-21", "61-12", "61-18", "61-13", "61-14", "61-15")
+n_stratum_11 <- c("11-21", "11-20", "11-05", "11-06", "11-23", "11-07", "11-08", "11-36", "11-25", 
+                  "11-33", "11-27", "11-37", "11-28", "11-13")
 
-
-n_stratum_61 <- c("61-17", "61-02", "61-03", "61-20", "61-22", "61-06", "61-05", "61-07", "61-21", "61-12", "61-18", "61-13", "61-14", "61-15")
-n_stratum_11 <- c("11-18", "11-20", "11-05", "11-06", "11-23", "11-07", "11-08", "11-36", "11-25", 
-                  "11-33", "11-29", "11-10", "11-28", "11-35")
+skate_hapc <- c("61-02", "11-18")
 
 bad_substrate <- function(performance) {
   
@@ -34,7 +34,8 @@ slope_hauls <- RODBC::sqlQuery(channel = channel,
                                and s.survey_definition_id = 78
                                and hpn.haul_performance_note_id = hpc.haul_performance_note_id
                                and rbh.performance = hpc.haul_performance_code
-                               and rbh.stratum in (11, 61)")
+                               and rbh.stratum in (11, 61)") |>
+  dplyr::filter(!(STATIONID %in% skate_hapc))
 
 slope_before_2008 <- dplyr::filter(slope_hauls, CRUISE < 200800) |>
   dplyr::inner_join(slope_lut) |>
@@ -218,4 +219,6 @@ png(filename = here::here("analysis", "shelf_slope", "plots", "sampling_2024_sta
 print(plot_stratum_61_labels)
 dev.off()
 
-write.csv(x = project_stations, file = here::here("analysis", "shelf_slope", "output", "slope_allocation.csv"), row.names = FALSE)
+write.csv(x = project_stations, 
+          file = here::here("analysis", "shelf_slope", "output", "slope_allocation.csv"), 
+          row.names = FALSE)
