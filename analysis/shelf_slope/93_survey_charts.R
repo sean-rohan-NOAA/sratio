@@ -8,7 +8,7 @@ shelf_layers <- akgfmaps::get_base_layers(select.region = "sebs", set.crs = "WGS
 project_areas <- sf::st_read(here::here("output", "2024_sample_zones_shelf_slope.shp"))
 slope_allocation <- sf::st_read(here::here("analysis", "shelf_slope", "output", "2024_slope_allocation.shp"))
 
-skate_nursery <- readxl::read_xlsx(path = here::here("analysis", "shelf_slope", "data", "Jerrys Skate nursery sites EBS.xlsx")) |>
+skate_nursery <- readxl::read_xlsx(path = here::here("analysis", "shelf_slope", "data", "Jerrys_Skate_nursery_sites_EBS.xlsx")) |>
   sf::st_as_sf(coords = c("Longitude", "Latitude"), 
                crs = "WGS84") |>
   dplyr::mutate(label = "Skate Nursery (non-HAPC)") |>
@@ -87,7 +87,7 @@ subarea1 <- ggplot() +
 # dev.off()
 
 
-pdf(file = here::here("plots", "slope_subarea1_chart.pdf"), width = 18, height = 24)
+pdf(file = here::here("analysis", "shelf_slope", "plots", "slope_subarea1_chart.pdf"), width = 18, height = 24)
 print(subarea1)
 dev.off()
 
@@ -144,6 +144,6 @@ subarea6 <- ggplot() +
 # dev.off()
 
 
-pdf(file = here::here("plots", "slope_subarea6_chart.pdf"), width = 18, height = 24)
+pdf(file = here::here("analysis", "shelf_slope", "plots", "slope_subarea6_chart.pdf"), width = 18, height = 24)
 print(subarea6)
 dev.off()
