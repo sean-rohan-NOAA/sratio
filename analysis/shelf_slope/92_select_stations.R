@@ -1,8 +1,8 @@
-library(sratio)
 library(ggthemes)
 library(ggrepel)
+library(navmaps)
 
-channel <- sratio::get_connected(schema = "AFSC")
+channel <- navmaps::get_connected(schema = "AFSC")
 
 n_stratum_61 <- c("61-17", "61-04", "61-03", "61-20", "61-22", "61-06", "61-05", "61-07", "61-21", "61-12", "61-18", "61-13", "61-14", "61-15")
 n_stratum_11 <- c("11-21", "11-20", "11-05", "11-06", "11-23", "11-07", "11-08", "11-36", "11-25", 
