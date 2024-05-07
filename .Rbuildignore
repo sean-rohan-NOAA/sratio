@@ -1,2 +1,9 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+analysis
+assets
+data
+output
+paper
+presentations
+plots
