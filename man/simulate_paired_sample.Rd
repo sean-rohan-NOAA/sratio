@@ -52,7 +52,8 @@ Simulate catch-at-size for paired sample between two gears/methods based on numb
 size <- 10:55
 
 # A vector of abundance-at-size
-abundance = round(dnorm(size, mean = 35, sd = 10) * 1e5 * (1-rnorm(length(size), mean = 0, sd = 0.1)))
+abundance = round(dnorm(size, mean = 35, sd = 10) * 1e5 * 
+                  (1-rnorm(length(size), mean = 0, sd = 0.1)))
 
 # Proportion of the total population that is available to a haul ----
 availability = 0.001

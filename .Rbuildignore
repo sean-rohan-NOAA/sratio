@@ -1,9 +1,12 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+/data/
 analysis
 assets
-data
 output
 paper
 presentations
 plots
+LICENSE.md
+archive
+.github

@@ -22,7 +22,7 @@ A data frame with 12 variables:
   }
 }
 \usage{
-crab_size_1995_1998
+data(crab_size_1995_1998)
 }
 \description{
 Crab size measurement data from paired 15 and 30 minute tows conducted in the eastern Bering Sea in 1995 and 1998 aboard the FV Arcturus and FV Aldebaran. Sampling protocols and methods are described in Goddard et al. (1997) and Somerton et al. (2002).
