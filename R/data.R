@@ -3,6 +3,7 @@
 #' RACEBASE species codes and common names as of November 8, 2023.
 #' 
 #' @docType data
+#' @usage data(species_codes)
 #' @format An object of class 'data.frame'
 #' 
 "species_codes"
@@ -35,6 +36,7 @@
 #' Crab size measurement data from paired 15 and 30 minute tows conducted in the eastern Bering Sea in 1995 and 1998 aboard the FV Arcturus and FV Aldebaran. Sampling protocols and methods are described in Goddard et al. (1997) and Somerton et al. (2002).
 #' 
 #' @docType data
+#' @usage data(crab_size_1995_1998)
 #' @format A data frame with 12 variables:
 #'   \describe{
 #'     \item{HAULJOIN}{A unique identifier for each CRUISE/VESSEL/HAUL combination.}
@@ -61,6 +63,7 @@
 #' Key identifying blocks of 15/30 minute tows adapted from Bob Otto's tow pair spreadsheet (2000).
 #' 
 #' @docType data
+#' @usage data(otto_key_1998)
 #' @format A data frame with 6 variables:
 #'   \describe{
 #'     \item{TOW_PAIR}{Value identifying the block to which a tow was assigned.}
@@ -70,5 +73,4 @@
 #'     \item{HAUL}{Sequential haul number identifying a unique haul for a VESSEL/CRUISE combination}
 #'     \item{TOW_TYPE}{Description of numberical tow type}
 #'   }
-#'   
 'otto_key_1998'

@@ -16,7 +16,7 @@ A data frame with 6 variables:
   }
 }
 \usage{
-otto_key_1998
+data(otto_key_1998)
 }
 \description{
 Key identifying blocks of 15/30 minute tows adapted from Bob Otto's tow pair spreadsheet (2000).

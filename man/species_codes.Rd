@@ -8,7 +8,7 @@
 An object of class 'data.frame'
 }
 \usage{
-species_codes
+data(species_codes)
 }
 \description{
 RACEBASE species codes and common names as of November 8, 2023.
