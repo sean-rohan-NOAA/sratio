@@ -2,6 +2,10 @@
 
 export(boot_stage_one)
 export(boot_stage_two)
+export(calc_bias)
+export(calc_mae)
+export(calc_mre)
+export(calc_rmse)
 export(calculate_performance_metrics)
 export(catch_at_size)
 export(double_norm_24)
