@@ -3,7 +3,7 @@ library(sratio)
 
 bootstrap_results_path <- list.files(here::here("output"), 
                                      recursive = TRUE, 
-                                     pattern = "sccal_model_bootstrap_results_", 
+                                     pattern = "sccal_bootstrap_results_", 
                                      full.names = TRUE)
 
 obs_ratio <- readRDS(file = here::here("output", "catch_at_length_1530.rds")) |>

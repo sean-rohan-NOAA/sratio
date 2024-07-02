@@ -1,3 +1,6 @@
+# Compare predicted catch in 30 minute hauls to observed catch-at-length
+# Based on selectivity ratio and selectivity condition on catch-at-length models.
+
 library(sratio)
 
 sp_codes <- c(21740, 21720, 10110, 10112, 10115, 10130, 10210, 10261, 10285, 471, 68560, 68580, 69322)

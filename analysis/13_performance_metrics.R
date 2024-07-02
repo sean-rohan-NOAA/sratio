@@ -1,4 +1,4 @@
-# Calculate CPUE ratio, bias, mean absolute error, and root mean square error
+# Calculate CPUE ratio, bias, mean absolute error, and root mean square error 
 
 library(sratio)
 
