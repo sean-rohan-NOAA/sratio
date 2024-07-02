@@ -107,13 +107,31 @@ source(here::here("analysis", "15_30", "09_plot_catch_at_length_model.R"))
 # Inputs: 
 #     (5-1) ./output/{species_code}/sratio_bootstrap_results_{species_code}.rds (bootstrap fits)
 #     (8-1) ./output/{species_code}/sccal_model_bootstrap_results_{species_code}.rds
-source(here::here("analysis", "15_30", "10_plot_sratio_sccal.R"))
+# source(here::here("analysis", "15_30", "10_plot_sratio_sccal.R"))
+# 
+# stop_time <- Sys.time()
+# 
+# stop_time-start_time
 
-stop_time <- Sys.time()
 
-stop_time-start_time
+# 11. Calculate performance metrics ----
+# Inputs: 
+#     (1-1) sratio::data_1530
+#     (5-1) ./output/{species_code}/sratio_bootstrap_results_{species_code}.rds (bootstrap fits)
+#     (8-1) ./output/{species_code}/sccal_model_bootstrap_results_{species_code}.rds
+# Outputs:
+#     (11-1) ./output/model_performance_sratio_{species_code}.rds
+#     (11-2) ./output/model_performance_sccal_{species_code}.rds
 
-# 11. Total catch model ----
+source(here::here("analysis", "15_30", "11_calculate_performance_metrics.R"))
+
+
+# 12. Plot performance metrics ----
+
+
+
+
+# 13. Total catch model ----
 # Bayesian zero-intercept linear regression model between log10(CPUE) from 15 and 30 minute hauls
 # to evaluate whether there is a one-to-one relationship between CPUE from 15 and 30 minute hauls (i.e. slope = 1)
 # Inputs:
