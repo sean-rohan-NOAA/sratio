@@ -2,7 +2,12 @@ library(sratio)
 
 sp_codes <- c(21740, 21720, 10110, 10112, 10115, 10130, 10210, 10261, 10285, 471, 68560, 68580, 69322)
 
-central_fun <- mean
+central_fun <- median
+
+model_method <- "sccal_model" #"sratio"
+
+# Minimum catch-at-length for 30 minute tows to be used for performance metrics
+min_n <- 3
 
 for(ii in 1:length(species_codes)) {
   
@@ -18,7 +23,7 @@ for(ii in 1:length(species_codes)) {
   # Load bootstrap results from best-fitting model
   bootstrap_results_path <- list.files(here::here("output"), 
                                        recursive = TRUE, 
-                                       pattern = "sratio_bootstrap_results_", 
+                                       pattern = paste0(model_method, "_bootstrap_results_"), 
                                        full.names = TRUE)
   
   file_index <- grep(pattern = sp_codes[ii], 
@@ -49,7 +54,8 @@ for(ii in 1:length(species_codes)) {
     dplyr::full_join(size_30, by = join_by(MATCHUP, SIZE_BIN, SPECIES_CODE))  |>
     dplyr::mutate(PREDICTED_FREQUENCY = if_else(is.na(PREDICTED_FREQUENCY), 0, PREDICTED_FREQUENCY),
                   PREDICTED_FREQUENCY_NO_ADJ = if_else(is.na(PREDICTED_FREQUENCY_NO_ADJ), 0, PREDICTED_FREQUENCY_NO_ADJ),
-                  FREQ_EXPANDED = if_else(is.na(FREQ_EXPANDED), 0, FREQ_EXPANDED))
+                  FREQ_EXPANDED = if_else(is.na(FREQ_EXPANDED), 0, FREQ_EXPANDED)) |>
+    dplyr::filter(FREQ_EXPANDED >= min_n) # Filter records with insufficient samples
   
   compare_fit_long <- tidyr::pivot_longer(compare_fit, 
                                           cols = c("PREDICTED_FREQUENCY", "PREDICTED_FREQUENCY_NO_ADJ"))
@@ -112,7 +118,8 @@ for(ii in 1:length(species_codes)) {
                                       obs = FREQ_EXPANDED, 
                                       const = 1e-3),
                      R2 = suppressWarnings(cor(PREDICTED_FREQUENCY, 
-                              FREQ_EXPANDED)^2),
+                              FREQ_EXPANDED, 
+                              use = "complete.obs")^2),
                      RMSE = calc_rmse(est = PREDICTED_FREQUENCY, 
                                       obs = FREQ_EXPANDED),
                      MAE_NO_ADJ = calc_mae(est = PREDICTED_FREQUENCY_NO_ADJ, 
@@ -124,7 +131,8 @@ for(ii in 1:length(species_codes)) {
                                              obs = FREQ_EXPANDED, 
                                              const = 1e-3),
                      R2_NO_ADJ = suppressWarnings(cor(PREDICTED_FREQUENCY_NO_ADJ, 
-                                     FREQ_EXPANDED)^2),
+                                     FREQ_EXPANDED, 
+                                     use = "complete.obs")^2),
                      RMSE_NO_ADJ = calc_rmse(est = PREDICTED_FREQUENCY_NO_ADJ, 
                                              obs = FREQ_EXPANDED),
                      .groups = "keep") |>
@@ -157,7 +165,8 @@ for(ii in 1:length(species_codes)) {
                                       obs = TOTAL_FREQ_EXPANDED, 
                                       const = 1e-3),
                      R2 = cor(TOTAL_PREDICTED_FREQUENCY, 
-                              TOTAL_FREQ_EXPANDED)^2,
+                              TOTAL_FREQ_EXPANDED, 
+                              use = "complete.obs")^2,
                      RMSE = calc_rmse(est = TOTAL_PREDICTED_FREQUENCY, 
                                       obs = TOTAL_FREQ_EXPANDED),
                      MAE_NO_ADJ = calc_mae(est = TOTAL_PREDICTED_FREQUENCY_NO_ADJ, 
@@ -169,7 +178,8 @@ for(ii in 1:length(species_codes)) {
                                              obs = TOTAL_FREQ_EXPANDED, 
                                              const = 1e-3),
                      R2_NO_ADJ = cor(TOTAL_PREDICTED_FREQUENCY_NO_ADJ, 
-                                     TOTAL_FREQ_EXPANDED)^2,
+                                     TOTAL_FREQ_EXPANDED, 
+                                     use = "complete.obs")^2,
                      RMSE_NO_ADJ = calc_rmse(est = TOTAL_PREDICTED_FREQUENCY_NO_ADJ, 
                                              obs = TOTAL_FREQ_EXPANDED),
                      .groups = "keep") |>
@@ -179,7 +189,9 @@ for(ii in 1:length(species_codes)) {
                   DIFF_BIAS = abs(BIAS-1) - abs(BIAS_NO_ADJ-1),
                   DIFF_R2 = R2 - R2_NO_ADJ)
   
-  cat(sp_codes[ii], ": ", compare_total$BIAS, compare_total$BIAS_NO_ADJ, "\n")
+  cat(sp_codes[ii], ": ", 
+      round(compare_total$BIAS, 2), " (SR); ", 
+      round(compare_total$BIAS_NO_ADJ, 2), " (no SR)\n", sep = "")
   
   
 }
