@@ -105,19 +105,12 @@ for(ii in 1:length(bootstrap_results_path)) {
               mapping = aes(x = SIZE_BIN,
                             y = sratio_q500)) +
     scale_x_continuous(name = sratio:::species_code_label(sp_code)) +
-    # scale_y_continuous(name = expression(italic(S['L,15,30'])), expand = c(0.05, 0.05)) +
     scale_y_log10(name = expression(italic(S['L,30,15'])~(SR)), expand = c(0.05, 0.05)) +
     scale_color_tableau() +
     scale_fill_tableau() +
     theme_bw()
   
   # Write plots to file
-  # ragg::agg_png(file = here::here("plots", paste0(sp_code, "_sratio_two_panel.png")), width = 113, height = 70, units = "mm", res = 300)
-  # print(cowplot::plot_grid(plot_pratio,
-  #                          plot_sratio,
-  #                          nrow = 1,
-  #                          labels = LETTERS[1:2]))
-  # dev.off()
   
   ragg::agg_png(file = here::here("analysis", "15_30", 
                                   "plots", paste0(sp_code, "_sratio_three_panel.png")), 
