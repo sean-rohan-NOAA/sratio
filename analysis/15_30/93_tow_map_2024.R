@@ -24,7 +24,8 @@ tow_map_2024 <- ggplot() +
   geom_sf(data = map_layers$bathymetry,
           color = "grey50") +
   geom_sf(data = tows_1530_2024,
-          mapping = aes(color = label)) + 
+          mapping = aes(color = label),
+          size = 3.5) + 
   ggplot2::geom_text(data = subset(map_layers$place.labels, 
                                    type == "mainland"), 
                      aes(x = x, y = y, label = lab), 
