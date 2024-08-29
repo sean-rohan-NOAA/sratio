@@ -32,8 +32,9 @@ for(ii in 1:length(bootstrap_sample_path)) {
                                                n_cores = 4)
   bootstrap_df$SPECIES_CODE <- sp_code
   
-  saveRDS(bootstrap_df, here::here("analysis", "15_30", "output", 
-                                   sp_code, 
-                                   paste0("sratio_bootstrap_results_", sp_code, ".rds")))
+  saveRDS(bootstrap_df, 
+          here::here("analysis", "15_30", "output", 
+                     sp_code, 
+                     paste0("sratio_bootstrap_results_", sp_code, ".rds")))
   
 }

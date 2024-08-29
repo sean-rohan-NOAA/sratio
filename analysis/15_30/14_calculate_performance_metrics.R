@@ -5,14 +5,18 @@ library(sratio)
 
 sp_codes <- c(21740, 21720, 10110, 10112, 10115, 10130, 10210, 10261, 10285, 471, 68560, 68580, 69322)
 
-central_fun <- median
+# Use the median or mean of bootstrap samples?
+central_fun <- mean
 
-model_method <- c("sccal", "sratio")
+# Tendency measure - Calculate the median or mean of performance measures?
+calc_type <- mean
+
+model_method <- c("sratio", "sccal")
 
 for(jj in 1:length(model_method)) {
   
   # Minimum catch-at-length for 30 minute tows to be used for performance metrics
-  min_n <- 3
+  min_n <- 5
   
   for(ii in 1:length(sp_codes)) {
     
@@ -49,48 +53,64 @@ for(jj in 1:length(model_method)) {
       dplyr::inner_join(bootstrap_results, by = join_by(SIZE_BIN))
     
     # Predict mean catch-at-length, adjusting for area swept and selectivity
-    size_15$PREDICTED_FREQUENCY <- size_15$FREQ_EXPANDED * size_15$AREA_SWEPT_KM_30/size_15$AREA_SWEPT_KM2 * size_15$s12
+    area_swept_ratio <- size_15$AREA_SWEPT_KM_30/size_15$AREA_SWEPT_KM2
+    
+    size_15$PREDICTED_FREQUENCY <- size_15$FREQ_EXPANDED * area_swept_ratio * size_15$s12
     
     # Predict mean catch-at-length adjusting for area swept but not selectivity
-    size_15$PREDICTED_FREQUENCY_NO_ADJ <- size_15$FREQ_EXPANDED * size_15$AREA_SWEPT_KM_30/size_15$AREA_SWEPT_KM2
+    size_15$PREDICTED_FREQUENCY_NO_ADJ <- size_15$FREQ_EXPANDED * area_swept_ratio
     
-    compare_fit <- dplyr::select(size_15, MATCHUP, PREDICTED_FREQUENCY, PREDICTED_FREQUENCY_NO_ADJ, 
-                                 SIZE_BIN, SPECIES_CODE) |>
-      dplyr::full_join(size_30, by = join_by(MATCHUP, SIZE_BIN, SPECIES_CODE))  |>
+    compare_fit <- size_15 |> 
+      dplyr::select(MATCHUP, 
+                    PREDICTED_FREQUENCY, 
+                    PREDICTED_FREQUENCY_NO_ADJ, 
+                    SIZE_BIN, 
+                    SPECIES_CODE) |>
+      dplyr::full_join(size_30, 
+                       by = join_by(MATCHUP, SIZE_BIN, SPECIES_CODE)) |>
       dplyr::mutate(PREDICTED_FREQUENCY = if_else(is.na(PREDICTED_FREQUENCY), 0, PREDICTED_FREQUENCY),
                     PREDICTED_FREQUENCY_NO_ADJ = if_else(is.na(PREDICTED_FREQUENCY_NO_ADJ), 0, PREDICTED_FREQUENCY_NO_ADJ),
                     FREQ_EXPANDED = if_else(is.na(FREQ_EXPANDED), 0, FREQ_EXPANDED)) |>
       dplyr::filter(FREQ_EXPANDED >= min_n) # Filter records with insufficient samples
     
     # Calculate performance metrics
-    compare_by_size <- dplyr::group_by(compare_fit, SIZE_BIN, SPECIES_CODE) |>
+    compare_by_size <- compare_fit |> 
+      dplyr::group_by(SIZE_BIN, SPECIES_CODE) |>
       dplyr::summarise(N_HAUL = n(),
                        MAE = calc_mae(est = PREDICTED_FREQUENCY, 
                                       obs = FREQ_EXPANDED, 
-                                      const = 1e-3),
+                                      const = 1e-3,
+                                      type = median),
                        MRE = suppressWarnings(calc_mre(est = PREDICTED_FREQUENCY, 
-                                                       obs = FREQ_EXPANDED)),
+                                                       obs = FREQ_EXPANDED,
+                                                       type = calc_type)),
                        BIAS = calc_bias(est = PREDICTED_FREQUENCY, 
                                         obs = FREQ_EXPANDED, 
-                                        const = 1e-3),
+                                        const = 1e-3, 
+                                        type = calc_type),
                        R2 = suppressWarnings(cor(PREDICTED_FREQUENCY, 
                                                  FREQ_EXPANDED, 
                                                  use = "complete.obs")^2),
                        RMSE = calc_rmse(est = PREDICTED_FREQUENCY, 
-                                        obs = FREQ_EXPANDED),
+                                        obs = FREQ_EXPANDED,
+                                        type = calc_type),
                        MAE_NO_ADJ = calc_mae(est = PREDICTED_FREQUENCY_NO_ADJ, 
                                              obs = FREQ_EXPANDED, 
-                                             const = 1e-3),
+                                             const = 1e-3,
+                                             type = calc_type),
                        MRE_NO_ADJ = suppressWarnings(calc_mre(est = PREDICTED_FREQUENCY_NO_ADJ, 
-                                                              obs = FREQ_EXPANDED)),
+                                                              obs = FREQ_EXPANDED,
+                                                              type = calc_type)),
                        BIAS_NO_ADJ = calc_bias(est = PREDICTED_FREQUENCY_NO_ADJ, 
                                                obs = FREQ_EXPANDED, 
-                                               const = 1e-3),
+                                               const = 1e-3, 
+                                               type = calc_type),
                        R2_NO_ADJ = suppressWarnings(cor(PREDICTED_FREQUENCY_NO_ADJ, 
                                                         FREQ_EXPANDED, 
                                                         use = "complete.obs")^2),
                        RMSE_NO_ADJ = calc_rmse(est = PREDICTED_FREQUENCY_NO_ADJ, 
-                                               obs = FREQ_EXPANDED),
+                                               obs = FREQ_EXPANDED,
+                                               type = calc_type),
                        .groups = "keep") |>
       dplyr::mutate(DIFF_RMSE = RMSE - RMSE_NO_ADJ,
                     DIFF_MAE = MAE - MAE_NO_ADJ,
@@ -114,30 +134,37 @@ for(jj in 1:length(model_method)) {
       dplyr::summarise(N_HAUL = n(),
                        MAE = calc_mae(est = TOTAL_PREDICTED_FREQUENCY, 
                                       obs = TOTAL_FREQ_EXPANDED, 
-                                      const = 1e-3),
+                                      const = 1e-3,
+                                      type = calc_type),
                        MRE = calc_mre(est = TOTAL_PREDICTED_FREQUENCY, 
-                                      obs = TOTAL_FREQ_EXPANDED),
+                                      obs = TOTAL_FREQ_EXPANDED,
+                                      type = calc_type),
                        BIAS = calc_bias(est = TOTAL_PREDICTED_FREQUENCY, 
                                         obs = TOTAL_FREQ_EXPANDED, 
-                                        const = 1e-3),
+                                        const = 1e-3,
+                                        type = calc_type),
                        R2 = cor(TOTAL_PREDICTED_FREQUENCY, 
                                 TOTAL_FREQ_EXPANDED, 
                                 use = "complete.obs")^2,
                        RMSE = calc_rmse(est = TOTAL_PREDICTED_FREQUENCY, 
-                                        obs = TOTAL_FREQ_EXPANDED),
+                                        obs = TOTAL_FREQ_EXPANDED,
+                                        type = calc_type),
                        MAE_NO_ADJ = calc_mae(est = TOTAL_PREDICTED_FREQUENCY_NO_ADJ, 
                                              obs = TOTAL_FREQ_EXPANDED, 
-                                             const = 1e-3),
+                                             const = 1e-3,
+                                             type = calc_type),
                        MRE_NO_ADJ = calc_mre(est = TOTAL_PREDICTED_FREQUENCY_NO_ADJ, 
                                              obs = TOTAL_FREQ_EXPANDED),
                        BIAS_NO_ADJ = calc_bias(est = TOTAL_PREDICTED_FREQUENCY_NO_ADJ, 
                                                obs = TOTAL_FREQ_EXPANDED, 
-                                               const = 1e-3),
+                                               const = 1e-3,
+                                               type = calc_type),
                        R2_NO_ADJ = cor(TOTAL_PREDICTED_FREQUENCY_NO_ADJ, 
                                        TOTAL_FREQ_EXPANDED, 
                                        use = "complete.obs")^2,
                        RMSE_NO_ADJ = calc_rmse(est = TOTAL_PREDICTED_FREQUENCY_NO_ADJ, 
-                                               obs = TOTAL_FREQ_EXPANDED),
+                                               obs = TOTAL_FREQ_EXPANDED,
+                                               type = calc_type),
                        .groups = "keep") |>
       dplyr::mutate(DIFF_RMSE = RMSE - RMSE_NO_ADJ,
                     DIFF_MAE = MAE - MAE_NO_ADJ,

@@ -1,10 +1,11 @@
 # Make plot of stations
-library(akgfmaps)
+library(akgfmaps) # v4.0
 library(sratio)
 
 # Load built-in data sets
 haul_df <- sratio::data_1530$haul
 
+custom_colors <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#0072B2", "#D55E00", "#CC79A7")
 
 haul_loc_df <- haul_df  |>
   dplyr::mutate(LATITUDE = (START_LATITUDE + END_LATITUDE) /2,
@@ -18,8 +19,9 @@ haul_loc_df <- haul_df  |>
   sf::st_as_sf(crs = "EPSG:4326", coords = c("LONGITUDE", "LATITUDE")) |>
   sf::st_transform(crs = "EPSG:3338")
 
+n_years <- length(unique(haul_loc_df$YEAR))
 
-map_layers <- akgfmaps::get_base_layers(select.region = "ebs", set.crs = "EPSG:3338")
+map_layers <- akgfmaps::get_base_layers(select.region = "sebs", set.crs = "EPSG:3338")
 
 ragg::agg_png(filename = here::here("analysis", "15_30", "plots", "map_samples_by_stratum.png"), 
               width = 6, height = 4, units = "in", res = 300)
@@ -33,7 +35,7 @@ ggplot() +
           fill = NA, 
           color = "black") +
   geom_sf_text(data = sf::st_centroid(map_layers$survey.strata),
-               mapping = aes(label = Stratum)) +
+               mapping = aes(label = STRATUM)) +
   geom_sf(data = haul_loc_df,
           mapping = aes(color = factor(YEAR),
                         shape = factor(YEAR))) +
@@ -49,6 +51,36 @@ ggplot() +
 )
 dev.off()
 
+
+ragg::agg_png(filename = here::here("analysis", "15_30", "plots", "map_samples.png"), 
+              width = 169, height = 145, units = "mm", res = 300)
+print(
+  ggplot() +
+    geom_sf(data = map_layers$akland, 
+            linewidth = 0.2, 
+            fill = "grey50", 
+            color = "black") +
+    geom_sf(data = map_layers$bathymetry, color = "black",
+            linewidth = 0.2) +
+    geom_sf(data = map_layers$survey.area, 
+            fill = NA, 
+            color = "black") +
+    geom_sf(data = haul_loc_df,
+            mapping = aes(color = factor(YEAR),
+                          shape = factor(YEAR))) +
+    geom_sf(data = map_layers$graticule, linewidth = 0.2, alpha = 0.7, color = "grey60") +
+    coord_sf(xlim = map_layers$plot.boundary$x + c(1e4, 0),
+             ylim = map_layers$plot.boundary$y) +
+    scale_x_continuous(breaks = map_layers$lon.breaks) +
+    scale_y_continuous(breaks = map_layers$lat.breaks) +
+    scale_color_manual(name = "Year",
+                       values = custom_colors[1:n_years]) +
+
+    scale_shape(name = "Year") +
+    theme_bw() +
+    theme(axis.title = element_blank())
+)
+dev.off()
 
 # Multi-panel sample map
 map_layers <- akgfmaps::get_base_layers(select.region = "sebs", set.crs = "EPSG:3338")

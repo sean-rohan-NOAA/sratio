@@ -3,11 +3,8 @@
 library(sratio)
 
 # Vector of cruises to include in analyses  ----
-use_cruises <- c(199501, 199801, 202101, 202201, 202301)
-# use_cruises <- c(202101, 202201, 202301)
-# use_cruises <- c(199801, 202101, 202201, 202301)
+use_cruises <- c(199501, 199801, 202101, 202201, 202301, 202401)
 
-start_time <- Sys.time()
 # 1. Retrieve groundfish and crab data from 15/30 hauls ----
 # Assigns matchups
 # Data will be saved as .rda files. Build and install the package to include the data as a built-in data set.
@@ -24,6 +21,7 @@ source(here::here("analysis", "15_30",  "01_get_data.R"))
 #--------------------------- REBUILD THE PACKAGE BEFORE CONTINUING TO 2 ---------------------------#
 #--------------------------------------------------------------------------------------------------#
 
+start_time <- Sys.time()
 
 # 2. Format the built-in data ----
 # Setup data for selectivity ratio and catch-at-size models 
