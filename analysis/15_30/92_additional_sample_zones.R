@@ -146,3 +146,7 @@ dir.create(here::here("analysis", "15_30", "output", "nav_files"), showWarnings 
 sf::st_write(obj = sample_zones, 
              dsn = here::here("analysis", "15_30", "output", "nav_files", "1530_bonus_zones.shp"))
 
+
+# Sample zone polygons
+
+sample_zones <- readxl::read_xlsx(here::here("analysis", "15_30", "data", "expanded_sampling_zones.xlsx"))

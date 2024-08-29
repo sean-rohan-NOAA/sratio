@@ -172,7 +172,7 @@ get_data <- function(species_codes) {
                             h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
                             from racebase.haul h 
                             where h.haul_type = 3
-                            and performance >= 0
+                            and h.performance >= 0
                             and h.cruise > 202200
                             and h.cruise < 202299
                             and h.region = 'BS'") |>
@@ -191,7 +191,7 @@ get_data <- function(species_codes) {
                             h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
                             from racebase.haul h 
                             where h.haul_type = 4
-                            and performance >= 0
+                            and h.performance >= 0
                             and h.cruise = 202301
                             and h.region = 'BS'") |>
     dplyr::arrange(VESSEL, START_TIME)
@@ -205,17 +205,77 @@ get_data <- function(species_codes) {
                             h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
                             from racebase.haul h 
                             where h.haul_type = 3
-                            and performance >= 0
+                            and h.performance >= 0
                             and h.cruise = 202301
                             and h.region = 'BS'") |>
     dplyr::inner_join(unique(dplyr::select(hauls_short_2023, STATIONID, CRUISE)),
                       by = c("CRUISE", "STATIONID"))
+  
+  # 2024: 15 minute hauls were conducted alongside index station sampling during legs 1-3 
+  hauls_short_2024 <- RODBC::sqlQuery(channel = channel,
+                                      query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
+                            h.performance, h.vessel, h.cruise, 
+                            h.haul, h.region, h.duration, h.distance_fished, h.net_width, 
+                            h.net_height, h.start_latitude, h.end_latitude, h.start_longitude, 
+                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
+                            h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
+                            from racebase.haul h 
+                            where h.haul_type = 20
+                            and h.gear = 44
+                            and h.haul < 210
+                            and h.performance >= 0
+                            and h.cruise = 202401
+                            and h.region = 'BS'") |>
+    dplyr::arrange(VESSEL, START_TIME) |>
+    dplyr::filter(STATIONID %in% akgfmaps::get_survey_stations(select.region = "sebs"))
+  
+  hauls_normal_2024 <- RODBC::sqlQuery(channel = channel,
+                                       query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
+                            h.performance, h.vessel, h.cruise, 
+                            h.haul, h.region, h.duration, h.distance_fished, h.net_width, 
+                            h.net_height, h.start_latitude, h.end_latitude, h.start_longitude, 
+                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
+                            h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
+                            from racebase.haul h 
+                            where h.haul_type = 3
+                            and h.gear = 44
+                            and h.performance >= 0
+                            and h.cruise = 202401
+                            and h.region = 'BS'") |>
+    dplyr::inner_join(unique(dplyr::select(hauls_short_2024, STATIONID, CRUISE)),
+                      by = c("CRUISE", "STATIONID"))
+  
+  bonus_hauls_2024 <- RODBC::sqlQuery(channel = channel,
+                                       query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
+                            h.performance, h.vessel, h.cruise, 
+                            h.haul, h.region, h.duration, h.distance_fished, h.net_width, 
+                            h.net_height, h.start_latitude, h.end_latitude, h.start_longitude, 
+                            h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
+                            h.accessories, h.surface_temperature, h.gear_temperature, h.haul_type 
+                            from racebase.haul h 
+                            where h.haul_type = 20
+                            and h.haul > 210
+                            and h.gear = 44
+                            and h.performance >= 0
+                            and h.cruise = 202401
+                            and h.region = 'BS'") |>
+    dplyr::filter(STATIONID %in% akgfmaps::get_survey_stations(select.region = "sebs"))
+  
+  
+  bonus_hauls_2024 <- bonus_hauls_2024 |>
+    dplyr::group_by(STATIONID) |>
+    dplyr::summarise(N = n()) |>
+    dplyr::filter(N > 1) |>
+    dplyr::inner_join(bonus_hauls_2024, by = "STATIONID")
     
   all_hauls <- dplyr::bind_rows(hauls_2021,
                                 hauls_short_2022,
                                 hauls_normal_2022,
                                 hauls_short_2023,
                                 hauls_normal_2023,
+                                hauls_normal_2024,
+                                hauls_short_2024,
+                                bonus_hauls_2024,
                                 hauls_1998,
                                 hauls_1995
                                 )  |>
