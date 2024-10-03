@@ -67,9 +67,10 @@ for(ii in 1:length(bootstrap_results_path)) {
   hist_df <- dplyr::filter(pratio_samples, SPECIES_CODE == sp_code)
   
   plot_obs_histogram <- ggplot() +
-    geom_histogram(data = hist_df ,
+    geom_histogram(data = dplyr::select(hist_df, MATCHUP, SIZE_BIN, YEAR, SPECIES_CODE) |>
+                     unique(),
                    mapping = aes(x = SIZE_BIN, fill = factor(YEAR)),
-                   bins = length(unique(hist_df $SIZE_BIN))-1) +
+                   bins = length(unique(hist_df$SIZE_BIN))) +
     scale_x_continuous(name = sratio:::species_code_label(sp_code), expand = c(0,0)) +
     scale_y_continuous(name = "Matchups (#)") +
     scale_fill_colorblind() +
