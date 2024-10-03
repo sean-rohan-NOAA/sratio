@@ -2,14 +2,9 @@
 
 library(sratio)
 
-dat_sratio <- readRDS(file = here::here("analysis", "15_30", "output", "n_by_treatment_1530.rds"))
+dat_sratio <- readRDS(file = here::here("analysis", "shelf_slope", "output", "n_by_treatment_ss.rds"))
 
 sp_code <- unique(dat_sratio$SPECIES_CODE)
-
-#temp species drop
-if(!any(use_cruises %in% c(199501, 199801))) {
-  sp_code <- sp_code[-which(sp_code == 68580)]
-}
 
 unique_matchups <- unique(dat_sratio$MATCHUP)
 

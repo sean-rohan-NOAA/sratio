@@ -23,7 +23,7 @@ obs_ratio <- readRDS(file = here::here("analysis", "shelf_slope", "output", "cat
                      names_from = "TREATMENT",
                      values_from = "CPUE_N_KM2",
                      values_fill = 0) |>
-  dplyr::mutate(obs_ratio = `30`/`15`,
+  dplyr::mutate(obs_ratio = `172`/`44`,
                 method = "SCCAL") |>
   dplyr::inner_join(sratio::data_ss$haul |>
                       dplyr::select(MATCHUP, YEAR) |>

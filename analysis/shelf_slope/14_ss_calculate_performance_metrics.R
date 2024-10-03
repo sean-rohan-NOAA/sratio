@@ -15,17 +15,17 @@ model_method <- c("sratio", "sccal")
 
 for(jj in 1:length(model_method)) {
   
-  # Minimum catch-at-length for 30 minute tows to be used for performance metrics
-  min_n <- 5
+  # Minimum catch-at-length for tows to be used for performance metrics
+  min_n <- 1
   
   for(ii in 1:length(sp_codes)) {
     
     # Load catch-at-length and effort data
-    size_172 <- readRDS(here::here("analysis", "shelf_slope", "output", "catch_at_length_1530.rds")) |>
+    size_172 <- readRDS(here::here("analysis", "shelf_slope", "output", "catch_at_length_ss.rds")) |>
       dplyr::filter(TREATMENT == 172, SPECIES_CODE == sp_codes[ii]) |>
       dplyr::ungroup()
     
-    size_44 <- readRDS(here::here("analysis", "shelf_slope", "output", "catch_at_length_1530.rds")) |>
+    size_44 <- readRDS(here::here("analysis", "shelf_slope", "output", "catch_at_length_ss.rds")) |>
       dplyr::filter(TREATMENT == 44, SPECIES_CODE == sp_codes[ii]) |>
       dplyr::ungroup()
     
@@ -47,13 +47,13 @@ for(jj in 1:length(model_method)) {
       dplyr::group_by(SIZE_BIN) |>
       dplyr::summarise(s12 = central_fun(s12))
     
-    size_44 <- dplyr::select(size_172, MATCHUP, AREA_SWEPT_KM_30 = AREA_SWEPT_KM2) |> 
+    size_44 <- dplyr::select(size_172, MATCHUP, AREA_SWEPT_KM_172 = AREA_SWEPT_KM2) |> 
       unique() |>
       dplyr::inner_join(size_44, by = join_by(MATCHUP)) |>
       dplyr::inner_join(bootstrap_results, by = join_by(SIZE_BIN))
     
     # Predict mean catch-at-length, adjusting for area swept and selectivity
-    area_swept_ratio <- size_44$AREA_SWEPT_KM_30/size_44$AREA_SWEPT_KM2
+    area_swept_ratio <- size_44$AREA_SWEPT_KM_172/size_44$AREA_SWEPT_KM2
     
     size_44$PREDICTED_FREQUENCY <- size_44$FREQ_EXPANDED * area_swept_ratio * size_44$s12
     

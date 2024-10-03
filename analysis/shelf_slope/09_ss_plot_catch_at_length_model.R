@@ -14,7 +14,7 @@ obs_ratio <- readRDS(file = here::here("analysis", "shelf_slope", "output", "cat
                      names_from = "TREATMENT",
                      values_from = "CPUE_N_KM2",
                      values_fill = 0) |>
-  dplyr::mutate(obs_ratio = `172`/`30`) |>
+  dplyr::mutate(obs_ratio = `172`/`44`) |>
   dplyr::inner_join(sratio::data_ss$haul |>
                       dplyr::select(MATCHUP, YEAR) |>
                       unique(), 
