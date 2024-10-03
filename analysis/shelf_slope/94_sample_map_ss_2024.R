@@ -26,6 +26,7 @@ study_area <- shelf_layers$survey.grid[grepl(paste(stn_pattern, collapse="|"), s
 study_bbox <- sf::st_bbox(study_area)
 
 ss_tow_locations <- sratio::data_ss$haul |>
+  dplyr::filter(CRUISE == 202401) |>
   sf::st_as_sf(coords = c("START_LONGITUDE", "START_LATITUDE"),
                crs = "WGS84") |>
   sf::st_transform(crs = "EPSG:3338") |>

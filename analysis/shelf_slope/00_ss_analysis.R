@@ -1,388 +1,160 @@
-# Selectivity ratio and catchabiltiy calibration for shelf/slope comparison
-
-# 1. Setup ----
+# Selectivity and catch rate analysis for 30 minute versus 15 minute hauls in the eastern Bering Sea
+# Selectivity ratio, catch-at-length, and total catch rate models.
 library(sratio)
 
-n_cores <- 4 # Cores for parallel processing
-bin_width <- c(5, 5, 4, 4, 5, 5)  # May need to change for different species
-species_codes <- c(21740, 21720, 10130, 10115, 471, 69322, 68580, 10110, 10112, 68560) #, 68560, 69322)
-measurement_label <- c(rep("Fork length (cm)", 4), "Total length (cm)", "Carapace length (mm)", "Carapace width (mm)", rep("Fork length (cm)", 2), "Carapace width (mm)")
-seed <- 5251315 # RNG seed
+# Vector of cruises to include in analyses  ----
+use_cruises <- c(202301, 202401)
 
-# 2. Get data ----
-source(here::here("analysis", "shelf_slope", "1_get_ss_data.R"))
+# 1. Retrieve groundfish and crab data from shelf/slope comparison hauls ----
+# Assigns matchups
+# Data will be saved as .rda files. Build and install the package to include the data as a built-in data set.
+# Input: None
+# Output: 
+#     (1-1) ./data/data_ss.rda (built-in data set; sratio::data_ss)
+#     (1-2) ./plots/sample_sizes_ss.csv (sample size table)
+#     (1-3) ./plots/n_hauls.csv (hauls by year table)
+#     (1-4) ./plots/sample_sizes_no_filter_ss.csv (sample size table without sample size restrictions in a haul)
+source(here::here("analysis", "shelf_slope",  "01_get_ss_data.R"))
 
-cpue_comparison_df <- data.frame()
 
-for(jj in 6:length(species_codes)) {
-  
-  sel_species <- species_codes[jj]
-  
-  dir.create(here::here("analysis", "shelf_slope", "output", sel_species), showWarnings = FALSE)
-  
-  # Setup effort data
-  haul_df <- readRDS(file = here::here("analysis", "shelf_slope", "data", "ss_haul.rds"))
-  
-  area_swept_df <- dplyr::select(haul_df, MATCHUP, AREA_SWEPT_KM2, GEAR) |>
-    dplyr::mutate(GEAR_COL = paste0("AREA_SWEPT_KM2_", GEAR)) |>
-    dplyr::select(-GEAR) |>
-    tidyr::pivot_wider(names_from = GEAR_COL, values_from = AREA_SWEPT_KM2)
-  
-  # Setup catch data
-  catch_df <- readRDS(file = here::here("analysis", "shelf_slope", "data", "ss_catch.rds")) |>
-    dplyr::filter(SPECIES_CODE == sel_species) |>
-    dplyr::inner_join(dplyr::select(haul_df, HAULJOIN, MATCHUP, GEAR)) |>
-    dplyr::select(WEIGHT, NUMBER_FISH, MATCHUP, GEAR) |>
-    dplyr::mutate(NUMBER_FISH_COL = paste0("NUMBER_FISH_", GEAR),
-                  WEIGHT_COL = paste0("WEIGHT_", GEAR)) |>
-    dplyr:::select(-GEAR) |>
-    dplyr::arrange(MATCHUP) |>
-    tidyr::pivot_wider(names_from = c(NUMBER_FISH_COL, WEIGHT_COL),
-                       values_from = c(NUMBER_FISH, WEIGHT),
-                       values_fill = 0) |>
-    dplyr::inner_join(area_swept_df)
-  
-  names(catch_df)[1:5] <- c("MATCHUP", "NUMBER_FISH_44", "NUMBER_FISH_172", "WEIGHT_44", "WEIGHT_172")
-  
-  catch_df <- catch_df |>
-    dplyr::mutate(CPUE_WEIGHT_44 = WEIGHT_44/AREA_SWEPT_KM2_44,
-                  CPUE_WEIGHT_172 = WEIGHT_172/AREA_SWEPT_KM2_172,
-                  CPUE_NUMBER_FISH_44 = NUMBER_FISH_44/AREA_SWEPT_KM2_44,
-                  CPUE_NUMBER_FISH_172 = NUMBER_FISH_172/AREA_SWEPT_KM2_172,
-                  OFFSET = AREA_SWEPT_KM2_172/AREA_SWEPT_KM2_44,
-                  RATIO = WEIGHT_44/WEIGHT_172)
-  
-  if(nrow(catch_df) < 10) {
-    catch_mod_knots <- nrow(catch_df)-1
-  }
-  
-  catch_mod <- gam(log(CPUE_WEIGHT_172+1) ~ s(log(CPUE_WEIGHT_44+1), 
-                                              bs = "cr", 
-                                              k = catch_mod_knots),
-                   data = catch_df)
-  
-  catch_fit_df <- data.frame(CPUE_WEIGHT_44 = exp(seq(log(min(catch_df$CPUE_WEIGHT_44 + 1)),
-                                                      log(max(catch_df$CPUE_WEIGHT_44 + 1)),
-                                                      length = 100)) - 1)
-  
-  catch_fit_df$FIT_CPUE_WEIGHT_172 <- predict(catch_mod, 
-                                             newdata = catch_fit_df)
-  
-  catch_fit_df$FIT_SE_CPUE_WEIGHT_172 <- predict(catch_mod, 
-                                                newdata = catch_fit_df, se.fit = TRUE)$se
-  
-  # bias_correction_factor <- summary(catch_mod)$sigma^2/2
-  bias_correction_factor <- 0
-  
-  catch_fit_df$FIT_LOWER_CPUE_WEIGHT_172 <- (exp(catch_fit_df$FIT_CPUE_WEIGHT_172 - catch_fit_df$FIT_SE_CPUE_WEIGHT_172 + bias_correction_factor)-1)
-  catch_fit_df$FIT_UPPER_CPUE_WEIGHT_172 <- (exp(catch_fit_df$FIT_CPUE_WEIGHT_172 + catch_fit_df$FIT_SE_CPUE_WEIGHT_172 + bias_correction_factor)-1)
-  catch_fit_df$FIT_CPUE_WEIGHT_172 <- (exp(catch_fit_df$FIT_CPUE_WEIGHT_172 + bias_correction_factor)-1)
-  
-  
-  ragg::agg_png(file = here::here("analysis", "shelf_slope", "plots", paste0(sel_species, "_gam_ss.png")), width = 70, height = 70, units = "mm", res = 600)
-  print(
-    ggplot() +
-      geom_ribbon(data = catch_fit_df,
-                  mapping = aes(x = CPUE_WEIGHT_44,
-                                ymin = FIT_LOWER_CPUE_WEIGHT_172,
-                                ymax = FIT_UPPER_CPUE_WEIGHT_172),
-                  alpha = 0.3,
-                  color = NA) +
-      geom_path(data = catch_fit_df,
-                mapping = aes(x = CPUE_WEIGHT_44, 
-                              y = FIT_CPUE_WEIGHT_172),
-                color = "blue",
-                linewidth = 1.5) +
-      geom_abline(slope = 1, intercept = 0, linetype = 2) +
-      geom_point(data = dplyr::mutate(haul_df,
-                                      YEAR = floor(CRUISE/100)) |> 
-                   dplyr::select(YEAR, MATCHUP, VESSEL) |>
-                   dplyr::inner_join(catch_df),
-                 mapping = aes(x = CPUE_WEIGHT_44,
-                               # shape = factor(YEAR)
-                               y = CPUE_WEIGHT_172,
-                 )) +
-      theme_bw() +
-      # scale_shape(name = "Year", solid = FALSE) +
-      scale_x_continuous(name = expression(CPUE[30]~(kg %.%km^-2))) +
-      scale_y_continuous(name = expression(CPUE[15]~(kg %.%km^-2)))
-  )
-  dev.off()
-  
-  cpue_comparison_df <- data.frame(SPECIES_CODE = sel_species) |>
-    dplyr::bind_cols(as.data.frame(calculate_performance_metrics(x = catch_df$CPUE_WEIGHT_172, y = catch_df$CPUE_WEIGHT_44))) |>
-    dplyr::bind_rows(cpue_comparison_df)
-  
-  
-  # Setup length data
-  length_df <- readRDS(file = here::here("analysis", "shelf_slope", "data", "ss_fish_crab_size.rds")) |>
-    dplyr::filter(SPECIES_CODE == sel_species)
-  
-  if(nrow(length_df) < 0) {
-    next
-  }
-  
-  if(sum(length_df$FREQUENCY) < 150) {
-    next
-  }
-  
-  if(sel_species %in% c(68580, 68560)) {
-    length_df$LENGTH <- length_df$WIDTH
-  }
-  
-  # if(sel_species %in% c(68580, 68560, 69322, 69323)) {
-  #   length_df$FREQUENCY <- 1
-  # }
-  
-  # Setup length bins
-  len_min <- min(length_df$LENGTH)
-  len_max <- max(length_df$LENGTH)
-  len_min <- len_min - len_min %% bin_width[jj]
-  len_max <- len_max + (bin_width[jj] - len_max %% bin_width[jj])
-  len_breaks <- seq(len_min, len_max, bin_width[jj])
-  len_mid <- (len_breaks + bin_width[jj]/2)[1:(length(len_breaks) - 1)]
-  
-  length_df <- length_df |>
-    dplyr::mutate(LEN_MIDPOINT = as.numeric(as.character(cut(LENGTH, breaks = len_breaks, labels = len_mid)))) |>
-    dplyr::select(-SPECIES_CODE, -LENGTH) |>
-    dplyr::group_by(HAULJOIN, LEN_MIDPOINT) |>
-    dplyr::summarise(FREQUENCY = sum(FREQUENCY)) |>
-    dplyr::ungroup() |>
-    tidyr::pivot_wider(names_from = "LEN_MIDPOINT", values_from = "FREQUENCY", values_fill = 0)
-  
-  length_df <- tidyr::pivot_longer(length_df, cols = 2:ncol(length_df)) |>
-    dplyr::rename(LEN_MIDPOINT = name,
-                  FREQUENCY = value) |>
-    dplyr::inner_join(dplyr::select(haul_df, HAULJOIN, GEAR, MATCHUP)) |>
-    dplyr::mutate(GEAR_COL = paste0("N_", GEAR)) |>
-    dplyr::select(-HAULJOIN, -GEAR) |>
-    tidyr::pivot_wider(names_from = GEAR_COL, values_from = FREQUENCY) |>
-    dplyr::mutate(LEN_MIDPOINT = as.numeric(LEN_MIDPOINT)) |>
-    dplyr::arrange(MATCHUP, LEN_MIDPOINT)
-  
-  # Set knots based on number of length bins
-  gam_knots <- (length(len_mid)-1)-5 #  (NEED TO CHANGE WHEN THERE ARE MORE DATA)
-  
-  if(gam_knots > 10) {
-    gam_knots <- 8
-  }
-  
-  if(sel_species == 69322) {
-    gam_knots <- 5
-  }
-  
-  pratio_df <- data.frame()
-  unique_matchups <- unique(haul_df$MATCHUP)
-  
-  for(ii in 1:length(unique_matchups)) {
-    
-    sel_area_swept <- dplyr::filter(area_swept_df, MATCHUP == unique_matchups[ii])
-    sel_catch <- dplyr::filter(catch_df, MATCHUP == unique_matchups[ii])
-    sel_length <- dplyr::filter(length_df, MATCHUP == unique_matchups[ii])
-    
-    sel_length$p <- suppressMessages(
-      selectivity_ratio(count1 = sel_length$N_44, 
-                        count2 = sel_length$N_172, 
-                        effort1 = sel_area_swept$AREA_SWEPT_KM2_44, 
-                        effort2 = sel_area_swept$AREA_SWEPT_KM2_172)$p12
-    )
-    
-    pratio_df <- dplyr::bind_rows(pratio_df, sel_length)
-    
-  }
-  
-  pratio_df <- dplyr::filter(pratio_df, !is.na(p))
-  pratio_df$p_scaled <- sratio::scale_for_betareg(pratio_df$p, method = "sv")
-  pratio_df$dummy_var <- 1
-  
-  
-  # Setup four clusters and folds for each matchups
-  doParallel::registerDoParallel(parallel::makeCluster(n_cores))
-  
-  folds <- caret::groupKFold(group = pratio_df$MATCHUP)
-  
-  cv_results <- foreach::foreach(fold = folds) %dopar% {
-    
-    training_df <- pratio_df[fold, ]
-    validation_df <- pratio_df[-fold, ]
-    validation_df$dummy_var <- 0
-    
-    # Add in dummy station variable for predictions, to be added back in for output
-    out_matchup <- validation_df$MATCHUP[1]
-    validation_df$MATCHUP <- training_df$MATCHUP[1]
-    
-    gam_logit <- mgcv::gam(p_scaled ~ s(LEN_MIDPOINT, bs = "cr", k = gam_knots) + s(MATCHUP, bs = "re", by = dummy_var),
-                           data = training_df |>
-                             dplyr::mutate(MATCHUP = factor(MATCHUP)),
-                           family = binomial(link = "logit"))
-    
-    gam_beta <- mgcv::gam(p_scaled ~ s(LEN_MIDPOINT, bs = "cr", k = gam_knots) + s(MATCHUP, bs = "re", by = dummy_var),
-                          data = training_df |>
-                            dplyr::mutate(MATCHUP = factor(MATCHUP)),
-                          family = mgcv::betar(link = "logit"))
-    
-    fitted_logit <- predict(gam_logit, newdata = validation_df, type = "response")
-    fitted_beta <- predict(gam_beta, newdata = validation_df, type = "response")
-    
-    validation_df$cv_fit_logit <- fitted_logit
-    validation_df$cv_fit_beta <- fitted_beta
-    
-    # Reset matchup and dummy variable for fitting final models
-    validation_df$MATCHUP <- out_matchup
-    validation_df$dummy_var <- 1
-    
-    return(validation_df)
-  }
-  
-  pratio_df <- do.call("rbind", cv_results)
-  
-  doParallel::stopImplicitCluster()
-  
-  # Fit models to generate mean prediction
-  gam_logit <- gam(p_scaled ~ s(LEN_MIDPOINT, bs = "cr", k = gam_knots) + s(MATCHUP, bs = "re", by = dummy_var), 
-                   data = pratio_df |>
-                     dplyr::mutate(MATCHUP = factor(MATCHUP),
-                                   dummy_var = 1),
-                   family = binomial(link = "logit"))
-  
-  gam_beta <- gam(p_scaled ~ s(LEN_MIDPOINT, bs = "cr", k = gam_knots) + s(MATCHUP, bs = "re", by = dummy_var), 
-                  data = pratio_df |>
-                    dplyr::mutate(MATCHUP = factor(MATCHUP)),
-                  family = betar(link = "logit"))
-  
-  logit_summary <- summary(gam_logit)
-  beta_summary <- summary(gam_beta)
-  
-  rmse_df <- data.frame(model = c("Binomial", "Beta"), 
-                        rmse = c((sum((pratio_df$cv_fit_logit-pratio_df$p_scaled)^2)/nrow(pratio_df))^0.5,
-                                 (sum((pratio_df$cv_fit_beta-pratio_df$p_scaled)^2)/nrow(pratio_df))^0.5)
-  )
-  
-  observed_prediction_df <- dplyr::bind_rows(
-    make_prediction_df(model = gam_logit, lengths = len_min:len_max, model_name = "logit", type = "link"),
-    make_prediction_df(model = gam_beta, lengths = len_min:len_max, model_name = "beta", type = "link")
-  ) |>
-    dplyr::mutate(type = "Observed")
-  
-  
-  # Bootstrap to generate confidence intervals
-  bootstrap_fits <- run_bootstrap(dat = pratio_df, 
-                                  lengths = len_min:len_max, 
-                                  iterations = 1000, 
-                                  clusters = 4, 
-                                  seed = seed, 
-                                  k = gam_knots)
-  
-  bootstrap_df <- do.call("rbind", bootstrap_fits)
-  
-  bootstrap_quantiles <- bootstrap_df |>
-    dplyr::group_by(LEN_MIDPOINT) |>
-    dplyr::summarise(q025 = quantile(fit, 0.025),
-                     q975 = quantile(fit, 0.975),
-                     q25 = quantile(fit, 0.25),
-                     q75 = quantile(fit, 0.75)) |> 
-    dplyr::mutate(p_q025 = inv_logit(q025),
-                  sratio_q025 = 1/inv_logit(q025)-1,
-                  p_q975 = inv_logit(q975),
-                  sratio_q975 = 1/inv_logit(q975)-1,
-                  p_q25 = inv_logit(q25),
-                  sratio_q25 = 1/inv_logit(q25)-1,
-                  p_q75 = inv_logit(q75),
-                  sratio_q75 = 1/inv_logit(q75)-1) |>
-    dplyr::mutate(type = "Observed")
-  
-  # Make plots of catch ratio and selectivity ratio ----
-  plot_pratio <- ggplot() +
-    geom_point(data = pratio_df,
-               mapping = aes(x = LEN_MIDPOINT,
-                             y = p_scaled),
-               color = "grey70",
-               shape = 21,
-               size = rel(0.4)) +
-    geom_ribbon(data = bootstrap_quantiles,
-                mapping = aes(x = LEN_MIDPOINT,
-                              ymin = p_q025,
-                              max = p_q975),
-                alpha = 0.5,
-                fill = "grey20") +
-    geom_path(data = bootstrap_quantiles,
-              mapping = aes(x = LEN_MIDPOINT,
-                            y = p_q25),
-              linetype = 3) +
-    geom_path(data = bootstrap_quantiles,
-              mapping = aes(x = LEN_MIDPOINT,
-                            y = p_q75),
-              linetype = 3) +
-    geom_path(data = observed_prediction_df |>
-                dplyr::filter(model == "logit"),
-              mapping = aes(x = LEN_MIDPOINT,
-                            y = p)) +
-    scale_x_continuous(name = measurement_label[jj]) +
-    scale_y_continuous(name = expression(italic(p['L,83-112,PNE']))) +
-    scale_color_tableau() +
-    scale_fill_tableau() +
-    theme_bw()
-  
-  plot_obs_histogram <- ggplot() +
-    geom_histogram(data = pratio_df,
-                   mapping = aes(x = LEN_MIDPOINT),
-                   bins = length(unique(pratio_df$LEN_MIDPOINT)),
-                   fill = "grey70") +
-    scale_x_continuous(name = measurement_label[jj], expand = c(0,0)) +
-    scale_y_continuous(name = "Matchups (#)") +
-    theme_bw()
-  
-  plot_sratio <- ggplot() +
-    geom_hline(yintercept = 1, linetype = 2) +
-    geom_ribbon(data = bootstrap_quantiles,
-                mapping = aes(x = LEN_MIDPOINT,
-                              ymin = sratio_q025,
-                              max = sratio_q975),
-                alpha = 0.5,
-                fill = "grey20") +
-    geom_path(data = bootstrap_quantiles,
-              mapping = aes(x = LEN_MIDPOINT,
-                            y = sratio_q25),
-              linetype = 3) +
-    geom_path(data = bootstrap_quantiles,
-              mapping = aes(x = LEN_MIDPOINT,
-                            y = sratio_q75),
-              linetype = 3) +
-    geom_path(data = observed_prediction_df |>
-                dplyr::filter(model == "logit"),
-              mapping = aes(x = LEN_MIDPOINT,
-                            y = sratio)) +
-    scale_x_continuous(name = measurement_label[jj]) +
-    scale_y_log10(name = expression(italic(S['L,PNE,83-112']))) +
-    scale_color_tableau() +
-    scale_fill_tableau() +
-    theme_bw()
-  
-  # Write plots to file
-  ragg::agg_png(file = here::here("analysis", "shelf_slope", "plots", paste0(sel_species, "_trawl_height_three_panel_ratios_n.png")), width = 169, height = 70, units = "mm", res = 600)
-  print(cowplot::plot_grid(plot_pratio,
-                           plot_obs_histogram,
-                           plot_sratio,
-                           nrow = 1,
-                           labels = LETTERS[1:3]))
-  dev.off()
-  
-  # Save species output to an rda file
-  save(plot_pratio, 
-       plot_obs_histogram, 
-       plot_sratio, 
-       rmse_df, 
-       bootstrap_df, 
-       bootstrap_fits, 
-       observed_prediction_df, 
-       haul_df, 
-       length_df, 
-       catch_df, 
-       gam_logit, 
-       gam_beta, 
-       file = here::here("analysis", "shelf_slope", "output", sel_species, paste0("sratio_output_", sel_species, ".rda")))
-}
+#--------------------------------------------------------------------------------------------------#
+#--------------------------- REBUILD THE PACKAGE BEFORE CONTINUING TO 2 ---------------------------#
+#--------------------------------------------------------------------------------------------------#
 
-write.csv(cpue_comparison_df,
-          file = here::here("analysis", "shelf_slope", "plots", "cpue_comparison_metrics.csv"), 
-          row.names = FALSE)
+start_time <- Sys.time()
+
+# 2. Format the built-in data ----
+# Setup data for selectivity ratio and catch-at-size models 
+# Input: 
+#     (1-1) sratio::data_1530
+# Output:
+#     (2-1) ./output/catch_at_length_1530.rds (formatted for catch-at-size models)
+#     (2-2) ./output/n_by_treatment_1530.rds (formatted for selectivity ratio models)
+source(here::here("analysis", "shelf_slope", "02_prepare_data.R"))
+  
+
+# 3. Two-stage bootstrap samples ----
+# Draw two-stage bootstrap samples for selectivity ratio and catch-at-length models using sratio::two_stage_bootstrap and sratio::nested_bootstrap
+# In the two stage bootstrap, matchups are randomly drawn first then lengths are randomly drawn from each match-up and treatment. 
+# Input: 
+#     (2-1) ./output/catch_at_length_1530.rds
+# Outputs: 
+#     (3-1) ./output/{species_code}/bootstrap_samples_{species_code}.rds
+source(here::here("analysis", "15_30", "03_bootstrap_samples.R"))
+
+
+# 4. Select best binomial and beta selectivity ratio models (parallelized) ----
+# Fit GAMMs to catch comparison rate data and select the best model based on leave-one-out cross validation.
+# Input: 
+#     (2-2) ./output/n_by_treatment_1530.rds
+# Output: 
+#     (4-1) ./output/sratio_model_rmse.csv (RMSE table showing the best model for each species)
+source(here::here("analysis", "15_30", "04_best_selectivity_ratio_model.R"))
+
+
+# 5. Bootstrap selectivity ratio models (parallelized) ----
+# For each species, fit the best model to bootstrapped sample data to estimate confidence intervals.
+# Inputs:
+#     (3-1) ./output/{species_code}/bootstrap_samples_{species_code}.rds
+#     (4-1) ./output/sratio_model_rmse.csv(RMSE table)
+# Outputs:
+#     (5-1) ./output/{species_code}/sratio_bootstrap_results_{species_code}.rds (bootstrap fits)
+source(here::here("analysis", "15_30", "05_bootstrap_selectivity_ratio_model.R"))
+
+
+# 6. Plot selectivity ratio bootstrap results ----
+# Plot bootstrap fits
+# Inputs:
+#     (5-1) ./output/{species_code}/sratio_bootstrap_results_{species_code}.rds (bootstrap fits)
+# Outputs:
+#     (6-1) ./plots/{species_code}_sratio_two_panel.png (catch comparison rate/selectivity ratio plot)
+#     (6-2) ./plots/{species_code}_sratio_three_panel.png (catch comparison rate/selectivity ratio plot w/ sample histogram)
+source(here::here("analysis", "15_30", "06_plot_selectivity_ratio_model.R"))
+
+
+
+# 7. Select best catch-at-size models (parallelized) ----
+# Fit Poisson, Negative Binomial, and Tweedie GAMMs to catch-at-size (in numbers) data and select the best models based on leave-one-out-cross validation.
+# Inputs:
+#     (2-1) ./output/catch_at_length_1530.rds (formatted for catch-at-length models)
+# Output:
+#     (7-1) ./output/cal_model_rmse.csv (RMSE table showing the best model for each species)
+source(here::here("analysis", "15_30", "07_best_catch_at_length_model.R"))
+
+
+# 8. Bootstrap catch-at-size models (parallelized) ----
+# For each species, fit the best models to bootstrapped sample data to estimate confidence intervals.
+# Inputs:
+#     (3-1) ./output/{species_code}/bootstrap_samples_{species_code}.rds
+#     (7-1) ./output/cal_model_rmse.csv (RMSE table showing the best model for each species)
+# Outputs:
+#     (8-1) ./output/{species_code}/sccal_model_bootstrap_results_{species_code}.rds
+source(here::here("analysis", "15_30", "08_bootstrap_catch_at_length_model.R"))
+
+
+# 9. Plot selectivity conditional on catch-at-length (SCCAL) bootstrap results ----
+# Plot catch-at-size fits
+# Inputs: 
+#     (8-1) ./output/{species_code}/sccal_model_bootstrap_results_{species_code}.rds
+# Outputs:
+#     (9-1) ./plots/{species_code}_sccal_ratio.png
+source(here::here("analysis", "15_30", "09_plot_catch_at_length_model.R"))
+
+
+# 10. Plot SCCAL and SR on the same plots ----
+# Inputs: 
+#     (5-1) ./output/{species_code}/sratio_bootstrap_results_{species_code}.rds (bootstrap fits)
+#     (8-1) ./output/{species_code}/sccal_model_bootstrap_results_{species_code}.rds
+# source(here::here("analysis", "15_30", "10_plot_sratio_sccal.R"))
+# 
+# stop_time <- Sys.time()
+# 
+# stop_time-start_time
+
+
+# 11. Calculate performance metrics ----
+# Inputs: 
+#     (1-1) sratio::data_1530
+#     (5-1) ./output/{species_code}/sratio_bootstrap_results_{species_code}.rds (bootstrap fits)
+#     (8-1) ./output/{species_code}/sccal_model_bootstrap_results_{species_code}.rds
+# Outputs:
+#     (11-1) ./output/model_performance_sratio_{species_code}.rds
+#     (11-2) ./output/model_performance_sccal_{species_code}.rds
+
+source(here::here("analysis", "15_30", "11_calculate_performance_metrics.R"))
+
+
+# 12. Plot performance metrics ----
+
+
+
+
+# 13. Total catch model ----
+# Bayesian zero-intercept linear regression model between log10(CPUE) from 15 and 30 minute hauls
+# to evaluate whether there is a one-to-one relationship between CPUE from 15 and 30 minute hauls (i.e. slope = 1)
+# Inputs:
+#     (1-1) ./data/data_1530.rda (built-in data set; sratio::data_1530)
+# Outputs:
+#     (11-1) ./plots/cpue_model_density_plot.png (density plots of regression slope 95% credible intervals)
+#     (11-2) ./plots/cpue_model_violin_plot.png (violin plots of regression slope  95% credible intervals)
+#     (11-3) ./plots/cpue_model_boxplot.png (boxplot of regression slope 95% credible intervals)
+#     (11-4) ./plots/cpue_log_model_scatterplot.png (regression fits between log10(CPUE15)~log10(CPUE30))
+source(here::here("analysis", "15_30", "11_cpue_model.R"))
+
+
+# 12. Mean bias and other metrics ---- 
+#  Compare CPUE between 15 and 30 minute tows
+# Inputs:
+#     (1-1) ./data/data_1530.rda (built-in data set; sratio::data_1530)
+# Outputs:
+#     (12-1) ./plots/bias_table.csv (table of bias, RMSE, MAE by species)
+source(here::here("analysis", "15_30", "12_performance_metrics.R"))
+
+
+# 90. Map of annual samples ----
+# Inputs:
+#     (1-1) ./data/data_1530.rda (built-in data set; sratio::data_1530)
+# Outputs:
+#     (90-1) ./plots/map_samples_by_stratum.png (samples by stratum for project plan and presentations)
+#     (90-2) ./plots/sample_map_1995_2023.png (multi-panel sample map/samples by year)
+source(here::here("analysis", "15_30", "90_sample_map.R"))
