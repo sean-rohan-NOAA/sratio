@@ -39,9 +39,13 @@ for(ii in 1:length(bootstrap_results_path)) {
   y_lim <- quantile(boot_fit$s21, c(0.01, 0.99))
   
   plot_obs_histogram <- ggplot() +
-    geom_histogram(data = sp_observations,
+    geom_histogram(data = dplyr::select(sp_observations, MATCHUP, SIZE_BIN, YEAR, SPECIES_CODE) |>
+                     unique(),
                    mapping = aes(x = SIZE_BIN, fill = factor(YEAR)),
-                   bins = length(unique(sp_observations$SIZE_BIN))-1) +
+                   bins = length(unique(sp_observations$SIZE_BIN))) +
+    # geom_histogram(data = sp_observations,
+    #                mapping = aes(x = SIZE_BIN, fill = factor(YEAR)),
+    #                bins = length(unique(sp_observations$SIZE_BIN))-1) +
     scale_x_continuous(name = sratio:::species_code_label(sp_code), expand = c(0,0)) +
     scale_y_continuous(name = "Matchups (#)") +
     scale_fill_colorblind() +
