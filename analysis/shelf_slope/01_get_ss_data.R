@@ -11,7 +11,7 @@ get_ss_data <- function(species_codes) {
                                         and vessel in (134, 162)
                                         and performance >= 0")  |>
     dplyr::mutate(AREA_SWEPT_KM2 = NET_WIDTH/1000*DISTANCE_FISHED,
-                  TREATMENT = GEAR)
+                  TREATMENT = factor(GEAR, levels = c(172, 44)))
   
   ss_haul_akk_2024 <- RODBC::sqlQuery(channel = channel, 
                                   query = "select * from racebase.haul 
@@ -23,7 +23,7 @@ get_ss_data <- function(species_codes) {
                                         and accessories = 115
                                         and performance >= 0")  |>
     dplyr::mutate(AREA_SWEPT_KM2 = NET_WIDTH/1000*DISTANCE_FISHED,
-                  TREATMENT = GEAR)
+                  TREATMENT = factor(GEAR, levels = c(172, 44)))
   
   ss_haul_nwe_2024 <- RODBC::sqlQuery(channel = channel, 
                                       query = "select * from racebase.haul 
@@ -31,7 +31,7 @@ get_ss_data <- function(species_codes) {
                                         and vessel = 134
                                         and performance >= 0")  |>
     dplyr::mutate(AREA_SWEPT_KM2 = NET_WIDTH/1000*DISTANCE_FISHED,
-                  TREATMENT = GEAR) |>
+                  TREATMENT = factor(GEAR, levels = c(172, 44))) |>
     dplyr::filter(STATIONID %in% ss_haul_akk_2024$STATIONID)
   
   ss_haul_akk_2024 <- dplyr::filter(ss_haul_akk_2024, 
@@ -57,7 +57,9 @@ get_ss_data <- function(species_codes) {
                                         and vessel in (134, 162)
                                         and species_code in (", paste(species_codes, collapse = ","), ")",
                                         " and hauljoin in (", paste(ss_hauls$HAULJOIN, collapse = ","), ")")) |>
-    dplyr::select(VESSEL, CRUISE, HAUL, SPECIES_CODE, WEIGHT, NUMBER_FISH, HAULJOIN)
+    dplyr::select(VESSEL, CRUISE, HAUL, SPECIES_CODE, WEIGHT, NUMBER_FISH, HAULJOIN) |>
+    dplyr::inner_join(dplyr::select(ss_hauls, MATCHUP, HAULJOIN) |>
+                        unique())
   
   ss_length <- RODBC::sqlQuery(channel = channel, 
                                     query = paste0("select * from racebase.length 
@@ -66,9 +68,11 @@ get_ss_data <- function(species_codes) {
                                         and species_code in (", paste(species_codes, collapse = ","), ")",
                                                    " and hauljoin in (", paste(ss_hauls$HAULJOIN, collapse = ","), ")")) |>
     dplyr::mutate(LENGTH = LENGTH/10) |>
-    dplyr::select(VESSEL, CRUISE, HAUL, SPECIES_CODE, LENGTH, FREQUENCY, SEX, HAULJOIN)
+    dplyr::select(VESSEL, CRUISE, HAUL, SPECIES_CODE, LENGTH, FREQUENCY, SEX, HAULJOIN) |>
+    dplyr::inner_join(dplyr::select(ss_hauls, MATCHUP, HAULJOIN) |>
+                        unique())
   
-  ss_crab <- RODBC::sqlQuery(channel = channel,
+  ss_crab_2023 <- RODBC::sqlQuery(channel = channel,
                                paste0("select species_code, sex, shell_condition, length, width, weight, vessel, cruise, haul, sampling_factor frequency from crab.ebscrab_15_30_slope_shelf_comparison_2023tows
                   where species_code in (", paste(species_codes, collapse = ","), ")")) |>
     dplyr::mutate(VESSEL = as.numeric(VESSEL),
@@ -80,12 +84,23 @@ get_ss_data <- function(species_codes) {
                   LENGTH = as.numeric(LENGTH),
                   WIDTH = as.numeric(WIDTH),
                   FREQUENCY = as.numeric(FREQUENCY)) |>
-    dplyr::inner_join(dplyr::select(ss_haul_2023, VESSEL, CRUISE, HAUL, HAULJOIN) |>
+    dplyr::inner_join(dplyr::select(ss_hauls, VESSEL, CRUISE, HAUL, MATCHUP, HAULJOIN) |>
                         unique())
+  
+  ss_crab_2024 <- read.csv(file = here::here("analysis", "shelf_slope", "data", "ebscrab_15_30_slope_shelf_comparison_2024tows.csv")) |>
+    dplyr::select(-WEIGHT) |>
+    dplyr::inner_join(dplyr::select(ss_hauls, VESSEL, CRUISE, HAUL, MATCHUP, HAULJOIN) |>
+                        unique())
+  
+  ss_crab_2024 <- ss_crab_2024[, which(names(ss_crab_2024) %in% names(ss_crab_2023))]
+  
+  ss_crab <- dplyr::bind_rows(ss_crab_2023, ss_crab_2024)
   
   ss_crab$FREQUENCY[is.na(ss_crab$FREQUENCY)] <- 1
   
-  ss_crab_fish <- dplyr::bind_rows(ss_crab, ss_length)
+  ss_crab_fish <- dplyr::bind_rows(ss_crab, ss_length) |>
+    dplyr::filter(HAULJOIN %in% ss_hauls$HAULJOIN,
+                  SPECIES_CODE %in% species_codes)
   
   data_ss <- list(
     project = "Shelf/Slope Tow Comparison",
@@ -116,4 +131,4 @@ get_ss_data <- function(species_codes) {
   
 }
 
-get_ss_data(species_codes = species_codes)
+get_ss_data(species_codes = c(21740, 21720, 10130, 10115, 10110, 10112, 471, 68580, 658560, 69322))
