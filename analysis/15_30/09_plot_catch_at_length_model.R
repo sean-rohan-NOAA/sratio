@@ -6,6 +6,10 @@ bootstrap_results_path <- list.files(here::here("analysis", "15_30", "output"),
                                      pattern = "sccal_bootstrap_results_", 
                                      full.names = TRUE)
 
+dir.create(here::here("analysis", "15_30",  
+                      "plots", "sccal_fit"),
+           showWarnings = FALSE)
+
 obs_ratio <- readRDS(file = here::here("analysis", "15_30", "output", "catch_at_length_1530.rds")) |>
   dplyr::ungroup() |>
   dplyr::mutate(CPUE_N_KM2 = FREQ_EXPANDED/AREA_SWEPT_KM2) |>
@@ -79,7 +83,7 @@ for(ii in 1:length(bootstrap_results_path)) {
                                             max(boot_fit_quantile$sratio_q975)))) +
     theme_bw()
   
-  png(filename = here::here("analysis", "15_30", "plots", 
+  png(filename = here::here("analysis", "15_30", "plots", "sccal_fit",
                             paste0(sp_code, "_sccal_ratio.png")), 
       width = 113, height = 70, units = "mm", res = 300)
   print(cowplot::plot_grid(plot_obs_histogram,

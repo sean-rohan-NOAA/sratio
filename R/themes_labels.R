@@ -11,7 +11,7 @@ species_code_label <- function(x, type = "axis_label", make_factor = FALSE) {
                          LABEL = c(rep("Fork length (cm)", 9), "Total length (cm)", rep("Carapace width (mm)", 2), "Carapace length (mm)"),
                          COMMON_NAME = c("walleye pollock", "Pacific cod", "arrowooth flounder", "Kamchatka flounder", "Greenland turbot", "flathead sole", "yellowfin sole", "northern rock sole",  "Alaska plaice", "Alaska skate", "Tanner crab", "snow crab", "red king crab"),
                          SIZE_BIN_WIDTH = c(4, 5, 4, 4, 4, 4, 4, 3, 5, 4, 8, 8, 10),
-                         MIN_SAMPLE_SIZE = c(10, 10, 10, 10, 10, 10, 10, 10, 10, 5, 10, 10, 10))
+                         MIN_SAMPLE_SIZE = c(10, 10, 10, 10, 10, 10, 10, 10, 10, 5, 10, 10, 5))
   
   if(x[1] == "all") {
     return(species_info)

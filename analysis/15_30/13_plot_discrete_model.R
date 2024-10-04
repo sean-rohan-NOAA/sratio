@@ -13,6 +13,10 @@ pratio_samples <- readRDS(here::here("analysis", "15_30", "output", "discrete_sa
                       unique(),
                     by = "MATCHUP")
 
+dir.create(here::here("analysis", "15_30",  
+                      "plots", "discrete_fit"),
+           showWarnings = FALSE)
+
 for(ii in 1:length(bootstrap_results_path)) {
   
   bootstrap_df <- readRDS(file = bootstrap_results_path[ii])
@@ -123,7 +127,7 @@ for(ii in 1:length(bootstrap_results_path)) {
   dev.off()
   
   ragg::agg_png(file = here::here("analysis", "15_30",  
-                                  "plots", 
+                                  "plots", "discrete_fit",
                                   paste0(sp_code, "_discrete_two_panel.png")), 
                 width = 104, height = 70, units = "mm", res = 300)
   print(cowplot::plot_grid(plot_obs_histogram,

@@ -38,3 +38,26 @@ for(ii in 1:length(bootstrap_sample_path)) {
                      paste0("sratio_bootstrap_results_", sp_code, ".rds")))
   
 }
+
+
+bootstrap_results_path <- list.files(here::here("analysis", "shelf_slope", "output"), 
+                                     recursive = TRUE, 
+                                     pattern = "sratio_bootstrap_results_", 
+                                     full.names = TRUE)
+
+bootstrap_samples <- data.frame()
+
+for(kk in 1:length(bootstrap_results_path)) {
+  
+  bootstrap_samples <- dplyr::bind_rows(bootstrap_samples,
+                                        readRDS(bootstrap_results_path[kk]))
+  
+}
+
+bootstrap_samples <- bootstrap_samples |>
+  dplyr::select(SPECIES_CODE, SIZE_BIN, p12, s12)
+
+
+saveRDS(object = bootstrap_samples,
+        file = here::here("analysis", "shelf_slope", "output", "shelf_slope_sratio_bootstrap.rds"))
+

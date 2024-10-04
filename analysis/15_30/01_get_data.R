@@ -1,6 +1,6 @@
 # Get data for selectivity ratio analysis
 
-get_data <- function(species_codes) {
+get_data <- function(species_codes, use_cruises) {
   
   channel <- get_connected(schema = "AFSC")
   
@@ -380,14 +380,20 @@ get_data <- function(species_codes) {
                         unique(),
                       by = c("VESSEL", "CRUISE", "HAUL"))
   
-  crab <- dplyr::bind_rows(crab_2021_2022, crab_2023, crab_1995_1998) |>
+  crab_2024 <- read.csv(file = here::here("analysis", "15_30", "data", "ebscrab_15_30_slope_shelf_comparison_2024tows.csv")) |>
+    dplyr::select(-WEIGHT) |>
+    dplyr::inner_join(dplyr::select(all_hauls, VESSEL, CRUISE, HAUL) |>
+                        unique(),
+                      by = c("VESSEL", "CRUISE", "HAUL"))
+  
+  
+  # 2024 Crab
+  crab <- dplyr::bind_rows(crab_2021_2022, crab_2023, crab_1995_1998, crab_2024) |>
     dplyr::inner_join(dplyr::select(all_hauls, HAULJOIN, MATCHUP), by = "HAULJOIN")
   
   crab$FREQUENCY[is.na(crab$FREQUENCY)] <- 1
 
   crab_fish <- dplyr::bind_rows(crab, lengths)
-  
-  
   
   # Identify matchups to use for selectivity analysis based on minimum sample size ----
   selectivity_flag <- dplyr::select(crab_fish, VESSEL, CRUISE, HAUL, MATCHUP, SPECIES_CODE, FREQUENCY) |>
@@ -413,11 +419,6 @@ get_data <- function(species_codes) {
                                  selectivity_flag,
                                  by = c("SPECIES_CODE", "MATCHUP"))
   
-  # test <- dplyr::select(catch, SPECIES_CODE, MATCHUP, USE_FOR_SELECTIVITY) |>
-  #   unique() |>
-  #   arrange(SPECIES_CODE, MATCHUP)
-  # View(test)
-  
   # Check number of hauls with size data
   dplyr::select(crab_fish, VESSEL, CRUISE, HAUL) |>
     unique() |>
@@ -431,12 +432,6 @@ get_data <- function(species_codes) {
     size = crab_fish)
 
   save(data_1530, file = here::here("data", "data_1530.rda"))
-
-  # saveRDS(object = all_hauls, file = here::here("data", "hauls_1530.rds"))
-  # 
-  # saveRDS(object = catch, file = here::here("data", "catch_1530.rds"))
-
-  # saveRDS(object = crab_fish, file = here::here("data", "fish_crab_size_1530.rds"))
   
   crab_fish |>
     dplyr::mutate(YEAR = floor(CRUISE/100)) |>
@@ -467,4 +462,5 @@ get_data <- function(species_codes) {
 
 }
 
-get_data(species_codes = c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68560, 68580, 69322))
+get_data(species_codes = c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68560, 68580, 69322),
+         use_cruises = use_cruises)

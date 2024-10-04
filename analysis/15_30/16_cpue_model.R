@@ -9,6 +9,7 @@ haul_df <- sratio::data_1530$haul |>
 
 sp_codes <- sort(unique(catch_df$SPECIES_CODE))
 
+
 cpue_dat <- catch_df |>
   dplyr::inner_join(haul_df) |>
   dplyr::select(MATCHUP, SPECIES_CODE, WEIGHT, MATCHUP, TREATMENT) |>
@@ -24,6 +25,10 @@ cpue_dat <- catch_df |>
                 LOG10_CPUE_15 = log10(CPUE_15+0.001))
 
 sp_codes <- sort(unique(catch_df$SPECIES_CODE))
+
+dir.create(here::here("analysis", "15_30",  
+                      "plots", "total_cpue_fit"),
+           showWarnings = FALSE)
 
 # May need to run species by species to avoid crashing --- 
 for(ii in 1:length(sp_codes)) {
@@ -66,7 +71,7 @@ for(jj in 1:length(zeroint_paths)) {
 }
 
 # Plot CPUE model results -----
-png(here::here("analysis", "15_30", "plots", "cpue_model_density_plot.png"), 
+png(here::here("analysis", "15_30", "plots", "total_cpue_fit", "cpue_model_density_plot.png"), 
     width = 169, height = 120, res = 300, units = "mm")
 print(
 ggplot() +
@@ -81,7 +86,7 @@ ggplot() +
 )
 dev.off()
 
-png(here::here("analysis", "15_30", "plots", "cpue_model_violin_plot.png"), 
+png(here::here("analysis", "15_30", "plots", "total_cpue_fit", "cpue_model_violin_plot.png"), 
     width = 80, height = 100, res = 300, units = "mm")
 print(
 ggplot() +
@@ -102,7 +107,7 @@ ggplot() +
 dev.off()
 
 
-png(here::here("analysis", "15_30", "plots", "cpue_model_boxplot.png"), 
+png(here::here("analysis", "15_30", "plots", "total_cpue_fit", "cpue_model_boxplot.png"), 
     width = 80, height = 100, res = 300, units = "mm")
 print(
 ggplot() +
@@ -134,7 +139,7 @@ ggplot() +
 dev.off()
 
 
-png(here::here("analysis", "15_30", "plots", "cpue_log_model_scatterplot.png"), 
+png(here::here("analysis", "15_30", "plots", "total_cpue_fit", "cpue_log_model_scatterplot.png"), 
     width = 169, height = 120, res = 300, units = "mm")
 print(
 ggplot(data = cpue_dat, 
