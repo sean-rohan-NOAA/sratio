@@ -12,6 +12,11 @@ pratio_samples <- readRDS(here::here("analysis", "15_30", "output", "pratio_samp
                       unique(),
                     by = "MATCHUP")
 
+dir.create(here::here("analysis", "15_30",  
+                      "plots", "sratio_fit"),
+           showWarnings = FALSE)
+
+
 for(ii in 1:length(bootstrap_results_path)) {
   
   bootstrap_df <- readRDS(file = bootstrap_results_path[ii])
@@ -67,7 +72,8 @@ for(ii in 1:length(bootstrap_results_path)) {
   hist_df <- dplyr::filter(pratio_samples, SPECIES_CODE == sp_code)
   
   plot_obs_histogram <- ggplot() +
-    geom_histogram(data = hist_df ,
+    geom_histogram(data = dplyr::select(hist_df, MATCHUP, SIZE_BIN, YEAR) |>
+                     unique(),
                    mapping = aes(x = SIZE_BIN, fill = factor(YEAR)),
                    bins = length(unique(hist_df $SIZE_BIN))-1) +
     scale_x_continuous(name = sratio:::species_code_label(sp_code), expand = c(0,0)) +
@@ -113,7 +119,7 @@ for(ii in 1:length(bootstrap_results_path)) {
   # Write plots to file
   
   ragg::agg_png(file = here::here("analysis", "15_30", 
-                                  "plots", paste0(sp_code, "_sratio_three_panel.png")), 
+                                  "plots", "sratio_fit", paste0(sp_code, "_sratio_three_panel.png")), 
                 width = 169, height = 70, units = "mm", res = 300)
   print(cowplot::plot_grid(plot_obs_histogram,
                            plot_pratio,
@@ -123,7 +129,7 @@ for(ii in 1:length(bootstrap_results_path)) {
   dev.off()
   
   ragg::agg_png(file = here::here("analysis", "15_30",  
-                                  "plots", 
+                                  "plots", "sratio_fit",
                                   paste0(sp_code, "_sratio_two_panel.png")), 
                 width = 104, height = 70, units = "mm", res = 300)
   print(cowplot::plot_grid(plot_obs_histogram,

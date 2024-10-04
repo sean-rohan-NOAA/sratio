@@ -35,10 +35,10 @@ bias_table <- catch_df |>
   dplyr::select(COMMON_NAME, BIAS, MEAN_RATIO, MAE, RMSE)
 
 lines <- c("CPUE comparison between 15 and 30 minute tows\n", "BIAS > 1 = 15 minutes higher\n", "MEAN_RATIO > 1 = 15 minutes higher\n\n\n")
-cat(lines, file = here::here("analysis", "15_30", "plots", "bias_table.csv"))
+cat(lines, file = here::here("analysis", "15_30", "plots", "total_cpue_fit", "bias_table.csv"))
 
 write.table(bias_table, 
-            file = here::here("analysis", "15_30", "plots", "bias_table.csv"), 
+            file = here::here("analysis", "15_30", "plots", "total_cpue_fit", "bias_table.csv"), 
             append = TRUE, 
             row.names = FALSE, 
             sep = ",")
