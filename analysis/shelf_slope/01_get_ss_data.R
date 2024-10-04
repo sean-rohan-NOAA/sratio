@@ -39,6 +39,12 @@ get_ss_data <- function(species_codes) {
   
   ss_hauls <- dplyr::bind_rows(ss_haul_2023, ss_haul_akk_2024, ss_haul_nwe_2024)
   
+  dplyr::filter(ss_hauls, CRUISE == 202401) |>
+    dplyr::select(HAULJOIN, VESSEL, CRUISE, HAUL, STATIONID, GEAR, HAUL_TYPE) |>
+    as.data.frame() |>
+    write.csv(file = here::here("analysis", "shelf_slope", "output", "2024_shelf_slope_hauls.csv"), 
+              row.names = FALSE)
+  
   
   ss_matchups <- dplyr::group_by(ss_hauls, STATIONID, CRUISE) |>
     dplyr::summarise(n = n()) |>

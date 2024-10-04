@@ -386,6 +386,12 @@ get_data <- function(species_codes, use_cruises) {
                         unique(),
                       by = c("VESSEL", "CRUISE", "HAUL"))
   
+  dplyr::filter(all_hauls, CRUISE == 202401) |>
+    dplyr::select(HAULJOIN, VESSEL, CRUISE, HAUL, STATIONID, GEAR, HAUL_TYPE) |>
+    as.data.frame() |>
+    write.csv(file = here::here("analysis", "15_30", "output", "2024_15_30_hauls.csv"), 
+              row.names = FALSE)
+
   
   # 2024 Crab
   crab <- dplyr::bind_rows(crab_2021_2022, crab_2023, crab_1995_1998, crab_2024) |>
@@ -418,6 +424,10 @@ get_data <- function(species_codes, use_cruises) {
   crab_fish <- dplyr::inner_join(crab_fish,
                                  selectivity_flag,
                                  by = c("SPECIES_CODE", "MATCHUP"))
+  
+  dplyr::filter(crab_fish, !USE_FOR_SELECTIVITY, SPECIES_CODE == 69322, CRUISE == 202401) |>
+    dplyr::group_by(MATCHUP, VESSEL, CRUISE, HAUL) |>
+    dplyr::summarise(n = n())
   
   # Check number of hauls with size data
   dplyr::select(crab_fish, VESSEL, CRUISE, HAUL) |>
@@ -464,3 +474,6 @@ get_data <- function(species_codes, use_cruises) {
 
 get_data(species_codes = c(21740, 21720, 10210, 10261, 10110, 10130, 10285, 471, 68560, 68580, 69322),
          use_cruises = use_cruises)
+
+
+
