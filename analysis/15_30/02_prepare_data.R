@@ -5,15 +5,12 @@ treatments <- factor(c(15,30))
 
 # Load built-in data sets
 catch_df <- sratio::data_1530$catch |>
-  dplyr::filter(CRUISE %in% use_cruises,
-                USE_FOR_SELECTIVITY)
+  dplyr::filter(USE_FOR_SELECTIVITY)
 
-haul_df <- sratio::data_1530$haul |>
-  dplyr::filter(CRUISE %in% use_cruises)
+haul_df <- sratio::data_1530$haul
 
 size_df <- sratio::data_1530$size |>
-  dplyr::filter(CRUISE %in% use_cruises,
-                USE_FOR_SELECTIVITY)
+  dplyr::filter(USE_FOR_SELECTIVITY)
 
 # Data setup ---------------------------------------------------------------------------------------
 dat <- dplyr::inner_join(haul_df,

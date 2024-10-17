@@ -381,6 +381,7 @@ get_data <- function(species_codes, use_cruises) {
                       by = c("VESSEL", "CRUISE", "HAUL"))
   
   crab_2024 <- read.csv(file = here::here("analysis", "15_30", "data", "ebscrab_15_30_slope_shelf_comparison_2024tows.csv")) |>
+    dplyr::filter(!is.na(SPECIES_CODE)) |>
     dplyr::select(-WEIGHT) |>
     dplyr::inner_join(dplyr::select(all_hauls, VESSEL, CRUISE, HAUL) |>
                         unique(),

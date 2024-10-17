@@ -94,6 +94,7 @@ get_ss_data <- function(species_codes) {
                         unique())
   
   ss_crab_2024 <- read.csv(file = here::here("analysis", "shelf_slope", "data", "ebscrab_15_30_slope_shelf_comparison_2024tows.csv")) |>
+    dplyr::filter(!is.na(SPECIES_CODE)) |>
     dplyr::select(-WEIGHT) |>
     dplyr::inner_join(dplyr::select(ss_hauls, VESSEL, CRUISE, HAUL, MATCHUP, HAULJOIN) |>
                         unique())
@@ -127,6 +128,16 @@ get_ss_data <- function(species_codes) {
     dplyr::group_by(SPECIES_CODE, YEAR) |>
     dplyr::summarise(n = sum(FREQUENCY)) |>
     write.csv(file = here::here("analysis", "shelf_slope", "plots", "ss_sample_sizes.csv"), row.names = FALSE)
+  
+  ss_crab_fish |>
+    dplyr::mutate(YEAR = floor(CRUISE/100)) |>
+    dplyr::group_by(SPECIES_CODE, YEAR) |>
+    dplyr::summarise(n = sum(FREQUENCY), .groups = "keep") |>
+    dplyr::ungroup() |>
+    dplyr::arrange(YEAR) |>
+    tidyr::pivot_wider(names_from = "YEAR", values_from = "n", values_fill = 0) |>
+    dplyr::mutate(COMMON_NAME = sratio::species_code_label(SPECIES_CODE, type = "common_name")) |>
+    write.csv(file = here::here("analysis", "shelf_slope", "plots", "sample_sizes_wide_ss.csv"), row.names = FALSE)
   
   ss_hauls |>
     dplyr::group_by(CRUISE) |>
