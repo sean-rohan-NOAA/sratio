@@ -16,6 +16,12 @@ dir.create(here::here("analysis", "15_30",
                       "plots", "sratio_fit"),
            showWarnings = FALSE)
 
+year_colors <- c(`1995` = "#0072B2", 
+                 `1998` =  "#F0E442", 
+                 `2021` =  "#009E73", 
+                 `2022` =  "#56B4E9", 
+                 `2023` = "#000000", 
+                 `2024` = "#E69F00")
 
 for(ii in 1:length(bootstrap_results_path)) {
   
@@ -78,7 +84,7 @@ for(ii in 1:length(bootstrap_results_path)) {
                    bins = length(unique(hist_df $SIZE_BIN))-1) +
     scale_x_continuous(name = sratio:::species_code_label(sp_code), expand = c(0,0)) +
     scale_y_continuous(name = "Matchups (#)") +
-    scale_fill_colorblind() +
+    scale_fill_manual(values = year_colors) +
     theme_bw() +
     theme(legend.position = c(0.17,0.87),
           legend.title = element_blank(),

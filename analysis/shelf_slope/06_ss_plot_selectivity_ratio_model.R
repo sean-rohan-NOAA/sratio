@@ -12,6 +12,10 @@ pratio_samples <- readRDS(here::here("analysis", "shelf_slope", "output", "prati
                       unique(),
                     by = "MATCHUP")
 
+dir.create(here::here("analysis", "shelf_slope", 
+                      "plots", "sratio_fit"),
+           showWarnings = FALSE)
+
 for(ii in 1:length(bootstrap_results_path)) {
   
   bootstrap_df <- readRDS(file = bootstrap_results_path[ii])
@@ -114,7 +118,7 @@ for(ii in 1:length(bootstrap_results_path)) {
   # Write plots to file
   
   ragg::agg_png(file = here::here("analysis", "shelf_slope", 
-                                  "plots", paste0(sp_code, "_sratio_three_panel.png")), 
+                                  "plots", "sratio_fit", paste0(sp_code, "_sratio_three_panel.png")), 
                 width = 169, height = 70, units = "mm", res = 300)
   print(cowplot::plot_grid(plot_obs_histogram,
                            plot_pratio,
@@ -124,7 +128,7 @@ for(ii in 1:length(bootstrap_results_path)) {
   dev.off()
   
   ragg::agg_png(file = here::here("analysis", "shelf_slope",  
-                                  "plots", 
+                                  "plots", "sratio_fit",
                                   paste0(sp_code, "_sratio_two_panel.png")), 
                 width = 104, height = 70, units = "mm", res = 300)
   print(cowplot::plot_grid(plot_obs_histogram,
