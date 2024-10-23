@@ -224,7 +224,7 @@ plot_multipanel_sratio <- ggplot() +
             linewidth = rel(1)) +
   facet_wrap(~COMMON_NAME, scales = "free", ncol = 3) +
   scale_x_continuous(name = "Size") +
-  scale_y_continuous(name = expression(italic(S['L,30,15'])~(SR)), expand = c(0,0), limits = c(-0.05, 3)) +
+  scale_y_continuous(name = expression(italic(S['L,30,15'])), expand = c(0,0), limits = c(-0.05, 3)) +
   scale_color_tableau() +
   scale_fill_tableau() +
   theme_bw() +
