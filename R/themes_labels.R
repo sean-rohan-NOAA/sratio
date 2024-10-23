@@ -7,11 +7,11 @@
 
 species_code_label <- function(x, type = "axis_label", make_factor = FALSE) {
   
-  species_info <- data.frame(SPECIES_CODE = c(21740, 21720, 10110, 10112, 10115, 10130, 10210, 10261, 10285, 471, 68560, 68580, 69322),
-                         LABEL = c(rep("Fork length (cm)", 9), "Total length (cm)", rep("Carapace width (mm)", 2), "Carapace length (mm)"),
-                         COMMON_NAME = c("walleye pollock", "Pacific cod", "arrowtooth flounder", "Kamchatka flounder", "Greenland turbot", "flathead sole", "yellowfin sole", "northern rock sole",  "Alaska plaice", "Alaska skate", "Tanner crab", "snow crab", "red king crab"),
+  species_info <- data.frame(SPECIES_CODE = c(21740, 21720, 10110, 10112, 10115, 10130, 10210, 10261, 10285, 471, 69322, 68580, 68560),
+                         LABEL = c(rep("Fork length (cm)", 9), "Total length (cm)", "Carapace length (mm)", rep("Carapace width (mm)", 2)),
+                         COMMON_NAME = c("walleye pollock", "Pacific cod", "arrowtooth flounder", "Kamchatka flounder", "Greenland turbot", "flathead sole", "yellowfin sole", "northern rock sole",  "Alaska plaice", "Alaska skate", "red king crab", "snow crab", "Tanner crab"),
                          SIZE_BIN_WIDTH = c(4, 5, 4, 4, 4, 4, 4, 3, 5, 4, 8, 8, 10),
-                         MIN_SAMPLE_SIZE = c(10, 10, 10, 10, 10, 10, 10, 10, 10, 5, 10, 10, 5))
+                         MIN_SAMPLE_SIZE = c(10, 10, 10, 10, 10, 10, 10, 10, 10, 5, 5, 10, 10))
   
   if(x[1] == "all") {
     return(species_info)
@@ -66,4 +66,3 @@ make_size_bins <- function(x, species_code) {
   return(out)
   
 }
-

@@ -1,11 +1,11 @@
 library(sratio)
 
 # Load built-in data sets
-catch_df <- sratio::data_1530$catch |>
-  dplyr::filter(CRUISE %in% use_cruises)
+catch_df <- sratio::data_1530$catch #|>
+  # dplyr::filter(CRUISE %in% use_cruises)
 
-haul_df <- sratio::data_1530$haul |>
-  dplyr::filter(CRUISE %in% use_cruises)
+haul_df <- sratio::data_1530$haul #|>
+  # dplyr::filter(CRUISE %in% use_cruises)
 
 sp_codes <- sort(unique(catch_df$SPECIES_CODE))
 
