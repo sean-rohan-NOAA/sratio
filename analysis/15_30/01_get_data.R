@@ -68,9 +68,9 @@ get_data <- function(species_codes, use_cruises) {
   # 1998: Hauls in Bristol Bay had haul_type = 18, 15 minute hauls outside of Bristol Bay also had haul_type 18; need to include gear code because underbag experiments were also conducted during the same year using haul_type 18 
   special_tows_1998 <- RODBC::sqlQuery(channel = channel, query = "select hauljoin, net_measured, wire_length, start_time, performance, 
     vessel, cruise, haul, duration, distance_fished, 
-    net_width, start_latitude, end_latitude, start_longitude, 
-    end_longitude, stationid, gear_depth, bottom_depth, gear, 
-    accessories, haul_type 
+    net_width, net_height, start_latitude, end_latitude, start_longitude, 
+    end_longitude, stationid, gear_depth, bottom_depth, gear, surface_temperature, gear_temperature, 
+    region, accessories, haul_type 
     from racebase.haul 
     where vessel in (88, 89) 
     and cruise = 199801
@@ -82,9 +82,9 @@ get_data <- function(species_codes, use_cruises) {
   # Standard tows from 
   standard_tows_1998 <- RODBC::sqlQuery(channel = channel, query = "select hauljoin, net_measured, wire_length, start_time, performance, 
     vessel, cruise, haul, duration, distance_fished, 
-    net_width, start_latitude, end_latitude, start_longitude, 
-    end_longitude, stationid, gear_depth, bottom_depth, gear, 
-    accessories, haul_type 
+    net_width, net_height, start_latitude, end_latitude, start_longitude, 
+    end_longitude, stationid, gear_depth, bottom_depth, gear, surface_temperature, gear_temperature, 
+    region, accessories, haul_type 
     from racebase.haul 
     where vessel in (88, 89) 
     and cruise = 199801
@@ -127,8 +127,8 @@ get_data <- function(species_codes, use_cruises) {
   hauls_2021 <- RODBC::sqlQuery(channel = channel,
                                 query = "select h.hauljoin, h.net_measured, h.wire_length, h.start_time, 
                             h.performance, h.vessel, h.cruise, 
-                            h.haul, h.duration, h.distance_fished, h.net_width, 
-                            h.start_latitude, h.end_latitude, h.start_longitude, 
+                            h.haul, h.duration, h.distance_fished, h.net_width, net_height,
+                            h.start_latitude, h.end_latitude, h.start_longitude, h.surface_temperature, h.region,
                             h.end_longitude, h.stationid, h.gear_depth, h.bottom_depth, h.gear, 
                             h.accessories, h.gear_temperature, h.haul_type 
                             from racebase.haul h 
@@ -279,7 +279,8 @@ get_data <- function(species_codes, use_cruises) {
                                 hauls_1998,
                                 hauls_1995
                                 )  |>
-    dplyr::mutate(AREA_SWEPT_KM2 = NET_WIDTH/1000*DISTANCE_FISHED) |>
+    dplyr::mutate(AREA_SWEPT_KM2 = NET_WIDTH/1000*DISTANCE_FISHED,
+                  TOW_SPEED_KNOTS = DISTANCE_FISHED/DURATION * 0.539957) |>
     dplyr::mutate(TREATMENT = factor(
       plyr::round_any(DURATION, 0.25), 
       levels = c(0.25, 0.5), 
@@ -308,6 +309,59 @@ get_data <- function(species_codes, use_cruises) {
     dplyr::select(YEAR = CRUISE, N_HAULS = n) |>
     dplyr::mutate(YEAR = floor(YEAR/100)) |>
     write.csv(here::here("analysis", "15_30", "plots", "n_hauls.csv"), row.names = FALSE)
+  
+  # Get net numbers
+  
+  net_number_1995_1998 <- RODBC::sqlQuery(
+    channel = channel,
+    query = paste0(
+    "SELECT 
+      HPDEN.NET_NUMBER, 
+      HPDEN.VESSEL, 
+      HPDEN.CRUISE, 
+      HPDEN.HAUL
+    FROM 
+      RACE_EDIT.RB2_HPDEN HPDEN, 
+      RACEBASE.HAUL RBH
+    WHERE RBH.HAUL = HPDEN.HAUL
+      AND RBH.VESSEL = HPDEN.VESSEL
+      AND RBH.CRUISE = HPDEN.CRUISE
+      AND RBH.HAULJOIN IN (", paste(all_hauls$HAULJOIN, collapse = ","), ")"
+                                          )) |>
+    dplyr::mutate(NET_NUMBER = as.numeric(NET_NUMBER),
+                  VESSEL = as.numeric(VESSEL),
+                  CRUISE = as.numeric(CRUISE),
+                  HAUL = as.numeric(HAUL))
+  
+  net_number_2021_2024 <- RODBC::sqlQuery(
+    channel = channel,
+    query = paste0(
+      "SELECT 
+    RDH.NET_NUMBER,
+    RDH.HAUL,
+    RDC.VESSEL_ID VESSEL,
+    RDC.CRUISE
+  FROM 
+    RACE_DATA.HAULS RDH,
+    RACE_DATA.CRUISES RDC,
+    RACEBASE.HAUL RBH
+  WHERE
+    RDC.CRUISE_ID = RDH.CRUISE_ID
+    AND RDC.CRUISE = RBH.CRUISE
+    AND RDH.HAUL = RBH.HAUL
+    AND RDC.VESSEL_ID = RBH.VESSEL
+    AND RBH.CRUISE >= 202100
+    AND RBH.HAULJOIN IN (", paste(all_hauls$HAULJOIN, collapse = ","), ")"
+    )
+  )
+  
+  net_numbers <- dplyr::bind_rows(net_number_1995_1998, net_number_2021_2024)
+
+    
+    all_hauls <- dplyr::left_join(all_hauls,
+                                  net_numbers,
+                                  by = c("VESSEL", "CRUISE", "HAUL"))
+    
   
   # Get catch data ----
   catch <- RODBC::sqlQuery(channel = channel,

@@ -21,8 +21,8 @@ cpue_dat <- catch_df |>
                       dplyr::mutate(MATCHUP = as.numeric(as.character(MATCHUP)))) |>
   dplyr::mutate(CPUE_30 = WEIGHT_30/AREA_SWEPT_KM2_30,
                 CPUE_15 = WEIGHT_15/AREA_SWEPT_KM2_15) |>
-  dplyr::mutate(LOG10_CPUE_30 = log10(CPUE_30+0.001),
-                LOG10_CPUE_15 = log10(CPUE_15+0.001))
+  dplyr::mutate(LOG10_CPUE_30 = log10(CPUE_30+1),
+                LOG10_CPUE_15 = log10(CPUE_15+1))
 
 sp_codes <- sort(unique(catch_df$SPECIES_CODE))
 
