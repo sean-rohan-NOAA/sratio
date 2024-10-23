@@ -1,6 +1,7 @@
 # Make plot of stations
 library(akgfmaps) # v4.0
 library(sratio)
+library(shadowtext)
 
 # Load built-in data sets
 haul_df <- sratio::data_1530$haul
@@ -22,6 +23,55 @@ haul_loc_df <- haul_df  |>
 n_years <- length(unique(haul_loc_df$YEAR))
 
 map_layers <- akgfmaps::get_base_layers(select.region = "sebs", set.crs = "EPSG:3338")
+
+
+ragg::agg_png(filename = here::here("analysis", "15_30", "plots", "map_samples_all_years.png"), 
+              width = 80, height = 70, units = "mm", res = 300)
+print(
+  ggplot() +
+    geom_sf(data = map_layers$akland, 
+            linewidth = 0.2, 
+            fill = "grey70", 
+            color = "black") +
+    geom_sf(data = map_layers$bathymetry, 
+            linewidth = 0.2, 
+            color = "black") +
+    geom_sf(data = map_layers$survey.area, 
+            fill = NA, 
+            color = "#4686FBFF") +
+    geom_sf(data = haul_loc_df,
+            mapping = aes(color = factor(YEAR),
+                          shape = factor(YEAR)),
+            size = 1) +
+    geom_sf(data = map_layers$graticule, linewidth = 0.2, alpha = 0.7, color = "grey60") +
+    geom_shadowtext(data = dplyr::filter(map_layers$place.labels, 
+                                         type %in% c("bathymetry", "islands")),
+                    mapping = aes(x = x, y = y, label = lab),
+                    color = "black",
+                    bg.color = "white",
+                    size = 2.5) +
+    geom_shadowtext(data = dplyr::filter(map_layers$place.labels, type == "mainland"),
+                    mapping = aes(x = x, y = y, label = lab),
+                    color = "black",
+                    bg.color = "white",
+                    size = 4) +
+    coord_sf(xlim = map_layers$plot.boundary$x + c(-10000, 0),
+             ylim = map_layers$plot.boundary$y + c(0, 50000)) +
+    scale_x_continuous(breaks = map_layers$lon.breaks) +
+    scale_y_continuous(breaks = map_layers$lat.breaks) +
+    ggthemes::scale_color_colorblind(name = "Year") +
+    scale_shape(name = "Year", solid = FALSE) +
+    theme_bw() +
+    theme(axis.title = element_blank(),
+          legend.position = c(0.1, 0.22),
+          legend.key.spacing = unit(2, "mm"),
+          legend.key.height = unit(0.5, "mm"),
+          legend.key.width = unit(0.5, "mm"),
+          legend.text = element_text(size = 7),
+          legend.title = element_text(size = 8),
+          panel.grid = element_blank())
+)
+dev.off()
 
 ragg::agg_png(filename = here::here("analysis", "15_30", "plots", "map_samples_by_stratum.png"), 
               width = 6, height = 4, units = "in", res = 300)
