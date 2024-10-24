@@ -2,6 +2,7 @@
 
 export(boot_stage_one)
 export(boot_stage_two)
+export(bootstrap_mean_bias)
 export(calc_bias)
 export(calc_mae)
 export(calc_mre)

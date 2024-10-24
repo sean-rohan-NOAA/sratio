@@ -40,7 +40,7 @@ for(ii in 1:length(bootstrap_results_path)) {
                      sratio_q975 = quantile(s12, 0.975),
                      .groups = "keep")
   
-  y_lim <- quantile(boot_fit$s21, c(0.01, 0.99))
+  y_lim <- quantile(boot_fit$s12, c(0.01, 0.99))
   
   plot_obs_histogram <- ggplot() +
     geom_histogram(data = sp_observations,
@@ -78,7 +78,7 @@ for(ii in 1:length(bootstrap_results_path)) {
                             y = sratio_q500)) +
     geom_hline(yintercept = 1, linetype = 2) +
     scale_x_continuous(sratio:::species_code_label(x = sp_code))  +
-    scale_y_continuous(name = expression(italic(S['L,15,30']~(SCCAL))),
+    scale_y_continuous(name = expression(italic(S['L,30,15']~(SCCAL))),
                        limits = c(0, ifelse(max(boot_fit_quantile$sratio_q975) > 10, 10, 
                                             max(boot_fit_quantile$sratio_q975)))) +
     theme_bw()
