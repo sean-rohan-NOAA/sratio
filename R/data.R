@@ -1,15 +1,3 @@
-#' AFSC RACEBASE Species Codes
-#' 
-#' RACEBASE species codes and common names as of November 8, 2023.
-#' 
-#' @docType data
-#' @usage data(species_codes)
-#' @format An object of class 'data.frame'
-#' 
-"species_codes"
-
-
-
 #' 15/30 Comparison Data
 #' 
 #' List containing haul, catch, length, and crab size data for the 15/30 comparison project.

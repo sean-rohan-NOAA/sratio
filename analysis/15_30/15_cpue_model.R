@@ -70,6 +70,20 @@ for(jj in 1:length(zeroint_paths)) {
   
 }
 
+slope_quantiles <- cpue_fit |>
+  dplyr::group_by(SPECIES_CODE) |>
+  dplyr::summarise(qmin = min(b_LOG10_CPUE_15),
+                   q025 = quantile(b_LOG10_CPUE_15, 0.025),
+                   q250 = quantile(b_LOG10_CPUE_15, 0.25),
+                   q500 = quantile(b_LOG10_CPUE_15, 0.5),
+                   q750 = quantile(b_LOG10_CPUE_15, 0.75),
+                   q975 = quantile(b_LOG10_CPUE_15, 0.975),
+                   qmax = max(b_LOG10_CPUE_15),
+                   type = "Slope")
+
+saveRDS(object = slope_quantiles,
+        file = here::here("analysis", "15_30", "output", "cpue_slope_posterior_quantiles.rds"))
+
 # Plot CPUE model results -----
 png(here::here("analysis", "15_30", "plots", "total_cpue_fit", "cpue_model_density_plot.png"), 
     width = 169, height = 120, res = 300, units = "mm")
@@ -106,17 +120,6 @@ ggplot() +
         axis.title.x = element_text(size = 9))
 )
 dev.off()
-
-slope_quantiles <- cpue_fit |>
-  dplyr::group_by(SPECIES_CODE) |>
-  dplyr::summarise(qmin = min(b_LOG10_CPUE_15),
-                   q025 = quantile(b_LOG10_CPUE_15, 0.025),
-                   q250 = quantile(b_LOG10_CPUE_15, 0.25),
-                   q500 = quantile(b_LOG10_CPUE_15, 0.5),
-                   q750 = quantile(b_LOG10_CPUE_15, 0.75),
-                   q975 = quantile(b_LOG10_CPUE_15, 0.975),
-                   qmax = max(b_LOG10_CPUE_15),
-                   type = "Slope")
 
 png(here::here("analysis", "15_30", "plots", "total_cpue_fit", "cpue_model_violin_plot.png"), 
     width = 80, height = 100, res = 300, units = "mm")

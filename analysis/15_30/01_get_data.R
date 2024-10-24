@@ -496,7 +496,7 @@ get_data <- function(species_codes, use_cruises) {
     haul = all_hauls,
     size = crab_fish)
 
-  save(data_1530, file = here::here("data", "data_1530.rda"))
+  save(data_1530, file = here::here("data", "data_1530.rda"), compress = "xz")
   
   crab_fish |>
     dplyr::mutate(YEAR = floor(CRUISE/100)) |>

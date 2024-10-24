@@ -48,7 +48,7 @@ bias_samples <- catch_df |>
   dplyr::mutate(CPUE_30 = WEIGHT_30/AREA_SWEPT_KM2_30,
                 CPUE_15 = WEIGHT_15/AREA_SWEPT_KM2_15) |>
   dplyr::group_by(SPECIES_CODE) |>
-  dplyr::reframe(BIAS = bootstrap_mean_bias(CPUE_30, CPUE_15, n_samples = 1000, replace = TRUE, add_constant = 1, scale = "log10", seed = seed)) |>
+  dplyr::reframe(BIAS = bootstrap_mean_bias(CPUE_30, CPUE_15, n_samples = 10000, add_constant = 1, scale = "log10", seed = seed)) |>
   dplyr::mutate(COMMON_NAME = sratio:::species_code_label(SPECIES_CODE, type = "common_name")) |>
   dplyr::select(COMMON_NAME, BIAS)
 
@@ -60,6 +60,9 @@ bias_quantiles <- bias_samples |>
                    q750 = quantile(BIAS, 0.75),
                    q975 = quantile(BIAS, 0.975),
                    type = "Bias")
+
+saveRDS(bias_quantiles, 
+        file = here::here("analysis", "15_30", "output", "cpue_bias_bootstrap_quantiles.rds"))
 
 
 lines <- c("CPUE comparison between 15 and 30 minute tows\n", "BIAS > 1 = 30 minutes higher\n\n\n")
