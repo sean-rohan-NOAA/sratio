@@ -1,4 +1,5 @@
 library(sratio)
+library(shadowtext)
 
 bootstrap_results_path <- list.files(here::here("analysis", "15_30", "output"), 
                                     recursive = TRUE, 
@@ -194,11 +195,16 @@ fits_all_species <- fits_all_species |>
                                                          type = "common_name", 
                                                          make_factor = TRUE))
 
+
+annotate_pollock_30 <- data.frame(x = -Inf, y = Inf, label = "30 higher", COMMON_NAME = species_code_label(21740, type = "common_name", make_factor = TRUE))
+annotate_pollock_15 <- data.frame(x = -Inf, y = -Inf, label = "15 higher", COMMON_NAME = species_code_label(21740, type = "common_name", make_factor = TRUE))
+
 plot_multipanel_sratio <- ggplot() +
   geom_point(data = pratio_samples,
              mapping = aes(x = SIZE_BIN, y = p/(1-p)),
              alpha = 0.2,
-             size = rel(0.9)) +
+             size = rel(0.9),
+             color = "grey20") +
   geom_hline(yintercept = 1, linetype = 2,
              linewidth = rel(1),
              color = "red") +
@@ -222,6 +228,22 @@ plot_multipanel_sratio <- ggplot() +
             mapping = aes(x = SIZE_BIN,
                           y = sratio_q500),
             linewidth = rel(1)) +
+  geom_shadowtext(data = annotate_pollock_30,
+            mapping = aes(x = x, y = y, label = label), 
+            hjust = -0.1, 
+            vjust = 1.2, 
+            color = "red", 
+            bg.color = "white",
+            fontface = "bold",
+            size = 5) +
+  geom_shadowtext(data = annotate_pollock_15,
+            mapping = aes(x = x, y = y, label = label), 
+            hjust = -0.1, 
+            vjust = -0.7, 
+            color = "red", 
+            bg.color = "white",
+            fontface = "bold",
+            size = 5) +
   facet_wrap(~COMMON_NAME, scales = "free", ncol = 3) +
   scale_x_continuous(name = "Size") +
   scale_y_continuous(name = expression(italic(S['L,30,15'])), expand = c(0,0), limits = c(-0.05, 3)) +
@@ -235,7 +257,7 @@ plot_multipanel_sratio <- ggplot() +
         strip.text = element_text(size = 10))
 
 
-ragg::agg_png(filename = here::here("analysis", "15_30", "plots", "sratio_all_species.png"), 
+ragg::agg_png(filename = here::here("analysis", "15_30", "plots", "sratio_fit", "sratio_all_species.png"), 
               width = 169, 
               height = 169*1.25,
               units = "mm",

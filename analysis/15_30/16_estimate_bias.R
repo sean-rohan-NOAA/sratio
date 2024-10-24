@@ -50,10 +50,10 @@ bias_samples <- catch_df |>
   dplyr::group_by(SPECIES_CODE) |>
   dplyr::reframe(BIAS = bootstrap_mean_bias(CPUE_30, CPUE_15, n_samples = 10000, add_constant = 1, scale = "log10", seed = seed)) |>
   dplyr::mutate(COMMON_NAME = sratio:::species_code_label(SPECIES_CODE, type = "common_name")) |>
-  dplyr::select(COMMON_NAME, BIAS)
+  dplyr::select(SPECIES_CODE, BIAS)
 
 bias_quantiles <- bias_samples |>
-  dplyr::group_by(COMMON_NAME) |>
+  dplyr::group_by(SPECIES_CODE) |>
   dplyr::summarise(q025 = quantile(BIAS, 0.025),
                    q250 = quantile(BIAS, 0.25),
                    q500 = quantile(BIAS, 0.5),

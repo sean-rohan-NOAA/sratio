@@ -1,3 +1,75 @@
+library(sratio)
+
+performance_metrics <- dplyr::bind_rows(
+  readRDS(here::here("analysis", "15_30", "output", "cpue_slope_posterior_quantiles.rds")),
+  readRDS(here::here("analysis", "15_30", "output", "cpue_bias_bootstrap_quantiles.rds"))
+)
+
+
+performance_metrics$COMMON_NAME <- sratio:::species_code_label(performance_metrics$SPECIES_CODE, 
+                                                               type = "common_name", 
+                                                               make_factor = TRUE)
+
+axis_ticks_labels <- data.frame(COMMON_NAME = unique(performance_metrics$COMMON_NAME)) |>
+  dplyr::mutate(Y = rank(as.numeric(COMMON_NAME)))
+
+intermediate_ticks <- data.frame(Y = seq(min(axis_ticks_labels$Y) - 0.5, max(axis_ticks_labels$Y) + 0.5, 1))
+
+performance_metrics <- performance_metrics |>
+  dplyr::inner_join(axis_ticks_labels) |>
+  dplyr::mutate(Y = if_else(type == "Slope", Y + 0.25, Y - 0.25))
+
+png(here::here("analysis", "15_30", "plots", "total_cpue_fit", "cpue_metric_boxplots.png"), 
+    width = 80, height = 100, res = 300, units = "mm")
+print(
+  ggplot() +
+    geom_hline(data = intermediate_ticks,
+               mapping = aes(yintercept = Y),
+               color = "grey80", linewidth = 0.3) +
+    geom_vline(xintercept = 1, linetype = 2, color = "red") +
+    geom_segment(data = performance_metrics,
+                 mapping = aes(x = q025,
+                               xend = q975,
+                               y = Y,
+                               color = type)) +
+    geom_segment(data = performance_metrics,
+                 mapping = aes(x = q250,
+                               xend = q750,
+                               y = Y,
+                               color = type),
+                 linewidth = 1.5) +
+    geom_point(data = performance_metrics,
+               mapping = aes(x = q500, 
+                             y = Y,
+                             color = type), 
+               shape = 21, fill = "white") +
+    annotate(label = "15 higher",
+             x = -Inf,
+             y = Inf,
+             geom = "text",
+             hjust = -0.1,
+             vjust = -0.5,
+             color = "red") +
+    annotate(label = "30 higher",
+             x = Inf,
+             y = Inf,
+             geom = "text",
+             hjust = 1.1,
+             vjust = -0.5,
+             color = "red") +
+    scale_y_reverse(breaks = rev(axis_ticks_labels$Y), labels = rev(axis_ticks_labels$COMMON_NAME)) +
+    scale_x_continuous(name = "Value") +
+    scale_color_colorblind(name = "Metric") +
+    theme_bw() +
+    theme(axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.text = element_text(size = 8),
+          axis.ticks.y = element_blank(),
+          panel.grid.major.y = element_blank(),
+          panel.grid.minor.y = element_blank(),
+          legend.position = "bottom")
+)
+dev.off()
 
 perf <- readRDS(file = here::here("analysis", "15_30", "output", 
                                   paste0("model_performance_", model_method, "_", sp_codes[ii], ".rds")))
