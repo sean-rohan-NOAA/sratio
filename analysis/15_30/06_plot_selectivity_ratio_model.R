@@ -253,7 +253,7 @@ plot_multipanel_sratio <- ggplot() +
   theme(strip.background = element_blank(),
         panel.spacing = unit(2, units = "mm"),
         axis.text = element_text(size = 9),
-        axis.title = element_text(size = 9),
+        axis.title = element_text(size = 10),
         strip.text = element_text(size = 10))
 
 

@@ -17,7 +17,7 @@ sratio::data_1530$haul |>
 # Spread and height GAMs ----
 # 104 hauls where we could track individual nets
 
-width_gam_0 <- mgcv::gam(NET_WIDTH ~ 1 + s(UNIQUE_NET, bs = "re"), 
+width_gam_0 <- mgcv::gam(NET_WIDTH ~ + s(UNIQUE_NET, bs = "re"), 
                          data = trawl_geometry)
 
 width_gam_1 <- mgcv::gam(NET_WIDTH ~ s(SCOPE_TO_DEPTH, bs = "tp") + s(UNIQUE_NET, bs = "re"), 
@@ -29,7 +29,7 @@ width_gam_2 <- mgcv::gam(NET_WIDTH ~ s(SCOPE_TO_DEPTH, bs = "tp") + s(TOW_SPEED_
 width_gam_3 <- mgcv::gam(NET_WIDTH ~ TREATMENT + s(SCOPE_TO_DEPTH, bs = "tp") + s(UNIQUE_NET, bs = "re"), 
                          data = trawl_geometry)
 
-height_gam_0 <- mgcv::gam(NET_HEIGHT ~ 1 + s(UNIQUE_NET, bs = "re"), 
+height_gam_0 <- mgcv::gam(NET_HEIGHT ~ + s(UNIQUE_NET, bs = "re"), 
                           data = trawl_geometry)
 
 height_gam_1 <- mgcv::gam(NET_HEIGHT ~ s(SCOPE_TO_DEPTH, bs = "tp") + s(UNIQUE_NET, bs = "re"), 
@@ -41,8 +41,38 @@ height_gam_2 <- mgcv::gam(NET_HEIGHT ~ s(SCOPE_TO_DEPTH, bs = "tp") + s(TOW_SPEE
 height_gam_3 <- mgcv::gam(NET_HEIGHT ~ TREATMENT + s(SCOPE_TO_DEPTH, bs = "tp") + s(UNIQUE_NET, bs = "re"), 
                           data = trawl_geometry)
 
-AIC(width_gam_0, width_gam_1, width_gam_2, width_gam_3)
-AIC(height_gam_0, height_gam_1, height_gam_2, height_gam_3)
+
+make_aic_table <- function(x) {
+  
+  output <- data.frame()
+  
+  for(ii in 1:length(x)) {
+    
+    output <- rbind(output, 
+                    data.frame(formula = paste0(as.character(x[[ii]]$formula)[2], "~", as.character(x[[ii]]$formula)[3]),
+               edf = round(sum(x[[ii]]$edf) + x[[ii]]$nsdf, 2),
+               AIC = round(x[[ii]]$aic, 2),
+               deltaAIC = NA,
+               deviance_explained = round((x[[ii]]$null.deviance-x[[ii]]$deviance)/x[[ii]]$null.deviance * 100, 1))
+    )
+    
+    output$deltaAIC <- round(output$AIC - min(output$AIC), 2)
+    
+  }
+  
+  return(output)
+  
+}
+
+
+dplyr::bind_rows(
+  data.frame(formula = "Spread"),
+  make_aic_table(x = list(width_gam_0, width_gam_1, width_gam_2, width_gam_3)),
+  data.frame(formula = "Height"),
+  make_aic_table(x = list(height_gam_0, height_gam_1, height_gam_2, height_gam_3)),
+  data.frame(formula = "Bottom contact")
+) |>
+  write.csv(file = here::here("analysis", "15_30", "plots", "spread_height_gam_table.csv"), row.names = FALSE)
 
 
 table_trawl_geometry <- sratio::data_1530$haul |>
@@ -62,7 +92,6 @@ table_trawl_geometry <- sratio::data_1530$haul |>
                    MAX_NET_WIDTH = format(max(NET_WIDTH), nsmall = 2, digits = 2)
                    )
 
-
 data.frame(Treatment = table_trawl_geometry$TREATMENT,
            Hauls = table_trawl_geometry$N_HAULS,
            Spread = paste0(table_trawl_geometry$MEAN_NET_WIDTH, 
@@ -77,9 +106,4 @@ data.frame(Treatment = table_trawl_geometry$TREATMENT,
                           "-", table_trawl_geometry$MAX_TOW_SPEED_KNOTS, ")")
            ) |>
 write.csv(file = here::here("analysis", "15_30", "plots", "speed_spread_height.csv"), row.names = FALSE)
-
-summary(width_gam_3)
-summary(height_gam_3)
-
-plot(width_gam_3)
 

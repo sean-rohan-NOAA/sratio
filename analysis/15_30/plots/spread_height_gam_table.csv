@@ -1,0 +1,12 @@
+"formula","edf","AIC","deltaAIC","deviance_explained"
+"Spread",NA,NA,NA,NA
+"NET_WIDTH~+s(UNIQUE_NET, bs = ""re"")",10.27,295.74,15.89,21.7
+"NET_WIDTH~s(SCOPE_TO_DEPTH, bs = ""tp"") + s(UNIQUE_NET, bs = ""re"")",12.12,279.85,0,35.1
+"NET_WIDTH~s(SCOPE_TO_DEPTH, bs = ""tp"") + s(TOW_SPEED_KNOTS, bs = ""tp"") + s(UNIQUE_NET, bs = ""re"")",13.13,281.17,1.32,35.6
+"NET_WIDTH~TREATMENT + s(SCOPE_TO_DEPTH, bs = ""tp"") + s(UNIQUE_NET, bs = ""re"")",14,281.84,1.99,35
+"Height",NA,NA,NA,NA
+"NET_HEIGHT~+s(UNIQUE_NET, bs = ""re"")",14.97,21.81,14.59,48.9
+"NET_HEIGHT~s(SCOPE_TO_DEPTH, bs = ""tp"") + s(UNIQUE_NET, bs = ""re"")",15.94,9.83,2.61,55.3
+"NET_HEIGHT~s(SCOPE_TO_DEPTH, bs = ""tp"") + s(TOW_SPEED_KNOTS, bs = ""tp"") + s(UNIQUE_NET, bs = ""re"")",16.81,11.24,4.02,55.4
+"NET_HEIGHT~TREATMENT + s(SCOPE_TO_DEPTH, bs = ""tp"") + s(UNIQUE_NET, bs = ""re"")",17.92,7.22,0,57.2
+"Bottom contact",NA,NA,NA,NA

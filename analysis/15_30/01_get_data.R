@@ -503,6 +503,7 @@ get_data <- function(species_codes, use_cruises) {
     dplyr::filter(USE_FOR_SELECTIVITY) |>
     dplyr::group_by(SPECIES_CODE, YEAR) |>
     dplyr::summarise(n = sum(FREQUENCY), .groups = "keep") |>
+    dplyr::inner_join(sratio::species_code_label(x = "all")) |>
     dplyr::arrange(YEAR) |>
     write.csv(file = here::here("analysis", "15_30", "plots", "sample_sizes_1530.csv"), row.names = FALSE)
   
@@ -511,6 +512,7 @@ get_data <- function(species_codes, use_cruises) {
     dplyr::filter(USE_FOR_SELECTIVITY) |>
     dplyr::group_by(SPECIES_CODE, YEAR) |>
     dplyr::summarise(n = sum(FREQUENCY), .groups = "keep") |>
+    dplyr::inner_join(sratio::species_code_label(x = "all")) |>
     dplyr::ungroup() |>
     dplyr::arrange(YEAR) |>
     tidyr::pivot_wider(names_from = "YEAR", values_from = "n", values_fill = 0) |>
@@ -522,6 +524,7 @@ get_data <- function(species_codes, use_cruises) {
     dplyr::mutate(YEAR = floor(CRUISE/100)) |>
     dplyr::group_by(SPECIES_CODE, YEAR) |>
     dplyr::summarise(n = sum(FREQUENCY), .groups = "keep") |>
+    dplyr::inner_join(sratio::species_code_label(x = "all")) |>
     dplyr::arrange(YEAR) |>
     write.csv(file = here::here("analysis", "15_30", "plots", "sample_sizes_no_filter_1530.csv"), row.names = FALSE)
 
