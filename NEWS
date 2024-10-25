@@ -1,3 +1,9 @@
+sratio 2024.10.24 (October 24, 2024)
+----------------------------------------------------------------
+
+- Add bootstrap_mean_bias() function for non-parametric bootstrap
+  of bias estimates.
+
 sratio 2024.10.22 (October 22, 2024)
 ----------------------------------------------------------------
 

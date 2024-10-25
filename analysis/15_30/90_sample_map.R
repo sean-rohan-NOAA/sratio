@@ -49,7 +49,7 @@ print(
                     mapping = aes(x = x, y = y, label = lab),
                     color = "black",
                     bg.color = "white",
-                    size = 2.5) +
+                    size = 2.4) +
     geom_shadowtext(data = dplyr::filter(map_layers$place.labels, type == "mainland"),
                     mapping = aes(x = x, y = y, label = lab),
                     color = "black",
