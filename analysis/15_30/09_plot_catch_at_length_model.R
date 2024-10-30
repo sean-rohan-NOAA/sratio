@@ -1,5 +1,6 @@
 # Plot catch-at-length model results
 library(sratio)
+library(shadowtext)
 
 bootstrap_results_path <- list.files(here::here("analysis", "15_30", "output"), 
                                      recursive = TRUE, 
@@ -22,7 +23,19 @@ obs_ratio <- readRDS(file = here::here("analysis", "15_30", "output", "catch_at_
   dplyr::inner_join(sratio::data_1530$haul |>
                       dplyr::select(MATCHUP, YEAR) |>
                       unique(), 
-                    by = "MATCHUP")
+                    by = "MATCHUP") |>
+  dplyr::mutate(COMMON_NAME = sratio::species_code_label(x = SPECIES_CODE, 
+                                                         type = "common_name", 
+                                                         make_factor = TRUE))
+
+year_colors <- c(`1995` = "#0072B2", 
+                 `1998` =  "#F0E442", 
+                 `2021` =  "#009E73", 
+                 `2022` =  "#56B4E9", 
+                 `2023` = "#000000", 
+                 `2024` = "#E69F00")
+
+fits_all_species <- data.frame()
 
 for(ii in 1:length(bootstrap_results_path)) {
   
@@ -39,6 +52,8 @@ for(ii in 1:length(bootstrap_results_path)) {
                      sratio_q750 = quantile(s12, 0.75),
                      sratio_q975 = quantile(s12, 0.975),
                      .groups = "keep")
+  
+  fits_all_species <- dplyr::bind_rows(fits_all_species, boot_fit_quantile)
   
   y_lim <- quantile(boot_fit$s12, c(0.01, 0.99))
   
@@ -93,3 +108,87 @@ for(ii in 1:length(bootstrap_results_path)) {
   dev.off()
   
 }
+
+# Multi-panel plot with all species
+
+fits_all_species <- fits_all_species |>
+  dplyr::mutate(COMMON_NAME = sratio::species_code_label(x = SPECIES_CODE, 
+                                                         type = "common_name", 
+                                                         make_factor = TRUE))
+
+annotate_pollock_30 <- data.frame(x = -Inf, y = Inf, label = "30 higher", 
+                                  COMMON_NAME = species_code_label(21740, type = "common_name", make_factor = TRUE))
+annotate_pollock_15 <- data.frame(x = -Inf, y = -Inf, label = "15 higher", 
+                                  COMMON_NAME = species_code_label(21740, type = "common_name", make_factor = TRUE))
+
+set_y_max <- 4
+
+plot_multipanel_sratio <- ggplot() +
+  geom_point(data = obs_ratio,
+             mapping = aes(x = SIZE_BIN, y = obs_ratio),
+             alpha = 0.2,
+             size = rel(0.9),
+             color = "grey20") +
+  geom_hline(yintercept = 1, linetype = 2,
+             linewidth = rel(1),
+             color = "red") +
+  geom_ribbon(data = 
+                dplyr::mutate(
+                  fits_all_species, 
+                  sratio_q975 = dplyr::if_else(sratio_q975 > set_y_max, set_y_max, sratio_q975)),
+              mapping = aes(x = SIZE_BIN,
+                            ymin = sratio_q025,
+                            max = sratio_q975),
+              alpha = 0.5,
+              fill = "grey50") +
+  geom_path(data = fits_all_species,
+            mapping = aes(x = SIZE_BIN,
+                          y = sratio_q250),
+            linetype = 3,
+            linewidth = rel(1)) +
+  geom_path(data = fits_all_species,
+            mapping = aes(x = SIZE_BIN,
+                          y = sratio_q750),
+            linetype = 3,
+            linewidth = rel(1)) +
+  geom_path(data = fits_all_species,
+            mapping = aes(x = SIZE_BIN,
+                          y = sratio_q500),
+            linewidth = rel(1)) +
+  geom_shadowtext(data = annotate_pollock_30,
+                  mapping = aes(x = x, y = y, label = label), 
+                  hjust = -0.1, 
+                  vjust = 1.2, 
+                  color = "red", 
+                  bg.color = "white",
+                  fontface = "bold",
+                  size = 5) +
+  geom_shadowtext(data = annotate_pollock_15,
+                  mapping = aes(x = x, y = y, label = label), 
+                  hjust = -0.1, 
+                  vjust = -0.7, 
+                  color = "red", 
+                  bg.color = "white",
+                  fontface = "bold",
+                  size = 5) +
+  facet_wrap(~COMMON_NAME, scales = "free", ncol = 3) +
+  scale_x_continuous(name = "Size") +
+  scale_y_continuous(name = expression(italic(S['L,30,15'])), expand = c(0,0), limits = c(-0.05, set_y_max)) +
+  scale_color_tableau() +
+  scale_fill_tableau() +
+  theme_bw() +
+  theme(strip.background = element_blank(),
+        panel.spacing = unit(2, units = "mm"),
+        axis.text = element_text(size = 9),
+        axis.title = element_text(size = 10),
+        strip.text = element_text(size = 10))
+
+
+ragg::agg_png(filename = here::here("analysis", "15_30", "plots", "sccal_fit", "sccal_all_species.png"), 
+              width = 169, 
+              height = 169*1.25,
+              units = "mm",
+              res = 300)
+print(plot_multipanel_sratio)
+dev.off()
+
