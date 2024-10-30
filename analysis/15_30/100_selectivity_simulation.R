@@ -21,9 +21,9 @@ selectivity_opts2 = list(type = "asymptotic",
                          begin_top = 35,
                          ln_sd1 = 10)
 
-# - Gear efficiency
+# - Gear efficiency ("catchability")
 gear_q1 = 1
-gear_q2 = 0.8
+gear_q2 = 1
 
 # - Sampling effort (i.e., area swept)
 effort1 = 0.5
@@ -33,7 +33,7 @@ effort2 = 1
 size = 10:55
 
 # - Numbers-at-size
-abundance = round(dnorm(size, mean = 35, sd = 10) * 1e5 * (1-rnorm(length(size), mean = 0, sd = 0.1)))
+abundance = round(dnorm(size, mean = 35, sd = 10) * 2.5e5 * (1-rnorm(length(size), mean = 0, sd = 0.1)))
 
 # - Local demographic composition
 demographic_comp_pars = list(distribution = "normal", mean = 30, sd = 10)
@@ -43,13 +43,13 @@ availability = list(distribution = "normal", mean = 0.0004, sd = 0.00008)
 
 # Bootstrap parameters ----
 # - Size bin width for models 
-size_bin_width = 5
+size_bin_width = 4
 
 # - Number of bootstrap samples
 n_boot_samples = 100
 
 # GAM knots
-gam_knots = 5
+gam_knots = 4
 
 # Minimum sample size
 min_sample_size = 10
@@ -150,23 +150,10 @@ run_selectivity_simulation <- function(settings) {
     
     sel_sim$size_bin <- round_any(sel_sim$size, accuracy = size_bin_width)
     
-    # boot_samples[[kk]]  <- sratio::two_stage_bootstrap(
-    #   count1 = sel_sim$n[sel_sim$treatment == 1],
-    #   count2 = sel_sim$n[sel_sim$treatment == 2],
-    #   size1 = sel_sim$size_bin[sel_sim$treatment == 1],
-    #   size2 = sel_sim$size_bin[sel_sim$treatment == 2],
-    #   block1 = sel_sim$haul[sel_sim$treatment == 1],
-    #   block2 = sel_sim$haul[sel_sim$treatment == 2],
-    #   n_draws = n_boot_samples,
-    #   seed = NULL,
-    #   treatment_name1 = 1,
-    #   treatment_name2 = 2
-    #   )
-    
     cat(paste0(as.POSIXct(Sys.time()), " Drawing bootstrap samples\n"))
     
-    boot_samples <- sratio::two_stage_bootstrap(count1 = sel_sim$n[sel_sim$treatment == 1],
-                                                count2 = sel_sim$n[sel_sim$treatment == 2],
+    boot_samples <- sratio::two_stage_bootstrap(count1 = sel_sim$count[sel_sim$treatment == 1],
+                                                count2 = sel_sim$count[sel_sim$treatment == 2],
                                                 size1 = sel_sim$size_bin[sel_sim$treatment == 1],
                                                 size2 = sel_sim$size_bin[sel_sim$treatment == 2],
                                                 block1 = sel_sim$haul[sel_sim$treatment == 1],
@@ -177,15 +164,10 @@ run_selectivity_simulation <- function(settings) {
                                                 treatment_name2 = 2)
     
     # Add effort to bootstrap samples
-    # for(ll in 1:length(boot_samples[[kk]])) {
     
     cat(paste0(as.POSIXct(Sys.time()), " Adding effort to bootstrap samples\n"))
     
     for(ll in 1:length(boot_samples)) {
-      # boot_samples[[kk]][[ll]] <- dplyr::inner_join(boot_samples[[kk]][[ll]],
-      #                                               data.frame(treatment = c(1, 2),
-      #                                                          effort = c(effort1, effort2)),
-      #                                               by = "treatment")
       
       boot_samples[[ll]] <- dplyr::inner_join(boot_samples[[ll]],
                                               data.frame(treatment = c(1, 2),
@@ -216,6 +198,7 @@ run_selectivity_simulation <- function(settings) {
       n_cores = n_cores,
       scale_method = "sv")
     
+    # Select best model based on root mean square error
     best_model <- data.frame(model = c("binomial", "beta"), 
                              rmse = c(sqrt(mean((pratio$cv_fit_logit-pratio$p)^2)),
                                       sqrt(mean((pratio$cv_fit_beta-pratio$p)^2))),
@@ -229,7 +212,6 @@ run_selectivity_simulation <- function(settings) {
     
     boot_sratio <- sratio::sratio_fit_bootstrap(
       x = boot_samples,
-      # x = boot_samples[[kk]],
       treatment_order = c(1, 2),
       size_col = "size",
       block_col = "block",
@@ -247,15 +229,20 @@ run_selectivity_simulation <- function(settings) {
     
     boot_results[[kk]] <- boot_sratio |>
       dplyr::group_by(size) |>
-      dplyr::summarise(sratio_q025 = quantile(s21, 0.025),
-                       sratio_q250 = quantile(s21, 0.25),
-                       sratio_q500 = quantile(s21, 0.5),
-                       sratio_q750 = quantile(s21, 0.75),
-                       sratio_q975 = quantile(s21, 0.975)) |>
+      dplyr::summarise(sratio_q025 = quantile(s12, 0.025),
+                       sratio_q250 = quantile(s12, 0.25),
+                       sratio_q500 = quantile(s12, 0.5),
+                       sratio_q750 = quantile(s12, 0.75),
+                       sratio_q975 = quantile(s12, 0.975)) |>
       dplyr::mutate(true_s1 = selectivity_at_size(size = size, selectivity_opts = selectivity_opts1) * gear_q1,
                     true_s2 = selectivity_at_size(size = size, selectivity_opts = selectivity_opts2) * gear_q2,
                     true_sratio = true_s1/true_s2,
                     draw = kk)
+    
+    
+    # SCCAL ----
+    
+    
     
   }
   
@@ -400,9 +387,6 @@ plot_simulation_results <- function(x) {
   return(output)
   
 }
-
-test_plots <- plot_simulation_results(x = test)
-
 
 
 
