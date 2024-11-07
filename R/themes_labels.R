@@ -7,11 +7,29 @@
 
 species_code_label <- function(x, type = "axis_label", make_factor = FALSE) {
   
-  species_info <- data.frame(SPECIES_CODE = c(21740, 21720, 10110, 10112, 10115, 10130, 10210, 10261, 10285, 471, 69322, 68580, 68560),
-                         LABEL = c(rep("Fork length (cm)", 9), "Total length (cm)", "Carapace length (mm)", rep("Carapace width (mm)", 2)),
-                         COMMON_NAME = c("walleye pollock", "Pacific cod", "arrowtooth flounder", "Kamchatka flounder", "Greenland turbot", "flathead sole", "yellowfin sole", "northern rock sole",  "Alaska plaice", "Alaska skate", "red king crab", "snow crab", "Tanner crab"),
-                         SIZE_BIN_WIDTH = c(4, 5, 4, 4, 4, 4, 4, 3, 5, 4, 8, 8, 10),
-                         MIN_SAMPLE_SIZE = c(10, 10, 10, 10, 10, 10, 10, 10, 10, 5, 5, 10, 10))
+  species_info <- data.frame(SPECIES_CODE = c(21740, 21720, 10110, 10112, 10115, 10130, 10210, 10261, 10285, 471, 69322, 693221, 693222, 68580, 685801, 685802, 68560, 685601, 685602),
+                         LABEL = c(rep("Fork length (cm)", 9), "Total length (cm)", rep("Carapace length (mm)", 3), rep("Carapace width (mm)", 6)),
+                         COMMON_NAME = c("walleye pollock", 
+                                         "Pacific cod", 
+                                         "arrowtooth flounder", 
+                                         "Kamchatka flounder", 
+                                         "Greenland turbot", 
+                                         "flathead sole", 
+                                         "yellowfin sole", 
+                                         "northern rock sole",  
+                                         "Alaska plaice", 
+                                         "Alaska skate", 
+                                         "red king crab", 
+                                         "red king crab (male)", 
+                                         "red king crab (female)", 
+                                         "snow crab",
+                                         "snow crab (male)",
+                                         "snow crab (female)",
+                                         "Tanner crab", 
+                                         "Tanner crab (male)",
+                                         "Tanner crab (female)"),
+                         SIZE_BIN_WIDTH = c(4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 8, 8, 8, 8, 8, 8, 8, 8),
+                         MIN_SAMPLE_SIZE = c(10, 10, 10, 10, 10, 10, 10, 10, 10, 5, 5, 5, 5, 10, 10, 10, 10, 10, 10))
   
   if(x[1] == "all") {
     return(species_info)

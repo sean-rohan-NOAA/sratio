@@ -73,8 +73,10 @@ sratio_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatm
               treatment_order = treatment_order)
   
   # Get prediction range for sizes
-  size_values <- seq(min(unlist(lapply(x, FUN = function(z) {min(z[["size"]])}))), 
-                 max(unlist(lapply(x, FUN = function(z) {max(z[["size"]])}))),
+  size_values <- seq(min(unlist(lapply(x, 
+                                       FUN = function(z) {floor(min(z[["size"]]))}))), 
+                 max(unlist(lapply(x, 
+                                   FUN = function(z) {ceiling(max(z[["size"]]))}))),
                  by = 1)
   
   cl <- parallel::makeCluster(n_cores)
@@ -104,6 +106,7 @@ sratio_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatm
     # Calculate selectivity ratio
     fit_df$p12 <- predict(model, newdata = fit_df, type = "response")
     fit_df$s12 <- fit_df$p12/(1-fit_df$p12)
+    fit_df$draw <- iter
     
     return(fit_df)
     

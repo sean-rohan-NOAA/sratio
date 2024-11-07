@@ -2,7 +2,9 @@
 
 get_data <- function(species_codes, use_cruises) {
   
-  channel <- get_connected(schema = "AFSC")
+  library(sratio)
+  
+  channel <- sratio::get_connected(schema = "AFSC")
   
   # Get haul data ----
   
@@ -527,6 +529,36 @@ get_data <- function(species_codes, use_cruises) {
     dplyr::inner_join(sratio::species_code_label(x = "all")) |>
     dplyr::arrange(YEAR) |>
     write.csv(file = here::here("analysis", "15_30", "plots", "sample_sizes_no_filter_1530.csv"), row.names = FALSE)
+  
+  analysis_species_codes <- c(471, 10110, 10130, 10210, 10261, 10285, 21720, 21740)
+  
+  fpath_bootstrap_fits <- list.files(path = here::here("analysis", "15_30", "output"),
+                                     pattern = "sratio_bootstrap_results",
+                                     recursive = TRUE,
+                                     full.names = TRUE
+  )
+  
+  fpath_gapindex_data <- list.files(path = here::here("analysis", "15_30", "data"),
+                                    pattern = "gapindex_data_",
+                                    recursive = TRUE,
+                                    full.names = TRUE
+  )
+  
+  library(gapindex)
+  
+  for(ii in 1:length(species_codes)) {
+    
+    # Retrieve survey data for selected species
+    species_data <- gapindex::get_data(year_set = 1982:2024, 
+                                       survey_set = "EBS", 
+                                       spp_codes = species_codes[ii],
+                                       pull_lengths = TRUE, 
+                                       sql_channel = channel)
+    
+    saveRDS(object = species_data,
+            file = here::here("analysis", "15_30", "data", paste0("gapindex_data_", species_codes[ii], ".rds")))
+    
+  }
 
 }
 

@@ -52,8 +52,8 @@ sccal_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatme
               treatment_order = treatment_order)
   
   
-  size_values <- seq(min(unlist(lapply(x, FUN = function(z) {min(z$size)}))), 
-                     max(unlist(lapply(x, FUN = function(z) {max(z$size)}))),
+  size_values <- seq(min(unlist(lapply(x, FUN = function(z) {floor(min(z$size))}))), 
+                     max(unlist(lapply(x, FUN = function(z) {ceiling(max(z$size))}))),
                      by = 1)
   
   sel_family <- switch(gam_family,
@@ -94,6 +94,7 @@ sccal_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatme
     
     fit_df$p12 <- selectivity_results$p12
     fit_df$s12 <- selectivity_results$s12
+    fit_df$draw <- iter
     
     return(fit_df)
     

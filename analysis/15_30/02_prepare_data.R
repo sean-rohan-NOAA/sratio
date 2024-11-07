@@ -95,6 +95,20 @@ for(ii in 1:length(species_codes)) {
                       
     )
   
+  sratio_dat <- sratio_dat |> 
+    dplyr::left_join(
+      sel_dat |>
+        dplyr::select(SPECIES_CODE, MATCHUP, SIZE_BIN, SAMPLING_FACTOR, TREATMENT) |>
+        dplyr::mutate(TREATMENT = paste0("SAMPLING_FACTOR_", TREATMENT)) |>
+        unique() |>
+        tidyr::pivot_wider(names_from = TREATMENT, values_from = SAMPLING_FACTOR)
+    )
+  
+  sratio_dat <- dplyr::rows_patch(sratio_dat, dplyr::group_by(sratio_dat, MATCHUP) |>
+                      dplyr::summarise(SAMPLING_FACTOR_30 = mean(SAMPLING_FACTOR_30, na.rm = TRUE),
+                                       SAMPLING_FACTOR_15 = mean(SAMPLING_FACTOR_15, na.rm = TRUE)),
+                    by = "MATCHUP")
+  
   dat_sratio <- dplyr::bind_rows(dat_sratio, sratio_dat)
   
 }
