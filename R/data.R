@@ -8,6 +8,15 @@
 "data_1530"
 
 
+#' gapindex data for the 15/30 comparison
+#' 
+#' List containing RACEBASE tables created using the gapindex package for the 15/30 comparison project.
+#' 
+#' @docType data
+#' @format An object of class 'list'
+#' 
+"gapindex_1530"
+
 
 #' Shelf/slope Comparison Data
 #' 

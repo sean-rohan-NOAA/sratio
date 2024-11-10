@@ -13,12 +13,12 @@ size_df <- sratio::data_1530$size |>
   dplyr::filter(USE_FOR_SELECTIVITY)
 
 # Data setup ---------------------------------------------------------------------------------------
-dat <- dplyr::inner_join(haul_df,
-             size_df,
-             by = c("CRUISE", "MATCHUP", "HAULJOIN", "VESSEL", "HAUL")) |>
-  dplyr::select(HAULJOIN, SPECIES_CODE, MATCHUP, CRUISE, FREQUENCY, LENGTH, WIDTH, TREATMENT, DISTANCE_FISHED, NET_WIDTH) |>
-  dplyr::mutate(AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH / 1000,
-                MATCHUP = MATCHUP) |>
+dat <- dplyr::inner_join(
+  haul_df,
+  size_df,
+  by = c("CRUISE", "MATCHUP", "HAULJOIN", "VESSEL", "HAUL")) |>
+  dplyr::select(HAULJOIN, SPECIES_CODE, MATCHUP, CRUISE, FREQUENCY, SAMPLING_FACTOR, LENGTH, WIDTH, TREATMENT, DISTANCE_FISHED, NET_WIDTH) |>
+  dplyr::mutate(AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH / 1000) |>
   dplyr::group_by(HAULJOIN, SPECIES_CODE, MATCHUP, CRUISE, LENGTH, WIDTH, TREATMENT, AREA_SWEPT_KM2) |>
   dplyr::summarize(FREQUENCY = sum(FREQUENCY), .groups = "keep") |>
   as.data.frame()
@@ -37,7 +37,7 @@ sampling_factor <- dat |>
 dat <- dplyr::inner_join(dat, sampling_factor, by = c("HAULJOIN", "SPECIES_CODE"))
 
 # Expand size-frequency based on sampling factor calculated from total count in catch
-dat$FREQ_EXPANDED <- dat$FREQUENCY * dat$SAMPLING_FACTOR
+# dat$FREQ_EXPANDED <- dat$FREQUENCY * dat$SAMPLING_FACTOR
 
 species_codes <- unique(dat$SPECIES_CODE)
 
@@ -64,7 +64,7 @@ for(ii in 1:length(species_codes)) {
   sel_dat <- dplyr::filter(sel_dat, MATCHUP %in% check_complete$MATCHUP)
   
   dat_binned <- sel_dat |>
-    dplyr::group_by(HAULJOIN, MATCHUP, SPECIES_CODE, TREATMENT, AREA_SWEPT_KM2, SIZE_BIN) |>
+    dplyr::group_by(HAULJOIN, MATCHUP, SPECIES_CODE, TREATMENT, AREA_SWEPT_KM2, SIZE_BIN, SAMPLING_FACTOR) |>
     dplyr::summarise(FREQ_EXPANDED = sum(FREQ_EXPANDED), .groups = "keep") |>
     dplyr::bind_rows(dat_binned)
     

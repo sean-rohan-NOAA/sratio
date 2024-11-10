@@ -172,25 +172,28 @@ for(ii in 1:length(analysis_species_codes)) {
                  mapping = aes(x = YEAR, 
                                y = POPULATION_COUNT,
                                color = "Est. (15)")) +
-      geom_path(data = biomass_index_15_min[biomass_index_15_min$quantile == 0.25,],
-                mapping = aes(x = YEAR, 
-                              y = POPULATION_COUNT,
-                              color = "Est. (15)"),
-                linetype = 2) +
-      geom_path(data = biomass_index_15_min[biomass_index_15_min$quantile == 0.75,],
-                mapping = aes(x = YEAR, 
-                              y = POPULATION_COUNT,
-                              color = "Est. (15)"),
-                linetype = 2) +
-      geom_ribbon(data = biomass_index_15_min[biomass_index_15_min$quantile %in% 0.75,],
-                mapping = aes(x = YEAR, 
-                              y = POPULATION_COUNT,
-                              color = "Est. (15)"),
-                linetype = 2) +
+      geom_ribbon(data = biomass_index_15_min[biomass_index_15_min$quantile %in% c(0.025, 0.975), ] |>
+                    tidyr::pivot_wider(values_from = "POPULATION_COUNT", names_from = "quantile"),
+                  mapping = aes(x = YEAR, 
+                                ymin = `0.025`,
+                                ymax =  `0.975`),
+                  alpha = 0.3,
+                  fill = "black") +
+      # geom_path(data = biomass_index_15_min[biomass_index_15_min$quantile == 0.25,],
+      #           mapping = aes(x = YEAR, 
+      #                         y = POPULATION_COUNT,
+      #                         color = "Est. (15)"),
+      #           linetype = 2) +
+      # geom_path(data = biomass_index_15_min[biomass_index_15_min$quantile == 0.75,],
+      #           mapping = aes(x = YEAR, 
+      #                         y = POPULATION_COUNT),
+      #           linetype = 2) +
       geom_path(data = index_comps_30_min$biomass,
-                mapping = aes(x = YEAR, y = POPULATION_COUNT, color = "Observed (30)")) +
+                mapping = aes(x = YEAR, y = POPULATION_COUNT, color = "Obs. (30)")) +
       ggtitle(label = sratio::species_code_label(x = analysis_species_codes[ii], type = "common_name")) +
-      facet_wrap(~AREA_ID)
+      scale_color_manual(values = c("Est. (15)" = "black", "Obs. (30)" = "red")) +
+      facet_wrap(~AREA_ID, nrow = 2) +
+      theme_bw()
   )
   
   intermediate_time <- Sys.time()

@@ -4,9 +4,19 @@
 \alias{selectivity_ratio}
 \title{Calculate selectivity catch comparison rate and selectivity ratio}
 \usage{
-selectivity_ratio(count1, count2, effort1 = NULL, effort2 = NULL)
+selectivity_ratio(
+  size = NULL,
+  count1,
+  count2,
+  effort1 = 1,
+  effort2 = 1,
+  sampling_factor1 = 1,
+  sampling_factor2 = 1
+)
 }
 \arguments{
+\item{size}{Optional numeric vector of sizes/ages}
+
 \item{count1}{Count for gear #1}
 
 \item{count2}{Count for gear #2}
@@ -14,6 +24,13 @@ selectivity_ratio(count1, count2, effort1 = NULL, effort2 = NULL)
 \item{effort1}{Effort for gear #1}
 
 \item{effort2}{Effort for gear #2}
+
+\item{sampling_factor1}{Sampling factor for gear #1 (multiplied by count to estimate total count)}
+
+\item{sampling_factor2}{Sampling factor for gear #2 (multiplied by count to estimate total count)}
+}
+\value{
+A data.frame containing catch proportions for gear 1 (r1) and gear 2(2), catch comparison rate (p12), selectivity ratio between gear 1 and gear 2 (s12)
 }
 \description{
 Calculate selectivity catch comparison rate and selectivity ratio
