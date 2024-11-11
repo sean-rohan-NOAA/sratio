@@ -17,7 +17,7 @@ get_connected <- function(schema='AFSC'){(echo=FALSE)
 #' Calculate the weighted mean of a numeric vector, given corresponding weights.
 #' 
 #' @param x A numeric vector of values for which the weighted mean is to be calculated.
-#' @param weights A numeric vector of weights corresponding to each value.
+#' @param w A numeric vector of weights corresponding to each value.
 #' @param na_rm Should NA's be ignored?
 #'
 #' @return The weighted mean of the values.

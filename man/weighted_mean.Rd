@@ -9,9 +9,9 @@ weighted_mean(x, w, na_rm = FALSE)
 \arguments{
 \item{x}{A numeric vector of values for which the weighted mean is to be calculated.}
 
-\item{na_rm}{Should NA's be ignored?}
+\item{w}{A numeric vector of weights corresponding to each value.}
 
-\item{weights}{A numeric vector of weights corresponding to each value.}
+\item{na_rm}{Should NA's be ignored?}
 }
 \value{
 The weighted mean of the values.
