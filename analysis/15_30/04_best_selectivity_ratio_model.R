@@ -6,14 +6,7 @@ dat_sratio <- readRDS(file = here::here("analysis", "15_30", "output", "n_by_tre
 
 sp_code <- unique(dat_sratio$SPECIES_CODE)
 
-#temp species drop
-if(!any(use_cruises %in% c(199501, 199801))) {
-  sp_code <- sp_code[-which(sp_code == 68580)]
-}
-
 unique_matchups <- unique(dat_sratio$MATCHUP)
-
-# n_cores <- 4
 
 rmse_df <- data.frame()
 
@@ -38,14 +31,19 @@ for(ii in 1:length(sp_code)) {
   
   # Run match-up level cross validation
   pratio_df <- sratio_cv(count1 = spp_lengths$N_30,
-            count2 = spp_lengths$N_15,
-            effort1 = spp_lengths$AREA_SWEPT_KM2_30,
-            effort2 = spp_lengths$AREA_SWEPT_KM2_15,
-            size = spp_lengths$SIZE_BIN,
-            block = spp_lengths$MATCHUP,
-            k = gam_knots,
-            n_cores = 4,
-            scale_method = "sv")
+                         count2 = spp_lengths$N_15,
+                         effort1 = spp_lengths$AREA_SWEPT_KM2_30,
+                         effort2 = spp_lengths$AREA_SWEPT_KM2_15,
+                         sampling_factor1 = spp_lengths$SAMPLING_FACTOR_30,
+                         sampling_factor2 = spp_lengths$SAMPLING_FACTOR_15,
+                         size = spp_lengths$SIZE_BIN,
+                         block = spp_lengths$MATCHUP,
+                         k = gam_knots,
+                         n_cores = 4,
+                         scale_method = "sv",
+                         obs_weight_options = list(method = "count", 
+                              max_count = 300,
+                              residual_type = "absolute"))
   
   pratio_df$SPECIES_CODE <- sp_code[ii]
   

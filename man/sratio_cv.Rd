@@ -5,11 +5,14 @@
 \title{Selectivity ratio cross-validation}
 \usage{
 sratio_cv(
+  size,
   count1,
   count2,
   effort1,
   effort2,
-  size,
+  sampling_factor1 = 1,
+  sampling_factor2 = 1,
+  obs_weight_options = NULL,
   block,
   k = NULL,
   scale_method = "sv",
@@ -17,6 +20,8 @@ sratio_cv(
 )
 }
 \arguments{
+\item{size}{Numeric vector of sizes or ages}
+
 \item{count1}{Numeric vector of catch-at-size/age for gear #1}
 
 \item{count2}{Numeric vector of catch-at-size/age for gear #2}
@@ -25,7 +30,11 @@ sratio_cv(
 
 \item{effort2}{Numeric vector of effort for for gear #2}
 
-\item{size}{Numeric vector of sizes or ages}
+\item{sampling_factor1}{Numeric vector of sampling factors for count from gear #1 (i.e., the inverse of the proportion of the catch that was sampled).}
+
+\item{sampling_factor2}{Numeric vector of sampling factors for count from gear #2 (i.e., the inverse of the proportion of the catch that was sampled).}
+
+\item{obs_weight_options}{A list indicating which method to use to weight observations. The default is to not weight observations (obs_weight_options = NULL). The current alternative is to weight observations by the inverse of the residual variance based on total count, resid ~ s(count1 + count 2) (obs_weight_options = "count").}
 
 \item{block}{Sample block (i.e. paired sample)}
 

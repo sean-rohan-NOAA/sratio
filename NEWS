@@ -1,3 +1,9 @@
+sratio 2024.11.12 (November 12, 2024)
+----------------------------------------------------------------
+
+- Refactored to split crab by sex, allow observation weighting,
+  and setup hierarchical sampling.
+
 sratio 2024.10.24 (October 24, 2024)
 ----------------------------------------------------------------
 

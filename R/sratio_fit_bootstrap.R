@@ -56,7 +56,6 @@ sratio_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatm
                                             effort2 = combined[[paste0("effort_", treatment_order[2])]])$p12
     
     combined$p_scaled <- sratio::scale_for_betareg(combined$p, method = "sv")
-    combined$dummy_var <- 1
     
     return(combined)
     
@@ -73,8 +72,10 @@ sratio_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatm
               treatment_order = treatment_order)
   
   # Get prediction range for sizes
-  size_values <- seq(min(unlist(lapply(x, FUN = function(z) {min(z[["size"]])}))), 
-                 max(unlist(lapply(x, FUN = function(z) {max(z[["size"]])}))),
+  size_values <- seq(min(unlist(lapply(x, 
+                                       FUN = function(z) {floor(min(z[["size"]]))}))), 
+                 max(unlist(lapply(x, 
+                                   FUN = function(z) {ceiling(max(z[["size"]]))}))),
                  by = 1)
   
   cl <- parallel::makeCluster(n_cores)
@@ -86,24 +87,24 @@ sratio_fit_bootstrap <- function(x, treatment_order, size_col, block_col, treatm
     boot_df <- x[[iter]]
     
     if(gam_family == "binomial") {
-      model <- mgcv::gam(formula = p ~ s(block, bs = 're', by = dummy_var) + s(size, k = k, bs = 'tp'),
+      model <- mgcv::gam(formula = p ~ s(size, k = k, bs = 'tp') + s(block, bs = 're'),
                          family = stats::binomial(link = "logit"),
                          data = boot_df)
     }
     
     if(gam_family == "beta") {
-    model <- mgcv::gam(formula = p_scaled ~ s(size, k = k, bs = 'tp') + s(block, bs = 're', by = dummy_var),
-                       family = mgcv::betar(link = "logit"),
-                       data = boot_df)
+      model <- mgcv::gam(formula = p_scaled ~ s(size, k = k, bs = 'tp') + s(block, bs = 're'),
+                         family = mgcv::betar(link = "logit"),
+                         data = boot_df)
     }
     
     fit_df <- data.frame(size = size_values,
-                         block = x[[iter]]$block[1],
-                         dummy_var = 0) # random effects off
+                         block = x[[iter]]$block[1]) # random effects off
     
     # Calculate selectivity ratio
-    fit_df$p12 <- predict(model, newdata = fit_df, type = "response")
+    fit_df$p12 <- predict(model, newdata = fit_df, type = "response", exclude = "s(size)")
     fit_df$s12 <- fit_df$p12/(1-fit_df$p12)
+    fit_df$draw <- iter
     
     return(fit_df)
     

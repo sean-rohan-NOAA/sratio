@@ -26,6 +26,7 @@ for(ii in 1:length(bootstrap_sample_path)) {
                                                treatment_col = "TREATMENT",
                                                count_col = "FREQ_EXPANDED",
                                                effort_col = "AREA_SWEPT_KM2",
+                                               # sampling_factor_col = ""
                                                gam_family = best_model,
                                                k = gam_knots,
                                                scale_method = "sv",
