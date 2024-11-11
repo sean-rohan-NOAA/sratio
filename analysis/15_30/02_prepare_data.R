@@ -9,7 +9,15 @@ catch_df <- sratio::data_1530$catch |>
 
 haul_df <- sratio::data_1530$haul
 
-size_df <- sratio::data_1530$size |>
+# Change species codes to include sexes (needed for analyses - could do a lot of refactoring instead)
+crab_sizes <- sratio::data_1530$size |>
+  dplyr::filter(SPECIES_CODE %in% c(68560, 68580, 69322)) |>
+  dplyr::mutate(SPECIES_CODE = as.numeric(paste0(SPECIES_CODE, SEX)))
+
+fish_sizes <- sratio::data_1530$size |>
+  dplyr::filter(!(SPECIES_CODE %in% c(68560, 68580, 69322)))
+
+size_df <- dplyr::bind_rows(crab_sizes, fish_sizes) |>
   dplyr::filter(USE_FOR_SELECTIVITY)
 
 # Data setup ---------------------------------------------------------------------------------------
@@ -17,27 +25,8 @@ dat <- dplyr::inner_join(
   haul_df,
   size_df,
   by = c("CRUISE", "MATCHUP", "HAULJOIN", "VESSEL", "HAUL")) |>
-  dplyr::select(HAULJOIN, SPECIES_CODE, MATCHUP, CRUISE, FREQUENCY, SAMPLING_FACTOR, LENGTH, WIDTH, TREATMENT, DISTANCE_FISHED, NET_WIDTH) |>
-  dplyr::mutate(AREA_SWEPT_KM2 = DISTANCE_FISHED * NET_WIDTH / 1000) |>
-  dplyr::group_by(HAULJOIN, SPECIES_CODE, MATCHUP, CRUISE, LENGTH, WIDTH, TREATMENT, AREA_SWEPT_KM2) |>
-  dplyr::summarize(FREQUENCY = sum(FREQUENCY), .groups = "keep") |>
-  as.data.frame()
-
-# Select measurement to use for size (length or width)
-dat$SIZE <- ifelse(!is.na(dat$LENGTH), dat$LENGTH, dat$WIDTH)
-
-# Expand raw length-frequency data to haul-level counts
-sampling_factor <- dat |>
-  dplyr::group_by(HAULJOIN, SPECIES_CODE) |>
-  dplyr::summarize(LEN_COUNT = sum(FREQUENCY), .groups = "keep") |>
-  dplyr::inner_join(catch_df, by = c("HAULJOIN", "SPECIES_CODE")) |>
-  dplyr::mutate(SAMPLING_FACTOR = NUMBER_FISH/LEN_COUNT) |> # sampling factor
-  dplyr::select(HAULJOIN, SPECIES_CODE, SAMPLING_FACTOR, NUMBER_FISH)
-
-dat <- dplyr::inner_join(dat, sampling_factor, by = c("HAULJOIN", "SPECIES_CODE"))
-
-# Expand size-frequency based on sampling factor calculated from total count in catch
-# dat$FREQ_EXPANDED <- dat$FREQUENCY * dat$SAMPLING_FACTOR
+  dplyr::mutate(SIZE = dplyr::if_else(!is.na(LENGTH), LENGTH, WIDTH)) |>
+  dplyr::select(HAULJOIN, CRUISE, MATCHUP, TREATMENT, AREA_SWEPT_KM2, SPECIES_CODE, SIZE, FREQUENCY, SAMPLING_FACTOR)
 
 species_codes <- unique(dat$SPECIES_CODE)
 
@@ -64,50 +53,49 @@ for(ii in 1:length(species_codes)) {
   sel_dat <- dplyr::filter(sel_dat, MATCHUP %in% check_complete$MATCHUP)
   
   dat_binned <- sel_dat |>
-    dplyr::group_by(HAULJOIN, MATCHUP, SPECIES_CODE, TREATMENT, AREA_SWEPT_KM2, SIZE_BIN, SAMPLING_FACTOR) |>
-    dplyr::summarise(FREQ_EXPANDED = sum(FREQ_EXPANDED), .groups = "keep") |>
+    dplyr::group_by(HAULJOIN, MATCHUP, SPECIES_CODE, TREATMENT, AREA_SWEPT_KM2, SIZE_BIN) |>
+    dplyr::summarise(SAMPLING_FACTOR = sratio::weighted_mean(x = SAMPLING_FACTOR, w = FREQUENCY),
+                     FREQUENCY = sum(FREQUENCY),
+                     .groups = "keep") |>
     dplyr::bind_rows(dat_binned)
     
   sratio_dat <- sel_dat |>
-    dplyr::group_by(HAULJOIN, SIZE_BIN, SPECIES_CODE, MATCHUP) |>
-    dplyr::summarise(FREQ_EXPANDED = sum(FREQ_EXPANDED), .groups = "keep") |>
+    dplyr::group_by(HAULJOIN, MATCHUP, SPECIES_CODE, TREATMENT, AREA_SWEPT_KM2, SIZE_BIN) |>
+    dplyr::summarise(FREQUENCY = sum(FREQUENCY),
+                     .groups = "keep") |>
     dplyr::ungroup() |>
-    tidyr::pivot_wider(names_from = SIZE_BIN, values_from = FREQ_EXPANDED, values_fill = 0)
+    tidyr::pivot_wider(names_from = SIZE_BIN, values_from = FREQUENCY, values_fill = 0)
   
   sratio_dat <- tidyr::pivot_longer(sratio_dat, 
-                                    cols = 4:ncol(sratio_dat), 
+                                    cols = 6:ncol(sratio_dat), 
                                     names_to = "SIZE_BIN", 
-                                    values_to = "FREQ_EXPANDED") |>
-    dplyr::inner_join(dplyr::select(haul_df, HAULJOIN, TREATMENT, AREA_SWEPT_KM2), by = "HAULJOIN")
-
-  sratio_dat <- sratio_dat |> 
+                                    values_to = "FREQUENCY") |>
+    dplyr::mutate(SIZE_BIN = as.numeric(SIZE_BIN))
+  
+  sratio_length <- sratio_dat |> 
     dplyr::mutate(TREATMENT_COL = paste0("N_", TREATMENT)) |>
     dplyr::select(-HAULJOIN, -TREATMENT, -AREA_SWEPT_KM2) |> 
-    tidyr::pivot_wider(names_from = TREATMENT_COL, values_from = FREQ_EXPANDED) |>
-    dplyr::mutate(SIZE_BIN = as.numeric(SIZE_BIN)) |>
-    dplyr::arrange(MATCHUP, SIZE_BIN) |> 
-    dplyr::inner_join(sratio_dat |> 
-                        dplyr::mutate(TREATMENT_COL = paste0("AREA_SWEPT_KM2_", TREATMENT)) |>
-                        dplyr::select(MATCHUP, TREATMENT_COL, AREA_SWEPT_KM2) |>
-                        unique() |>
-                        tidyr::pivot_wider(names_from = TREATMENT_COL, values_from = AREA_SWEPT_KM2),
-                      by = "MATCHUP"
-                      
-    )
+    tidyr::pivot_wider(names_from = TREATMENT_COL, values_from = FREQUENCY)
   
-  sratio_dat <- sratio_dat |> 
-    dplyr::left_join(
-      sel_dat |>
-        dplyr::select(SPECIES_CODE, MATCHUP, SIZE_BIN, SAMPLING_FACTOR, TREATMENT) |>
-        dplyr::mutate(TREATMENT = paste0("SAMPLING_FACTOR_", TREATMENT)) |>
-        unique() |>
-        tidyr::pivot_wider(names_from = TREATMENT, values_from = SAMPLING_FACTOR)
-    )
+  sratio_area_swept <- sratio_dat |> 
+    dplyr::mutate(TREATMENT_COL = paste0("AREA_SWEPT_KM2_", TREATMENT)) |>
+    dplyr::select(MATCHUP, TREATMENT_COL, AREA_SWEPT_KM2) |>
+    unique() |>
+    tidyr::pivot_wider(names_from = TREATMENT_COL, values_from = AREA_SWEPT_KM2)
   
-  sratio_dat <- dplyr::rows_patch(sratio_dat, dplyr::group_by(sratio_dat, MATCHUP) |>
-                      dplyr::summarise(SAMPLING_FACTOR_30 = mean(SAMPLING_FACTOR_30, na.rm = TRUE),
-                                       SAMPLING_FACTOR_15 = mean(SAMPLING_FACTOR_15, na.rm = TRUE)),
-                    by = "MATCHUP")
+  sratio_sampling_factor <- sel_dat |>
+    dplyr::mutate(TREATMENT_COL = paste0("SAMPLING_FACTOR_", TREATMENT)) |>
+    dplyr::group_by(MATCHUP, TREATMENT_COL, SPECIES_CODE, SIZE_BIN) |>
+    dplyr::summarise(SAMPLING_FACTOR = sratio::weighted_mean(x = SAMPLING_FACTOR, w = FREQUENCY),
+                     .groups = "keep") |>
+    dplyr::ungroup() |>
+    tidyr::pivot_wider(names_from = TREATMENT_COL, values_from = SAMPLING_FACTOR, values_fill = 1)
+  
+  sratio_dat <- sratio_length |> 
+    dplyr::left_join(sratio_area_swept, by = "MATCHUP") |>
+    dplyr::left_join(sratio_sampling_factor, by = c("MATCHUP", "SPECIES_CODE", "SIZE_BIN")) |>
+    dplyr::mutate(SAMPLING_FACTOR_15 = dplyr::if_else(is.na(SAMPLING_FACTOR_15), 1, SAMPLING_FACTOR_15),
+                  SAMPLING_FACTOR_30 = dplyr::if_else(is.na(SAMPLING_FACTOR_30), 1, SAMPLING_FACTOR_30))
   
   dat_sratio <- dplyr::bind_rows(dat_sratio, sratio_dat)
   
