@@ -50,16 +50,22 @@ selectivity_ratio <- function(size = NULL,
   
   s12 <- p12/(1-p12)
   
-  output <- data.frame(r1 = r1, 
+  output <- data.frame(count1 = count1,
+                       count2 = count2,
+                       sampling_factor1 = sampling_factor1,
+                       sampling_factor2 = sampling_factor2,
+                       effort1 = effort1,
+                       effort2 = effort2,
+                       r1 = r1, 
                        r2 = r2, 
                        p12 = p12, 
                        s12 = s12)
     
-    if(!is.null(size)) {
-      
-      output$size <- size
-      
-      }
+  if(!is.null(size)) {
+    
+    output$size <- size
+    
+  }
 
   
   return(output)

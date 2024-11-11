@@ -14,23 +14,31 @@ for(ii in 1:length(bootstrap_sample_path)) {
   sp_code <- as.numeric(gsub("[^0-9]", "", basename(bootstrap_sample_path[ii])))
   
   # Set model type (binomial or beta)
-  best_model <- sratio_rmse_df$model[sratio_rmse_df$best & sratio_rmse_df$SPECIES_CODE == sp_code]
+  best_model <- sratio_rmse_df[sratio_rmse_df$best & sratio_rmse_df$SPECIES_CODE == sp_code, ]
   
-  gam_knots <- sratio_rmse_df$gam_knots[sratio_rmse_df$best & sratio_rmse_df$SPECIES_CODE == sp_code]
+  obs_weight_control <- list(method = best_model$model, 
+                            max_count = best_model$obs_weight_max_count,
+                            residual_type = best_model$obs_weight_residual_type,
+                            normalize_weight = best_model$obs_weight_normalize_weight)
   
   # Run two-stage bootstrap (stage 1: by matchup, stage 2: by sample within a matchup)
-  bootstrap_df <- sratio::sratio_fit_bootstrap(x = boot_dat,
-                                               treatment_order = c(30, 15),
-                                               size_col = "SIZE_BIN",
-                                               block_col = "MATCHUP",
-                                               treatment_col = "TREATMENT",
-                                               count_col = "FREQ_EXPANDED",
-                                               effort_col = "AREA_SWEPT_KM2",
-                                               # sampling_factor_col = ""
-                                               gam_family = best_model,
-                                               k = gam_knots,
-                                               scale_method = "sv",
-                                               n_cores = 4)
+  bootstrap_df <- 
+    sratio::sratio_fit_bootstrap(
+      x = boot_dat,
+      treatment_order = c(30, 15),
+      size_col = "SIZE_BIN",
+      block_col = "MATCHUP",
+      treatment_col = "TREATMENT",
+      count_col = "FREQUENCY",
+      effort_col = "AREA_SWEPT_KM2",
+      sampling_factor_col = "SAMPLING_FACTOR",
+      gam_family = best_model$model,
+      obs_weight_control = obs_weight_control,
+      k = gam_knots,
+      scale_method = "sv",
+      n_cores = 4
+    )
+  
   bootstrap_df$SPECIES_CODE <- sp_code
   
   saveRDS(bootstrap_df, 

@@ -12,6 +12,9 @@ sratio_fit_bootstrap(
   treatment_col,
   count_col,
   effort_col,
+  sampling_factor_col = NULL,
+  obs_weight_control = list(method = "none", max_count = Inf, residual_type = NA,
+    normalize_weights = FALSE),
   gam_family,
   k,
   scale_method = "sv",
@@ -32,6 +35,10 @@ sratio_fit_bootstrap(
 \item{count_col}{Character vector; name of the column containing counts}
 
 \item{effort_col}{Character vector; name of the column containing effort}
+
+\item{sampling_factor_col}{Character vector; name of the column containing sampling factor (count multiplier, where estimated catch-at-length = count * sampling_factor)}
+
+\item{obs_weight_control}{A list indicating which method to use to weight observations. See help documentation `sratio_fit_gamm()` for information about options (?sratio_fit_gamm) .}
 
 \item{gam_family}{"binomial" or "beta"}
 
