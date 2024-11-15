@@ -21,7 +21,7 @@ for(ii in 1:length(bootstrap_sample_path)) {
                             residual_type = best_model$obs_weight_residual_type,
                             normalize_weight = best_model$obs_weight_normalize_weight)
   
-  # Run two-stage bootstrap (stage 1: by matchup, stage 2: by sample within a matchup)
+  # Fit models to two-stage bootstrap results (stage 1: by matchup, stage 2: by sample within a matchup)
   bootstrap_df <- 
     sratio::sratio_fit_bootstrap(
       x = boot_dat,
@@ -36,6 +36,7 @@ for(ii in 1:length(bootstrap_sample_path)) {
       obs_weight_control = obs_weight_control,
       k = gam_knots,
       scale_method = "sv",
+      sratio_type = "absolute",
       n_cores = 4
     )
   

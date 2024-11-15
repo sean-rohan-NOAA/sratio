@@ -74,18 +74,10 @@ sratio_fit_gamm <- function(data,
       data$transformed_resid <- resid(mod)^2
     }
     
-    resid_mod_k <- 10
-    
-    if(length(unique(data$total_count)) <= 10) {
-      
-      resid_mod_k <- length(unique(data$total_count)) - 3
-      
-    }
-    
     # Fit model model residual and predict
     resid_mod <- 
       mgcv::gam(
-        formula = transformed_resid ~ s(total_count, k = resid_mod_k, bs = "tp"), 
+        formula = transformed_resid ~ s(total_count, k = 4, bs = "tp"), 
         data = data
       )
     

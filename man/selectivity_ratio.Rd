@@ -11,7 +11,8 @@ selectivity_ratio(
   effort1 = 1,
   effort2 = 1,
   sampling_factor1 = 1,
-  sampling_factor2 = 1
+  sampling_factor2 = 1,
+  sratio_type
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ selectivity_ratio(
 \item{sampling_factor1}{Sampling factor for gear #1 (multiplied by count to estimate total count)}
 
 \item{sampling_factor2}{Sampling factor for gear #2 (multiplied by count to estimate total count)}
+
+\item{sratio_type}{Which selectivity ratio calculation should be used? Absolute ("absolute") or relative ("relative")?}
 }
 \value{
 A data.frame containing catch proportions for gear 1 (r1) and gear 2(2), catch comparison rate (p12), selectivity ratio between gear 1 and gear 2 (s12)

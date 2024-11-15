@@ -20,7 +20,7 @@ selectivity_at_size <- function(size,
     sel <- doubleNorm24.fn(x = size, a=beta1, b=beta2, c=beta3, d=beta4, e=beta5, f=beta6)
   } 
   
-  if(selectivity_opts$type == "asymptotic") {
+  if(selectivity_opts$type == "logistic") {
     # Logistic selectivity
     sel <- (1 + exp(-log(19) * (size - selectivity_opts$begin_top)/selectivity_opts$ln_sd1))^-1
   }

@@ -7,6 +7,7 @@
 #' @param effort2 Effort for gear #2
 #' @param sampling_factor1 Sampling factor for gear #1 (multiplied by count to estimate total count)
 #' @param sampling_factor2 Sampling factor for gear #2 (multiplied by count to estimate total count)
+#' @param sratio_type Which selectivity ratio calculation should be used? Absolute ("absolute") or relative ("relative")?
 #' @export
 #' @return A data.frame containing catch proportions for gear 1 (r1) and gear 2(2), catch comparison rate (p12), selectivity ratio between gear 1 and gear 2 (s12)
 
@@ -16,19 +17,29 @@ selectivity_ratio <- function(size = NULL,
                               effort1 = 1, 
                               effort2 = 1, 
                               sampling_factor1 = 1, 
-                              sampling_factor2 = 1) {
+                              sampling_factor2 = 1,
+                              sratio_type) {
   stopifnot(
     "selectivity_ratio: count1 and count2 are not the same length." = 
       length(count1) == length(count2)
   )
-  stopifnot(
-    "selectivity_ratio: effort1 must be 1L or the same length as count1." = 
-              length(effort1) == 1 | length(effort1) == length(count1)
+  
+  stopifnot("selectivity_ratio: sratio_type must be 'absolute' (for absolute selectivity ratio) or 'relative' (for relative selectivity ratio)." = sratio_type %in% c("absolute", "relative"))
+  
+  if(is.numeric(effort1) & is.numeric(effort2)) {
+    
+    stopifnot(
+      "selectivity_ratio: effort1 must be 1L or the same length as count1." = 
+        length(effort1) == 1 | length(effort1) == length(count1)
     )
-  stopifnot(
-    "selectivity_ratio: effort2 must be 1L or the same length as count2." = 
-              length(effort2) == 1 | length(effort2) == length(count2)
+    
+    stopifnot(
+      "selectivity_ratio: effort2 must be 1L or the same length as count2." = 
+        length(effort2) == 1 | length(effort2) == length(count2)
     )
+    
+  }
+  
   stopifnot(
     "selectivity_ratio: sampling_factor1 must be 1L or the same length as count1." = 
               length(sampling_factor1) == 1 | length(sampling_factor1) == length(count1)
@@ -38,13 +49,23 @@ selectivity_ratio <- function(size = NULL,
               length(sampling_factor2) == 1 | length(sampling_factor2) == length(count2)
     )
   
-  expanded_count1 <- count1*sampling_factor1/effort1
+  expanded_count1 <- count1*sampling_factor1
   
-  expanded_count2 <- count2*sampling_factor2/effort2
+  expanded_count2 <- count2*sampling_factor2
   
-  r1 <- expanded_count1/sum(expanded_count1)
-  
-  r2 <- expanded_count2/sum(expanded_count2)
+  if(sratio_type == "relative") {
+    
+    r1 <- expanded_count1/sum(expanded_count1)
+    
+    r2 <- expanded_count2/sum(expanded_count2)
+    
+  } else {
+    
+    r1 <- expanded_count1/effort1
+    
+    r2 <- expanded_count2/effort2
+    
+  }
   
   p12 <- r1/(r1+r2)
   

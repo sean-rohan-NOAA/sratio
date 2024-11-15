@@ -14,6 +14,7 @@
 #' @param block Sample block (i.e. paired sample)
 #' @param k k to use for GAMs. Automatically set to the minimum of 8 or 3 less than the number of unique values in size.
 #' @param scale_method Method to use for scaling the catch comparison rate for beta regression. See ?scale_for_betareg
+#' @param sratio_type Which selectivity ratio calculation should be used? Absolute ("absolute") or relative ("relative")?
 #' @param n_cores Number of cores to use for parallel processing.
 #' @export
 
@@ -33,6 +34,7 @@ sratio_cv <- function(model_type = "binomial",
                       block, 
                       k = NULL, 
                       scale_method = "sv", 
+                      sratio_type = "absolute",
                       n_cores = 1) {
   
   # Initialize vectors for catch comparison rate (p) and selectivty ratio (s)
@@ -78,7 +80,8 @@ sratio_cv <- function(model_type = "binomial",
         effort1 = effort1[block == unique_blocks[jj]], 
         effort2 = effort2[block == unique_blocks[jj]],
         sampling_factor1 = sampling_factor1[block == unique_blocks[jj]],
-        sampling_factor2 = sampling_factor2[block == unique_blocks[jj]]
+        sampling_factor2 = sampling_factor2[block == unique_blocks[jj]],
+        sratio_type = sratio_type
       )
     )
     
@@ -96,7 +99,7 @@ sratio_cv <- function(model_type = "binomial",
   sampling_factor2 <- sampling_factor2[!is.na(p)]
   size <- size[!is.na(p)]
   block <- block[!is.na(p)]
-  s <- p[!is.na(p)]
+  s <- s[!is.na(p)]
   p <- p[!is.na(p)]
 
   # Setup data.frame for leave-one-out cross-validation (LOOCV)
@@ -134,12 +137,11 @@ sratio_cv <- function(model_type = "binomial",
     )
     
     # Fit without random effect of block
-    fit <- predict(mod$mod, 
-                   newdata = validation_df, 
-                   type = "response", 
-                   exclude = "s(block)")
-    
-    validation_df$cv_fit <- fit
+    validation_df$p_fit <- predict(mod$mod, 
+                                   newdata = validation_df, 
+                                   type = "response", 
+                                   exclude = "s(block)")
+    validation_df$s_fit <- validation_df$p_fit/(1-validation_df$p_fit)
     
     # Reset match-ups for fitting final models
     
@@ -159,7 +161,8 @@ sratio_cv <- function(model_type = "binomial",
           model_type = model_type,
           k = k,
           obs_weight_control = obs_weight_control
-        )
+        ),
+      data = model_df
     )
   )
   

@@ -12,8 +12,11 @@
 #' @param sampling_factor_col Character vector; name of the column containing sampling factor (count multiplier, where estimated catch-at-length = count * sampling_factor)
 #' @param obs_weight_control A list indicating which method to use to weight observations. See help documentation `sratio_fit_gamm()` for information about options (?sratio_fit_gamm) .
 #' @param gam_family "binomial" or "beta"
+#' @param gam_formula A formula for the GAM, by default `p ~ s(size, bs = "tp", k = k) + s(block, bs = "re")`.
+#'   Smooth terms should be specified using `mgcv` syntax.
 #' @param k k for mgcv spline for size
 #' @param scale_method Method to use for scaling the catch comparison rate for beta regression. See ?scale_for_betareg
+#' @param sratio_type Which selectivity ratio calculation should be used? Absolute ("absolute") or relative ("relative")?
 #' @param n_cores Number of cores to use for parallel processing.
 #' @export
 
@@ -30,8 +33,10 @@ sratio_fit_bootstrap <- function(x,
                                                            residual_type = NA,
                                                            normalize_weights = FALSE),
                                  gam_family, 
-                                 k, 
+                                 gam_formula = p ~ s(size, bs = "tp", k = k) + s(block, bs = "re"),
+                                 k,
                                  scale_method = "sv", 
+                                 sratio_type = "absolute",
                                  n_cores = 1) {
   
   # Make treatment_order a factor and retain the rank order from input
@@ -48,7 +53,8 @@ sratio_fit_bootstrap <- function(x,
                                       effort_col, 
                                       sampling_factor_col, 
                                       treatment_order,
-                                      scale_method) {
+                                      scale_method,
+                                      sratio_type) {
     
     names(x)[
       match(
@@ -89,18 +95,20 @@ sratio_fit_bootstrap <- function(x,
     combined <- dplyr::inner_join(lengths, effort, by = "block") |>
       dplyr:::inner_join(sampling_factor, by = c("block", "size"))
     
-    sr_values <- sratio::selectivity_ratio(count1 = combined[[paste0("n_", treatment_order[1])]], 
-                                           count2 = combined[[paste0("n_", treatment_order[2])]], 
-                                           effort1 = combined[[paste0("effort_", treatment_order[1])]], 
-                                           effort2 = combined[[paste0("effort_", treatment_order[2])]],
-                                           sampling_factor1 = combined[[paste0("sampling_factor_", treatment_order[1])]],
-                                           sampling_factor2 = combined[[paste0("sampling_factor_", treatment_order[2])]])
+    sr_values <- 
+      sratio::selectivity_ratio(
+        count1 = combined[[paste0("n_", treatment_order[1])]], 
+        count2 = combined[[paste0("n_", treatment_order[2])]], 
+        effort1 = combined[[paste0("effort_", treatment_order[1])]], 
+        effort2 = combined[[paste0("effort_", treatment_order[2])]],
+        sampling_factor1 = combined[[paste0("sampling_factor_", treatment_order[1])]],
+        sampling_factor2 = combined[[paste0("sampling_factor_", treatment_order[2])]],
+        sratio_type = sratio_type
+      )
     
     combined$total_count <- sr_values$count1 + sr_values$count2
     
     combined$p <- sr_values$p12
-    
-    combined$p_scaled <- sratio::scale_for_betareg(combined$p, method = scale_method)
     
     return(combined)
     
@@ -121,7 +129,8 @@ sratio_fit_bootstrap <- function(x,
               effort_col = effort_col,
               sampling_factor_col = sampling_factor_col,
               treatment_order = treatment_order,
-              scale_method = scale_method)
+              scale_method = scale_method,
+              sratio_type = sratio_type)
   
   # Get prediction range for sizes
   size_values <- seq(min(unlist(lapply(x, 
@@ -149,6 +158,8 @@ sratio_fit_bootstrap <- function(x,
       
       fit_family <- binomial(link = "logit")
       
+      boot_df$p <- sratio::scale_for_betareg(boot_df$p, method = scale_method)
+      
     }
     
     # Fit model
@@ -156,7 +167,7 @@ sratio_fit_bootstrap <- function(x,
       sratio_fit_gamm(data = boot_df,
                              k = k,
                              gam_formula = 
-                               p ~ s(size, bs = "tp", k = k) + s(block, bs = "re"),
+                               gam_formula,
                              gam_family = fit_family, 
                              obs_weight_control = obs_weight_control)$mod
     

@@ -28,8 +28,10 @@ species_code_label <- function(x, type = "axis_label", make_factor = FALSE) {
                                          "Tanner crab", 
                                          "Tanner crab (male)",
                                          "Tanner crab (female)"),
-                         SIZE_BIN_WIDTH = c(4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 8, 8, 8, 8, 8, 8, 8, 8),
-                         MIN_SAMPLE_SIZE = c(10, 10, 10, 10, 10, 10, 10, 10, 10, 5, 5, 5, 5, 10, 10, 10, 10, 10, 10))
+                         SIZE_BIN_WIDTH = c(6, 6, 6, 6, 6, 6, 6, 6, 6, 10, 20, 20, 20, 20, 20, 20, 20, 20, 20),
+                         # SIZE_BIN_WIDTH = c(4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 8, 8, 8, 8, 8, 8, 8, 8),
+                         MIN_SAMPLE_SIZE = c(10, 10, 10, 10, 10, 10, 10, 10, 10, 5, 5, 5, 5, 10, 10, 10, 10, 10, 10)
+                         )
   
   if(x[1] == "all") {
     return(species_info)
