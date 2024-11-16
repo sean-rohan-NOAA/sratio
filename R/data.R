@@ -71,3 +71,26 @@
 #'     \item{TOW_TYPE}{Description of numberical tow type}
 #'   }
 'otto_key_1998'
+
+#' #' Selectivity ratios for 15/30 hauls
+#' #' 
+#' #' Selectivity ratio values calculated from 15/30 tow duration hauls.
+#' #' 
+#' #' @docType data
+#' #' @format An object of class 'data.frame'
+#' #'   \describe{
+#' #'     \item{species_code}{Numeric species code for each species/species x sex combination.}
+#' #'     \item{block}{Tow pair}
+#' #'     \item{size}{Size bin; fork length in cm}
+#' #'     \item{count1}{Number of fish lengthed in the 30 minute haul.}
+#' #'     \item{count2}{Number of fish lengthed in the 15 minute haul.}
+#' #'     \item{total_count}{Total number of fish from both hauls conbined; count1 + count2}
+#' #'     \item{effort1}{Area swept in square kilometers for the 30 minute haul.}
+#' #'     \item{effort2}{Area swept in square kilometes for the 15 minute haul.}
+#' #'     \item{sampling_factor1}{Multiplier to scale count to total catch for the 30 minute haul, i.e., total number of fish at size = count * sampling_factor. Inverse of the estimated sampled propoprtion.}
+#' #'     \item{sampling_factor2}{Multiplier to scale count to total catch for the 15 minute haul, i.e., total number of fish at size = count * sampling_factor Inverse of the estimated sampled propoprtion.}
+#' #'     \item{p}{Catch comparison rate estimated using sratio::selectivity_ratio}
+#' #'     \item{s}{Selectivity ratio between the 30 and 15 minute haul estimated using sratio::selectivity_ratio}
+#' #'   }
+#' "sratio_samples"
+

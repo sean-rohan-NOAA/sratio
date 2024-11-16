@@ -21,16 +21,19 @@ for(jj in 1:length(sp_code)) {
     as.data.frame()
   
   # Run two-stage boot strap
-  boot_samples <- sratio::two_stage_bootstrap(count1 = sel_dat$FREQUENCY[sel_dat$TREATMENT == treatments[1]],
-                                              count2 = sel_dat$FREQUENCY[sel_dat$TREATMENT == treatments[2]],
-                                              size1 = sel_dat$SIZE_BIN[sel_dat$TREATMENT == treatments[1]],
-                                              size2 = sel_dat$SIZE_BIN[sel_dat$TREATMENT == treatments[2]],
-                                              block1 = sel_dat$MATCHUP[sel_dat$TREATMENT == treatments[1]],
-                                              block2 = sel_dat$MATCHUP[sel_dat$TREATMENT == treatments[2]],
-                                              n_draws = 1000,
-                                              seed = seed,
-                                              treatment_name1 = treatments[1],
-                                              treatment_name2 = treatments[2])
+  boot_samples <- 
+    sratio::two_stage_bootstrap(
+      count1 = sel_dat$FREQUENCY[sel_dat$TREATMENT == treatments[1]],
+      count2 = sel_dat$FREQUENCY[sel_dat$TREATMENT == treatments[2]],
+      size1 = sel_dat$SIZE_BIN[sel_dat$TREATMENT == treatments[1]],
+      size2 = sel_dat$SIZE_BIN[sel_dat$TREATMENT == treatments[2]],
+      block1 = sel_dat$MATCHUP[sel_dat$TREATMENT == treatments[1]],
+      block2 = sel_dat$MATCHUP[sel_dat$TREATMENT == treatments[2]],
+      n_draws = 1000,
+      seed = seed,
+      treatment_name1 = treatments[1],
+      treatment_name2 = treatments[2]
+    )
   
   # Rename output columns and join with effort
   for(ii in 1:length(boot_samples)) {

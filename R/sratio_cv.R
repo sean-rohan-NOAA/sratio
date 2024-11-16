@@ -2,38 +2,46 @@
 #' 
 #' Block-level cross validation for selectivity ratio binomial and beta binomial generalized additive models.
 #' 
+#' @param model_type Model type. Options are "binomial" or "beta"
 #' @param count1 Numeric vector of catch-at-size/age for gear #1
 #' @param count2 Numeric vector of catch-at-size/age for gear #2
 #' @param effort1 Numeric vector of effort for for gear #1
 #' @param effort2 Numeric vector of effort for for gear #2
 #' @param sampling_factor1 Numeric vector of sampling factors for count from gear #1 (i.e., the inverse of the proportion of the catch that was sampled).
 #' @param sampling_factor2 Numeric vector of sampling factors for count from gear #2 (i.e., the inverse of the proportion of the catch that was sampled).
-#' @param obs_weight_options A list indicating which method to use to weight observations. The default is to not weight observations (obs_weight_options = NULL). The current alternative is to weight observations by the inverse of the residual variance based on total count, resid ~ s(count1 + count 2) (obs_weight_options = "count").
+#' @param obs_weight_control A list indicating which method to use to weight observations. See help documentation `sratio_fit_gamm()` for information about options (?sratio_fit_gamm) .
 #' @param size  Numeric vector of sizes or ages
 #' @param block Sample block (i.e. paired sample)
 #' @param k k to use for GAMs. Automatically set to the minimum of 8 or 3 less than the number of unique values in size.
 #' @param scale_method Method to use for scaling the catch comparison rate for beta regression. See ?scale_for_betareg
+#' @param sratio_type Which selectivity ratio calculation should be used? Absolute ("absolute") or relative ("relative")?
 #' @param n_cores Number of cores to use for parallel processing.
 #' @export
 
-sratio_cv <- function(size, 
+sratio_cv <- function(model_type = "binomial",
+                      size, 
                       count1, 
                       count2, 
                       effort1, 
                       effort2, 
                       sampling_factor1 = 1, 
                       sampling_factor2 = 1, 
-                      obs_weight_options = NULL,
+                      obs_weight_control = 
+                        list(method = "none",
+                             max_count = Inf,
+                             residual_type = NA,
+                             normalize_weight = FALSE),
                       block, 
                       k = NULL, 
                       scale_method = "sv", 
+                      sratio_type = "absolute",
                       n_cores = 1) {
-
-  unique_blocks <- unique(block)
   
+  # Initialize vectors for catch comparison rate (p) and selectivty ratio (s)
   p <- numeric(length = length(count1))
   s <- numeric(length = length(count1))
   
+  # Create sampling factor vectors if provided as a 1L numeric
   if(length(sampling_factor1) == 1) {
     sampling_factor1 <- rep(sampling_factor1, length(count1))
   }
@@ -42,16 +50,38 @@ sratio_cv <- function(size,
     sampling_factor2 <- rep(sampling_factor2, length(count2))
   }
   
+  # Set k if not provided
+  if(is.null(k)) {
+    k <- min(c(8, (length(unique(size))-3)))
+  }
+  
+  # Set model family
+  if(model_type == "binomial") {
+    gam_family <- binomial(link = "logit")
+  }
+  
+  if(model_type == "beta") {
+    gam_family <- betar(link = "logit")
+    # Scale p to fall within (the interval supported by (0,1] for beta regression
+    p <- scale_for_betareg(p, method = scale_method)
+  }
+  
+  
+  # Estimate selectivity ratios for each size within each block
+  unique_blocks <- unique(block)
+  
   for(jj in 1:length(unique_blocks)) {
     
     s_ratio_df <- suppressMessages(
-      selectivity_ratio(size = size[block == unique_blocks[jj]],
-                        count1 = count1[block == unique_blocks[jj]], 
-                        count2 = count2[block == unique_blocks[jj]],
-                        effort1 = effort1[block == unique_blocks[jj]], 
-                        effort2 = effort2[block == unique_blocks[jj]],
-                        sampling_factor1 = sampling_factor1[block == unique_blocks[jj]],
-                        sampling_factor2 = sampling_factor2[block == unique_blocks[jj]]
+      selectivity_ratio(
+        size = size[block == unique_blocks[jj]],
+        count1 = count1[block == unique_blocks[jj]], 
+        count2 = count2[block == unique_blocks[jj]],
+        effort1 = effort1[block == unique_blocks[jj]], 
+        effort2 = effort2[block == unique_blocks[jj]],
+        sampling_factor1 = sampling_factor1[block == unique_blocks[jj]],
+        sampling_factor2 = sampling_factor2[block == unique_blocks[jj]],
+        sratio_type = sratio_type
       )
     )
     
@@ -69,143 +99,71 @@ sratio_cv <- function(size,
   sampling_factor2 <- sampling_factor2[!is.na(p)]
   size <- size[!is.na(p)]
   block <- block[!is.na(p)]
-  s <- p[!is.na(p)]
+  s <- s[!is.na(p)]
   p <- p[!is.na(p)]
+
+  # Setup data.frame for leave-one-out cross-validation (LOOCV)
+  model_df <- data.frame(
+    block = factor(block),
+    size = size,
+    count1 = count1,
+    count2 = count2,
+    total_count = count1 + count2,
+    effort1 = effort1,
+    effort2 = effort2,
+    sampling_factor1 = sampling_factor1,
+    sampling_factor2 = sampling_factor2,
+    p = p,
+    s = s
+  )
   
-  # Scale p to fall within (the interval supported by (0,1] for beta regression
-  p_scaled <- scale_for_betareg(p, method = scale_method)
-  
-  # Set k if not provided
-  if(is.null(k)) {
-    k <- min(c(8, (length(unique(size))-3)))
-  }
-  
-  model_df <- data.frame(block = factor(block),
-                         size = size,
-                         count1 = count1,
-                         count2 = count2,
-                         total_count = count1 + count2,
-                         effort1 = effort1,
-                         effort2 = effort2,
-                         sampling_factor1 = sampling_factor1,
-                         sampling_factor2 = sampling_factor2,
-                         p = p,
-                         p_scaled = p_scaled,
-                         s = s,
-                         dummy_var = 1)
-  
-  # Setup four clusters and folds for each block
+  # Setup parallelization and folds for LOOCV
   doParallel::registerDoParallel(parallel::makeCluster(n_cores))
   
   folds <- caret::groupKFold(group = block)
   
+  # Conduct leave one out cross validation
   cv_results <- foreach::foreach(fold = folds, .packages = c("mgcv", "dplyr")) %dopar% {
     
     training_df <- model_df[fold, ]
     validation_df <- model_df[-fold, ]
-    # validation_df$dummy_var <- 0
     
-    # Add in dummy station variable for predictions, to be added back in for output
-    out_matchup <- validation_df$block[1]
-    validation_df$block <- training_df$block[1]
+    mod <- sratio_fit_gamm(
+      data = training_df,
+      k = k,
+      gam_formula = p ~ s(size, bs = "tp", k = k) + s(block, bs = "re"),
+      gam_family = gam_family, 
+      obs_weight_control = obs_weight_control
+    )
     
-    # No weights
-    weight_logit <- weight_beta <- NULL
-    
-    # Weight observations by count, based on either the relationship between total count and residuals or just by count
-    # if(is(obs_weight_options, "list")) {
-    
-    if(is.numeric(obs_weight_options$max_count)) {
-      
-      training_df$total_count <- 
-        dplyr::if_else(
-          training_df$total_count > obs_weight_options$max_count,
-          obs_weight_options$max_count,
-          training_df$total_count
-        )
-      
-    }
-    
-    if(!is.null(obs_weight_options$method)) {
-      
-      if(obs_weight_options$method == "count") { # By count
-        
-        weight_logit <- weight_beta <- training_df$total_count
-        
-      }
-      
-      if(obs_weight_options$method == "residuals_by_count") { # By residuals
-        
-        # Calculate absolute or squared residuals
-        resid_fun <- switch(
-          obs_weight_options$residual_type,
-          "absolute" = function(x) abs(resid(x)),
-          "squared" = function(x) resid(x)^2)
-        
-        training_df$transformed_resid_logit <- resid_fun(gam_logit)
-        
-        training_df$transformed_resid_beta <- resid_fun(gam_beta)
-        
-        # Fit model model residual and predict
-        gam_logit_dev_mod <- mgcv::gam(transformed_resid_logit ~ s(total_count, bs = "tp"), data = training_df)
-        
-        gam_beta_dev_mod <- mgcv::gam(transformed_resid_beta ~ s(total_count, bs = "tp"), data = training_df)
-        
-        # Estimate residual fit for each observation
-        training_df$fit_inv_var_logit <- 1/predict(object = gam_logit_dev_mod, 
-                                                   newdata = training_df,
-                                                   type = "response")
-        
-        training_df$fit_inv_var_beta <- 1/predict(object = gam_beta_dev_mod,
-                                                  newdata = training_df,
-                                                  type = "response")
-        
-        # Transform estimate of SD to variance when model is fit to absolute residuals  
-        if(obs_weight_options$residual_type == "absolute") {
-          
-          training_df$fit_inv_var_logit <- training_df$fit_inv_var_logit^2
-          
-          training_df$fit_inv_var_beta <- training_df$fit_inv_var_beta^2
-          
-        }
-        
-        # Calculate normalized weights for each observation
-        weight_logit <- training_df$fit_inv_var_logit #/ mean(training_df$fit_inv_var_logit)
-        
-        weight_beta <- training_df$fit_inv_var_beta #/ mean(training_df$fit_inv_var_beta)
-        
-      }
-    }
-      
-    # }
-    
-    gam_logit <- mgcv::gam(p ~ s(size, bs = "tp", k = k) + s(block, bs = "re"),
-                           data = training_df,
-                           weights = weight_logit,
-                           family = binomial(link = "logit"))
-    
-    gam_beta <- mgcv::gam(p_scaled ~ s(size, bs = "tp", k = k) + s(block, bs = "re"),
-                          weights = weight_beta,
-                          data = training_df,
-                          family = mgcv::betar(link = "logit"))
-    
-    fitted_logit <- predict(gam_logit, newdata = validation_df, type = "response", exclude = "s(size)")
-    
-    fitted_beta <- predict(gam_beta, newdata = validation_df, type = "response", exclude = "s(size)")
-    
-    validation_df$cv_fit_logit <- fitted_logit
-    validation_df$cv_fit_beta <- fitted_beta
+    # Fit without random effect of block
+    validation_df$p_fit <- predict(mod$mod, 
+                                   newdata = validation_df, 
+                                   type = "response", 
+                                   exclude = "s(block)")
+    validation_df$s_fit <- validation_df$p_fit/(1-validation_df$p_fit)
     
     # Reset match-ups for fitting final models
-    validation_df$block <- out_matchup
     
     return(validation_df)
   }
   
   doParallel::stopImplicitCluster()
   
-  output <- do.call("rbind", cv_results)
-  
-  return(output)
+  # Combine individual outputs
+  output_cv <- do.call("rbind", cv_results)
+
+  return(
+    list(
+      cv_results = output_cv,
+      model_settings = 
+        list(
+          model_type = model_type,
+          k = k,
+          obs_weight_control = obs_weight_control
+        ),
+      data = model_df
+    )
+  )
   
 }

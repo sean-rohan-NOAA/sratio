@@ -10,14 +10,11 @@ catch_df <- sratio::data_1530$catch |>
 haul_df <- sratio::data_1530$haul
 
 # Change species codes to include sexes (needed for analyses - could do a lot of refactoring instead)
-crab_sizes <- sratio::data_1530$size |>
+crab_by_sex <- sratio::data_1530$size |>
   dplyr::filter(SPECIES_CODE %in% c(68560, 68580, 69322)) |>
   dplyr::mutate(SPECIES_CODE = as.numeric(paste0(SPECIES_CODE, SEX)))
 
-fish_sizes <- sratio::data_1530$size |>
-  dplyr::filter(!(SPECIES_CODE %in% c(68560, 68580, 69322)))
-
-size_df <- dplyr::bind_rows(crab_sizes, fish_sizes) |>
+size_df <- dplyr::bind_rows(sratio::data_1530$size, crab_by_sex) |>
   dplyr::filter(USE_FOR_SELECTIVITY)
 
 # Data setup ---------------------------------------------------------------------------------------
