@@ -3,7 +3,7 @@
 library(sratio)
 
 dat_binned <- readRDS(file = here::here("analysis", "15_30", "output", "catch_at_length_1530.rds"))
-# dat_binned$FREQ_EXPANDED <- round(dat_binned$FREQ_EXPANDED)
+# dat_binned$FREQUENCY <- round(dat_binned$FREQUENCY)
 
 rmse_df <- data.frame()
 
@@ -13,7 +13,7 @@ for(ii in 1:length(species_codes)) {
   
   spp_lengths <- dplyr::filter(dat_binned, SPECIES_CODE == species_codes[ii]) |>
     dplyr::mutate(MATCHUP = factor(MATCHUP))
-  spp_lengths$dummy_var <- 1
+  # spp_lengths$dummy_var <- 1
   
   # Set GAM knots
   gam_knots <- (length(unique(spp_lengths $SIZE_BIN))-1)-3
@@ -27,22 +27,63 @@ for(ii in 1:length(species_codes)) {
   }
   
   # Run haul level cross-validation on selectivity conditioned on catch-at-length models
-  results <- sratio::sccal_cv(count1 = spp_lengths$FREQ_EXPANDED[spp_lengths$TREATMENT == 30], 
-                              count2 = spp_lengths$FREQ_EXPANDED[spp_lengths$TREATMENT == 15], 
-                              effort1 = spp_lengths$AREA_SWEPT_KM2[spp_lengths$TREATMENT == 30], 
-                              effort2 = spp_lengths$AREA_SWEPT_KM2[spp_lengths$TREATMENT == 15], 
-                              size1 = spp_lengths$SIZE_BIN[spp_lengths$TREATMENT == 30], 
-                              size2 = spp_lengths$SIZE_BIN[spp_lengths$TREATMENT == 15], 
-                              block1 = spp_lengths$MATCHUP[spp_lengths$TREATMENT == 30], 
-                              block2 = spp_lengths$MATCHUP[spp_lengths$TREATMENT == 15],
-                              treatment_name1 = 30,
-                              treatment_name2 = 15,
-                              k = gam_knots, 
-                              n_cores = 4)
+  pois_results <- sratio::sccal_cv(
+    count1 = spp_lengths$FREQUENCY[spp_lengths$TREATMENT == 30], 
+    count2 = spp_lengths$FREQUENCY[spp_lengths$TREATMENT == 15], 
+    effort1 = spp_lengths$AREA_SWEPT_KM2[spp_lengths$TREATMENT == 30], 
+    effort2 = spp_lengths$AREA_SWEPT_KM2[spp_lengths$TREATMENT == 15], 
+    size1 = spp_lengths$SIZE_BIN[spp_lengths$TREATMENT == 30], 
+    size2 = spp_lengths$SIZE_BIN[spp_lengths$TREATMENT == 15], 
+    block1 = spp_lengths$MATCHUP[spp_lengths$TREATMENT == 30], 
+    block2 = spp_lengths$MATCHUP[spp_lengths$TREATMENT == 15],
+    sampling_factor1 = spp_lengths$SAMPLING_FACTOR[spp_lengths$TREATMENT == 30],
+    sampling_factor2 = spp_lengths$SAMPLING_FACTOR[spp_lengths$TREATMENT == 15],
+    treatment_name1 = 30,
+    treatment_name2 = 15,
+    gam_family = poisson(link = "log"),
+    k = gam_knots, 
+    n_cores = 4
+  )
+  
+  nb_results <- sratio::sccal_cv(
+    count1 = spp_lengths$FREQUENCY[spp_lengths$TREATMENT == 30], 
+    count2 = spp_lengths$FREQUENCY[spp_lengths$TREATMENT == 15], 
+    effort1 = spp_lengths$AREA_SWEPT_KM2[spp_lengths$TREATMENT == 30], 
+    effort2 = spp_lengths$AREA_SWEPT_KM2[spp_lengths$TREATMENT == 15], 
+    size1 = spp_lengths$SIZE_BIN[spp_lengths$TREATMENT == 30], 
+    size2 = spp_lengths$SIZE_BIN[spp_lengths$TREATMENT == 15], 
+    block1 = spp_lengths$MATCHUP[spp_lengths$TREATMENT == 30], 
+    block2 = spp_lengths$MATCHUP[spp_lengths$TREATMENT == 15],
+    sampling_factor1 = spp_lengths$SAMPLING_FACTOR[spp_lengths$TREATMENT == 30],
+    sampling_factor2 = spp_lengths$SAMPLING_FACTOR[spp_lengths$TREATMENT == 15],
+    treatment_name1 = 30,
+    treatment_name2 = 15,
+    gam_family = nb(link = "log"),
+    k = gam_knots, 
+    n_cores = 4
+  )
+  
+  tw_results <- sratio::sccal_cv(
+    count1 = spp_lengths$FREQUENCY[spp_lengths$TREATMENT == 30], 
+    count2 = spp_lengths$FREQUENCY[spp_lengths$TREATMENT == 15], 
+    effort1 = spp_lengths$AREA_SWEPT_KM2[spp_lengths$TREATMENT == 30], 
+    effort2 = spp_lengths$AREA_SWEPT_KM2[spp_lengths$TREATMENT == 15], 
+    size1 = spp_lengths$SIZE_BIN[spp_lengths$TREATMENT == 30], 
+    size2 = spp_lengths$SIZE_BIN[spp_lengths$TREATMENT == 15], 
+    block1 = spp_lengths$MATCHUP[spp_lengths$TREATMENT == 30], 
+    block2 = spp_lengths$MATCHUP[spp_lengths$TREATMENT == 15],
+    sampling_factor1 = spp_lengths$SAMPLING_FACTOR[spp_lengths$TREATMENT == 30],
+    sampling_factor2 = spp_lengths$SAMPLING_FACTOR[spp_lengths$TREATMENT == 15],
+    treatment_name1 = 30,
+    treatment_name2 = 15,
+    gam_family = tw(link = "log"),
+    k = gam_knots, 
+    n_cores = 4
+  )
   
   # Rename columns
   results <- results |> 
-    dplyr::rename(FREQ_EXPANDED = count,
+    dplyr::rename(FREQUENCY = count,
                   SIZE_BIN = size,
                   AREA_SWEPT_KM2 = effort,
                   MATCHUP = block,
@@ -50,7 +91,7 @@ for(ii in 1:length(species_codes)) {
   
   rmse_df <- results |>
     tidyr::pivot_longer(cols = c("tw", "nb", "poisson")) |>
-    dplyr::mutate(resid = (value-FREQ_EXPANDED)^2) |>
+    dplyr::mutate(resid = (value-FREQUENCY)^2) |>
     dplyr::group_by(name) |>
     dplyr::summarize(rmse = sqrt(mean(resid, na.rm = TRUE))) |>
     dplyr::mutate(SPECIES_CODE = species_codes[ii],

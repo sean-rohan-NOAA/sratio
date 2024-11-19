@@ -11,6 +11,8 @@ two_stage_bootstrap(
   size2,
   block1,
   block2,
+  add_columns1,
+  add_columns2,
   n_draws,
   seed = NULL,
   treatment_name1 = 1,
@@ -34,9 +36,9 @@ two_stage_bootstrap(
 
 \item{seed}{random number generator seed}
 
-\item{treatment_name1}{Name of the treatment for the first gear as a number or character.}
+\item{treatment_name1}{Name of the treatment for gear #1.}
 
-\item{treatment_name2}{Name of the treatment for the second gear as a number or character.}
+\item{treatment_name2}{Name of the treatment for gear #2.}
 }
 \description{
 Two-stage bootstrap resampling (by block/pair then individual within each pair), where samples are drawn from paired treatments.

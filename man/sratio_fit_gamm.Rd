@@ -7,7 +7,7 @@
 sratio_fit_gamm(
   data,
   k = 10,
-  gam_formula = p ~ s(size, bs = "tp", k = k) + s(block, bs = "re"),
+  gam_formula = formula(p ~ s(size, bs = "tp", k = k) + s(block, bs = "re")),
   gam_family = binomial(link = "logit"),
   obs_weight_control = list(method = "none", max_count = Inf, residual_type = NA,
     normalize_weight = FALSE)

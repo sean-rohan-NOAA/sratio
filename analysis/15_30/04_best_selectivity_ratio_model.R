@@ -43,7 +43,8 @@ beta_obs_weight_methods <-
 
 for(ii in 1:length(sp_code)) {
   
-  spp_lengths <- dplyr::filter(dat_sratio, SPECIES_CODE == sp_code[ii])
+  spp_lengths <- dplyr::filter(dat_sratio, SPECIES_CODE == sp_code[ii]) |>
+    dplyr::filter(!(N_15 == 0 & N_30 == 0))
   
   # Set knots based on number of length bins, but only use 5 knots for red king crab
   gam_knots <- length(unique(spp_lengths$SIZE_BIN))-4

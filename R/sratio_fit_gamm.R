@@ -25,7 +25,7 @@
 sratio_fit_gamm <- function(data,
                             k = 10,
                             gam_formula = 
-                              p ~ s(size, bs = "tp", k = k) + s(block, bs = "re"),
+                              formula(p ~ s(size, bs = "tp", k = k) + s(block, bs = "re")),
                             gam_family = 
                               binomial(link = "logit"), 
                             obs_weight_control = 
