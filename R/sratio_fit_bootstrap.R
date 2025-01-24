@@ -39,6 +39,21 @@ sratio_fit_bootstrap <- function(x,
                                  sratio_type = "absolute",
                                  n_cores = 1) {
   
+  # x = boot_samples
+  # treatment_order = c(1,2)
+  # treatment_col = "treatment"
+  # count_col = "count"
+  # size_col = "size"
+  # block_col = "new_block"
+  # effort_col = "effort"
+  # sampling_factor_col = "sampling_factor"
+  # gam_family = "binomial"
+  # gam_formula = formula(p ~ s(size, bs = "tp", k = 8) + s(block, bs = "re") + offset(log_qratio))
+  # k = 8
+  # obs_weight_control = obs_weight_control
+  # sratio_type = sratio_type
+  # n_cores = 4
+  
   # Make treatment_order a factor and retain the rank order from input
   if(class(treatment_order) != "factor") {
     treatment_order <- factor(treatment_order, levels = treatment_order)
@@ -79,14 +94,14 @@ sratio_fit_bootstrap <- function(x,
       as.data.frame()
     
     effort <- x |>
-      dplyr::mutate(effort_val = paste0("effort_", treatment)) |>
+      dplyr::mutate(effort_val = paste0("effort", treatment)) |>
       dplyr::select(effort_val, effort, block) |>
       unique() |>
       tidyr::pivot_wider(names_from = effort_val, values_from = effort, values_fill = 0) |>
       as.data.frame()
     
     sampling_factor <- x |>
-      dplyr::mutate(sampling_factor_val = paste0("sampling_factor_", treatment)) |>
+      dplyr::mutate(sampling_factor_val = paste0("sampling_factor", treatment)) |>
       dplyr::select(sampling_factor_val, size, sampling_factor, block) |>
       tidyr::pivot_wider(names_from = sampling_factor_val, values_from = sampling_factor, values_fill = 1) |>
       unique() |>
@@ -99,14 +114,18 @@ sratio_fit_bootstrap <- function(x,
       sratio::selectivity_ratio(
         count1 = combined[[paste0("n_", treatment_order[1])]], 
         count2 = combined[[paste0("n_", treatment_order[2])]], 
-        effort1 = combined[[paste0("effort_", treatment_order[1])]], 
-        effort2 = combined[[paste0("effort_", treatment_order[2])]],
-        sampling_factor1 = combined[[paste0("sampling_factor_", treatment_order[1])]],
-        sampling_factor2 = combined[[paste0("sampling_factor_", treatment_order[2])]],
+        effort1 = combined[[paste0("effort", treatment_order[1])]], 
+        effort2 = combined[[paste0("effort", treatment_order[2])]],
+        sampling_factor1 = combined[[paste0("sampling_factor", treatment_order[1])]],
+        sampling_factor2 = combined[[paste0("sampling_factor", treatment_order[2])]],
         sratio_type = sratio_type
       )
     
     combined$total_count <- sr_values$count1 + sr_values$count2
+    
+    combined$qratio <- sr_values$qratio
+    
+    combined$log_qratio <- log(sr_values$qratio)
     
     combined$p <- sr_values$p12
     
@@ -139,11 +158,14 @@ sratio_fit_bootstrap <- function(x,
                                    FUN = function(z) {ceiling(max(z[["size"]]))}))),
                  by = 1)
   
+  log_qratio_values <- unique(unlist(lapply(x, 
+                                            FUN = function(z) {unique(z[["log_qratio"]])})))
+  
   cl <- parallel::makeCluster(n_cores)
   doParallel::registerDoParallel(cl)
 
   bootstrap_output <- foreach::foreach(iter = 1:length(x),
-                                       .packages = c("mgcv", "dplyr")) %dopar% {
+                                       .packages = c("mgcv", "dplyr", "sratio")) %dopar% {
   
     boot_df <- x[[iter]]
     
@@ -172,8 +194,9 @@ sratio_fit_bootstrap <- function(x,
                              obs_weight_control = obs_weight_control)$mod
     
     # Create prediction data.frame. Includes unused block value to avoid an error; doesn't get used with random effects off
-    fit_df <- data.frame(size = size_values,
-                         block = -999) 
+    fit_df <- expand.grid(size = size_values,
+                          log_qratio = log_qratio_values,
+                          block = -999) 
     
     # Calculate selectivity ratio
     fit_df$p12 <- predict(model, 

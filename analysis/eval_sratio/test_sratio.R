@@ -44,7 +44,8 @@ sim_settings$scenario <- 1:nrow(sim_settings)
 bootstrap_results <- vector(mode = "list", 
                             length = nrow(sim_settings))
 
-dir.create(here::here("analysis", "eval_sratio", "output", "bootstrap_samples_fits"))
+dir.create(here::here("analysis", "eval_sratio", "output", "bootstrap_samples_fits"),
+           showWarnings = FALSE)
 
 
 start_time <- Sys.time()
@@ -114,7 +115,7 @@ for(ii in 1:nrow(sim_settings)) {
   )
   
   # Catchability ratio adjustment
-  s2 <- s2 /sim_settings$q_ratio[ii]
+  s2 <- s2 / sim_settings$q_ratio[ii]
   
   # Set maximum selectivity
   s2[s2 > max_s] <- max_s
@@ -194,6 +195,8 @@ for(ii in 1:nrow(sim_settings)) {
   # Fill total count (used for weighting methods)
   samples$total_count <- samples$count1 + samples$count2
   
+  samples <- dplyr::filter(samples, !is.na(p12))
+  
   size_selectivity_density <- 
     dplyr::inner_join(
       size_selectivity_density,
@@ -243,7 +246,7 @@ for(ii in 1:nrow(sim_settings)) {
       effort_col = "effort",
       sampling_factor_col = "sampling_factor",
       gam_family = "binomial",
-      gam_formula = p ~ s(size, bs = "tp", k = 8) + s(block, bs = "re"),
+      gam_formula = p ~ s(size, bs = "tp", k = 8) + s(block, bs = "re") + offset(log_qratio),
       k = 8,
       obs_weight_control = obs_weight_control,
       sratio_type = sratio_type,
@@ -266,11 +269,6 @@ for(ii in 1:nrow(sim_settings)) {
   bootstrap_quantiles <- boot_fit |>
     dplyr::group_by(size) |>
     dplyr::summarise(
-      # p_q025 = quantile(p12, 0.025),
-      # p_q250 = quantile(p12, 0.25),
-      # p_q500 = quantile(p12, 0.5),
-      # p_q750 = quantile(p12, 0.75),
-      # p_q975 = quantile(p12, 0.975),
       sratio_q025 = quantile(s12, 0.025),
       sratio_q250 = quantile(s12, 0.25),
       sratio_q500 = quantile(s12, 0.5),
@@ -333,7 +331,7 @@ ex_scenario <- bootstrap_df |>
   dplyr::filter(s_pattern1 == s_pattern2, 
                 effort1 > effort2, 
                 q_ratio == 1) |>
-  dplyr::filter(density == 6, n_pairs == 50, weighting_method == "count")
+  dplyr::filter(density == 10, n_pairs == 50, weighting_method == "residuals_by_count")
 
 
 
@@ -352,7 +350,7 @@ ggplot() +
   geom_path(data = ex_scenario,
             mapping = aes(x = size, y = s12, color = "Actual"), 
             linewidth = 1.15) +
-  ggtitle("Density = 10, N_hauls = 50") +
+  ggtitle("Density = 10, N_hauls = 50, Weighting method = 'Residual by count (inverse variance)'") +
   scale_linetype_manual(values = c("Median" = 1, "50% CI" = 3)) +
   scale_fill_manual(values = c("95% CI" = "grey50")) +
   scale_color_manual(values = c("50% CI" = "black", "Median" = "black", "Actual" = "red")) +

@@ -37,13 +37,14 @@ for(jj in 1:length(sp_code)) {
   
   # Rename output columns and join with effort
   for(ii in 1:length(boot_samples)) {
-    names(boot_samples[[ii]]) <- c("MATCHUP", "TREATMENT", "SIZE_BIN", "FREQUENCY")
+    names(boot_samples[[ii]]) <- c("TREATMENT", "SIZE_BIN", "FREQUENCY", "MATCHUP", "NEW_MATCHUP")
     
     boot_samples[[ii]] <- boot_samples[[ii]] |>
       dplyr::inner_join(sel_dat[c("MATCHUP", "TREATMENT", "SIZE_BIN", "SAMPLING_FACTOR", "AREA_SWEPT_KM2", "HAULJOIN")] |>
                           unique(),
                         by = c('MATCHUP', 'TREATMENT', 'SIZE_BIN')
       ) |>
+      dplyr::rename(ORIGNAL_MATCHUP = MATCHUP, MATCHUP = NEW_MATCHUP) |>
       as.data.frame()
 
   }

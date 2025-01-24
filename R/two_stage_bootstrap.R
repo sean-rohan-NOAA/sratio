@@ -27,6 +27,17 @@ two_stage_bootstrap <- function(count1,
                                 treatment_name1 = 1,
                                 treatment_name2 = 2) {
   
+  # count1 = sel_dat$FREQUENCY[sel_dat$TREATMENT == treatments[1]]
+  # count2 = sel_dat$FREQUENCY[sel_dat$TREATMENT == treatments[2]]
+  # size1 = sel_dat$SIZE_BIN[sel_dat$TREATMENT == treatments[1]]
+  # size2 = sel_dat$SIZE_BIN[sel_dat$TREATMENT == treatments[2]]
+  # block1 = sel_dat$MATCHUP[sel_dat$TREATMENT == treatments[1]]
+  # block2 = sel_dat$MATCHUP[sel_dat$TREATMENT == treatments[2]]
+  # n_draws = 1000
+  # seed = seed
+  # treatment_name1 = treatments[1]
+  # treatment_name2 = treatments[2]
+  
   boot_samples <- vector(mode = "list", length = n_draws)
   
   unique_blocks <- unique(c(block1, block2))
@@ -70,25 +81,36 @@ two_stage_bootstrap <- function(count1,
       trt1_index <- trt1$block == set_block
       trt2_index <- trt2$block == set_block
       
+      if(length(trt1$count[trt1_index]) == 1) {
+        samp1 <- rep(trt1$size[trt1_index], trt1$count[trt1_index])
+      } else {
+        samp1 <- sample(
+          x = trt1$size[trt1_index], 
+          size = sum(trt1$count[trt1_index]),
+          replace = TRUE,
+          prob = trt1$count[trt1_index]
+        )
+      }
+      
+      if(length(trt2$count[trt2_index]) == 1) {
+        samp2 <- rep(trt2$size[trt2_index], trt2$count[trt2_index])
+      } else {
+        samp2 <- sample(
+          x = trt2$size[trt2_index], 
+          size = sum(trt2$count[trt2_index]),
+          replace = TRUE,
+          prob = trt2$count[trt2_index]
+        )
+      }
+
       block_sample <- rbind(
-        data.frame(size = 
-                     sample(
-                       x = trt1$size[trt1_index], 
-                       size = sum(trt1$count[trt1_index]),
-                       replace = TRUE,
-                       prob = trt1$count[trt1_index]
-                     ),
+        data.frame(size = samp1,
                    treatment = treatment_name1),
-        data.frame(size = 
-                     sample(x = trt2$size[trt2_index], 
-                            size = sum(trt2$count[trt2_index]),
-                            replace = TRUE,
-                            prob = trt2$count[trt2_index]
-                     ),
+        data.frame(size = samp2,
                    treatment = treatment_name2)
       ) |>
         dplyr::group_by(treatment, size) |>
-        dplyr::summarise(count = n(), .groups = "keep") |>
+        dplyr::summarise(count = dplyr::n(), .groups = "keep") |>
         as.data.frame()
       
       block_sample$original_block <- set_block
