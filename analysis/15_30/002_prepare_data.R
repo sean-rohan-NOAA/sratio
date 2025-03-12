@@ -30,7 +30,7 @@ dat <- dplyr::inner_join(
   dplyr::summarise(FREQUENCY = sum(FREQUENCY),
                    .groups = "keep") |>
   dplyr::mutate(CPUE_N_KM2 = FREQUENCY/AREA_SWEPT_KM2) |>
-  dplyr::group_by(SPECIES_CODE, TREATMENT, SIZE) |>
+  dplyr::group_by(SPECIES_CODE, TREATMENT, SIZE, CRUISE) |>
   dplyr::summarise(FREQUENCY = sum(FREQUENCY),
                    CPUE = sum(CPUE_N_KM2))
 
@@ -86,7 +86,7 @@ sel_dat <- dplyr::filter(dat, SPECIES_CODE == 21720) |>
                 FREQUENCY_30 = round(FREQUENCY_30)) |>
   dplyr::mutate(TOTAL_FREQUENCY = FREQUENCY_15 + FREQUENCY_30)
 
-test <- mgcv::gam(FREQUENCY_15/TOTAL_FREQUENCY ~ s(SIZE, bs = "tp"), 
+test <- mgcv::gam(FREQUENCY_15/TOTAL_FREQUENCY ~ s(SIZE, bs = "tp", by = YEAR), 
           weights = TOTAL_FREQUENCY, 
           family = binomial(link = "logit"), 
           data = sel_dat)
@@ -103,7 +103,7 @@ ggplot() +
 
 sel_dat <- dplyr::filter(dat, SPECIES_CODE == 21720) |>
   dplyr::select(-FREQUENCY) |>
-  tidyr::pivot_wider(id_cols = c("SPECIES_CODE", "SIZE"),
+  tidyr::pivot_wider(id_cols = c("SPECIES_CODE", "SIZE", "CRUISE"),
                      values_from = "CPUE", 
                      values_fill = 0,
                      names_from = "TREATMENT",
@@ -112,12 +112,14 @@ sel_dat <- dplyr::filter(dat, SPECIES_CODE == 21720) |>
                 CPUE_30 = round(CPUE_30)) |>
   dplyr::mutate(TOTAL_CPUE = CPUE_15 + CPUE_30)
 
-test <- mgcv::gam(CPUE_15/TOTAL_CPUE ~ s(SIZE, bs = "tp"), 
+test <- mgcv::gam(CPUE_15/TOTAL_CPUE ~ s(SIZE, bs = "tp", by = factor(CRUISE)), 
                   weights = TOTAL_CPUE, 
                   family = binomial(link = "logit"), 
-                  data = sel_dat)
+                  data = dplyr::filter(sel_dat, CRUISE %in% c(199501, 199801, 202101, 202201, 202401)))
 
 plot(test)
+
+gam.check(test)
 
 fit_df <- data.frame(SIZE = min(sel_dat$SIZE):max(sel_dat$SIZE))
 fit_df$fit <- predict(test, newdata = fit_df, type = "response")
