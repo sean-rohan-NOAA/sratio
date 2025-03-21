@@ -20,23 +20,10 @@ two_stage_bootstrap <- function(count1,
                                 size2,
                                 block1,
                                 block2,
-                                add_columns1,
-                                add_columns2,
                                 n_draws,
                                 seed = NULL,
                                 treatment_name1 = 1,
                                 treatment_name2 = 2) {
-  
-  # count1 = sel_dat$FREQUENCY[sel_dat$TREATMENT == treatments[1]]
-  # count2 = sel_dat$FREQUENCY[sel_dat$TREATMENT == treatments[2]]
-  # size1 = sel_dat$SIZE_BIN[sel_dat$TREATMENT == treatments[1]]
-  # size2 = sel_dat$SIZE_BIN[sel_dat$TREATMENT == treatments[2]]
-  # block1 = sel_dat$MATCHUP[sel_dat$TREATMENT == treatments[1]]
-  # block2 = sel_dat$MATCHUP[sel_dat$TREATMENT == treatments[2]]
-  # n_draws = 1000
-  # seed = seed
-  # treatment_name1 = treatments[1]
-  # treatment_name2 = treatments[2]
   
   boot_samples <- vector(mode = "list", length = n_draws)
   

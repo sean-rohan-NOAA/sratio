@@ -11,8 +11,6 @@ two_stage_bootstrap(
   size2,
   block1,
   block2,
-  add_columns1,
-  add_columns2,
   n_draws,
   seed = NULL,
   treatment_name1 = 1,

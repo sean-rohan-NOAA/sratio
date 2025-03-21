@@ -204,7 +204,7 @@ for(ii in 1:length(sp_code)) {
     
 }
 
-save(sratio_samples, file = here::here("data", "sratio_samples_1530.rda"))
+save(sratio_samples, file = here::here("analysis", "15_30", "data", "sratio_samples_1530.rda"))
 
 saveRDS(object = pratio_samples, 
         file = here::here("analysis", "15_30", "output", "pratio_samples.rds"))

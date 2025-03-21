@@ -25,6 +25,10 @@ sccal_cv(
 )
 }
 \arguments{
+\item{gam_family}{Valid family for `mgcv::gam()`}
+
+\item{gam_formula}{Valid formula for `mgcv::gam()`}
+
 \item{size1}{Numeric vector of sizes or ages for gear #1}
 
 \item{size2}{Numeric vector of sizes or ages for gear #2}

@@ -2,6 +2,8 @@
 #' 
 #' Block-level cross validation for selectivity condition on catch-at-length Poisson, negative binomial, and Tweedie generalized additive models.
 #' 
+#' @param gam_family Valid family for `mgcv::gam()`
+#' @param gam_formula Valid formula for `mgcv::gam()`
 #' @param size1  Numeric vector of sizes or ages for gear #1
 #' @param size2  Numeric vector of sizes or ages for gear #2
 #' @param count1 Numeric vector of catch-at-size/age for gear #1
