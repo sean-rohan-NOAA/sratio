@@ -1,3 +1,12 @@
+sratio 2025.03.21 (March 21, 2024)
+----------------------------------------------------------------
+
+NEW FUNCTIONALITY
+
+- New make_gapindex() function that runs gapindex functions on 
+  the output of gapindex::get_data() to produce select outputs.
+
+
 sratio 2024.11.12 (November 12, 2024)
 ----------------------------------------------------------------
 
