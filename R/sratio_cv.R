@@ -139,7 +139,8 @@ sratio_cv <- function(model_type = "binomial",
     # Fit without random effect of block
     validation_df$p_fit <- predict(mod$mod, 
                                    newdata = validation_df, 
-                                   type = "response", 
+                                   type = "terms",
+                                   terms = "s(size)",
                                    exclude = "s(block)")
     validation_df$s_fit <- validation_df$p_fit/(1-validation_df$p_fit)
     

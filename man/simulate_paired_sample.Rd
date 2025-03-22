@@ -69,11 +69,11 @@ effort1 = 0.5
 effort2 = 1
 
 # Options for the selectivity function ----
-selectivity_opts1 = list(type = "asymptotic",
+selectivity_opts1 = list(type = "logistic",
                          begin_top = 35,
                          ln_sd1 = 10)
 
-selectivity_opts2 = list(type = "asymptotic",
+selectivity_opts2 = list(type = "logistic",
                          begin_top = 35,
                          ln_sd1 = 10)
 

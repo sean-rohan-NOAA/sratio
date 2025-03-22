@@ -79,6 +79,7 @@ selectivity_ratio <- function(size = NULL,
                        effort2 = effort2,
                        r1 = r1, 
                        r2 = r2, 
+                       qratio = (effort1*sampling_factor2) / (effort2*sampling_factor1),
                        p12 = p12, 
                        s12 = s12)
     

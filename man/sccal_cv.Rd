@@ -5,14 +5,19 @@
 \title{Selectivity conditioned on catch-at-length (SCCAL) cross validation}
 \usage{
 sccal_cv(
-  count1,
-  count2,
-  effort1,
-  effort2,
+  gam_family = poisson(link = "log"),
+  gam_formula = formula(count ~ s(size, k = k, bs = "tp", by = treatment) + s(block, bs =
+    "re") + offset(I(log(effort)))),
   size1,
   size2,
+  count1,
+  count2,
+  effort1 = 1,
+  effort2 = 1,
   block1,
   block2,
+  sampling_factor1 = 1,
+  sampling_factor2 = 1,
   treatment_name1,
   treatment_name2,
   k = NULL,
@@ -20,6 +25,14 @@ sccal_cv(
 )
 }
 \arguments{
+\item{gam_family}{Valid family for `mgcv::gam()`}
+
+\item{gam_formula}{Valid formula for `mgcv::gam()`}
+
+\item{size1}{Numeric vector of sizes or ages for gear #1}
+
+\item{size2}{Numeric vector of sizes or ages for gear #2}
+
 \item{count1}{Numeric vector of catch-at-size/age for gear #1}
 
 \item{count2}{Numeric vector of catch-at-size/age for gear #2}
@@ -28,13 +41,13 @@ sccal_cv(
 
 \item{effort2}{Numeric vector of effort for for gear #2}
 
-\item{size1}{Numeric vector of sizes or ages for gear #1}
-
-\item{size2}{Numeric vector of sizes or ages for gear #2}
-
 \item{block1}{Sample block (i.e. paired sample) for gear #1}
 
 \item{block2}{Sample block (i.e. paired sample) for gear #2}
+
+\item{sampling_factor1}{Numeric vector of sampling factors for count from gear #1 (i.e., the inverse of the proportion of the catch that was sampled).}
+
+\item{sampling_factor2}{Numeric vector of sampling factors for count from gear #2 (i.e., the inverse of the proportion of the catch that was sampled).}
 
 \item{treatment_name1}{1L vector for the name of the first treatment}
 
