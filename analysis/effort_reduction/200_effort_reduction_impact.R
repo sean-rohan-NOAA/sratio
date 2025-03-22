@@ -160,7 +160,8 @@ reduced_pct_change <-
   dplyr::mutate(
     PCT_CV = (CV-FULL_CV)/FULL_CV*100,
     DIFF_CV = CV-FULL_CV,
-    PCT_BIOMASS_MT = (BIOMASS_MT-FULL_BIOMASS_MT)/FULL_BIOMASS_MT*100
+    PCT_BIOMASS_MT = (BIOMASS_MT-FULL_BIOMASS_MT)/FULL_BIOMASS_MT*100,
+    ABS_PCT_BIOMASS_MT = (BIOMASS_MT-FULL_BIOMASS_MT)/FULL_BIOMASS_MT*100
   ) |>
   dplyr::filter(AREA_ID %in% c(99900, 99901))
 
@@ -171,6 +172,7 @@ reduced_pct_change_year <-
   dplyr::summarise(
     MEAN_PCT_CV = mean(PCT_CV, na.rm = TRUE),
     MEAN_DIFF_CV = mean(DIFF_CV, na.rm = TRUE),
+    MEAN_ABS_PCT_BIOMASS_MT = mean(abs(PCT_BIOMASS_MT), na.rm = TRUE),
     MEAN_PCT_BIOMASS_MT = mean(PCT_BIOMASS_MT, na.rm = TRUE)
   )
 
@@ -180,6 +182,7 @@ reduced_pct_change_overall <-
   dplyr::summarise(
     MEAN_PCT_CV = mean(PCT_CV, na.rm = TRUE),
     MEAN_DIFF_CV = mean(DIFF_CV, na.rm = TRUE),
+    MEAN_ABS_PCT_BIOMASS_MT = mean(abs(PCT_BIOMASS_MT), na.rm = TRUE),
     MEAN_PCT_BIOMASS_MT = mean(PCT_BIOMASS_MT, na.rm = TRUE)
   )
 
@@ -203,7 +206,7 @@ for(kk in 1:length(loop_area_id)) {
         y = BIOMASS_MT, 
         color = paste0("Drop ", proportion_15*100, "%"), 
         group = factor(iter)),
-      alpha = 0.5) +
+      alpha = 0.3) +
     geom_line(data = 
                 dplyr::filter(
                   ebs_observed$biomass_subarea, 
@@ -213,7 +216,7 @@ for(kk in 1:length(loop_area_id)) {
                   x = YEAR, 
                   y = BIOMASS_MT, 
                   color = "Observed"),
-              linewidth = 1.05
+              linewidth = 1.02
     ) +
     scale_color_manual(values = c("grey50", "red")) +
     scale_x_continuous(name = "Year") +
@@ -243,7 +246,7 @@ for(kk in 1:length(loop_area_id)) {
         y = CV, 
         color = paste0("Drop ", proportion_15*100, "%"), 
         group = factor(iter)),
-      alpha = 0.5) +
+      alpha = 0.3) +
     geom_line(data = 
                 dplyr::filter(
                   ebs_observed$biomass_subarea, 
@@ -253,7 +256,7 @@ for(kk in 1:length(loop_area_id)) {
                   x = YEAR, 
                   y = CV, 
                   color = "Observed"),
-              linewidth = 1.05
+              linewidth = 1.02
     ) +
     scale_color_manual(values = c("grey50", "red")) +
     scale_x_continuous(name = "Year") +
@@ -261,7 +264,7 @@ for(kk in 1:length(loop_area_id)) {
     ggtitle(label = loop_area_names[kk]) +
     theme_light() +
     theme(legend.title = element_blank()) +
-    facet_wrap(~SPECIES_CODE, scales = "free")
+    facet_wrap(~SPECIES_CODE)
   
   png(filename = 
         here::here("analysis", "effort_reduction", "plots", sub_dir, paste0("p_", loop_area_id[kk], "_cv_ts.png")),
@@ -273,15 +276,30 @@ for(kk in 1:length(loop_area_id)) {
   dev.off()
   
   # Plot: Biomass percent change timeseries ----
-  
   p_biomass_pct <-
     ggplot() +
+    geom_jitter(
+      data =
+        dplyr::filter(
+          reduced_pct_change,
+          AREA_ID == loop_area_id[kk]
+        ),
+      mapping = aes(x = YEAR, y = PCT_BIOMASS_MT),
+      size = rel(0.2),
+      color = "grey50",
+      alpha = 0.3, 
+      width = 0.25,
+      height = 0) +
     geom_line(data = 
                 dplyr::filter(
                   reduced_pct_change_year,
                   AREA_ID == loop_area_id[kk]
                 ),
-              mapping = aes(x = YEAR, y = MEAN_PCT_BIOMASS_MT)) +
+              mapping = aes(
+                x = YEAR, 
+                y = MEAN_PCT_BIOMASS_MT),
+              size = 1.05
+              ) +
     geom_hline(data = 
                  dplyr::filter(
                    reduced_pct_change_overall,
@@ -291,11 +309,11 @@ for(kk in 1:length(loop_area_id)) {
                  aes(yintercept = MEAN_PCT_BIOMASS_MT),
                linetype = 2) +
     scale_x_continuous(name = "Year") +
-    scale_y_continuous(name = "Mean biomass change (%)") +
+    scale_y_continuous(name = "Biomass difference (%)") +
     ggtitle(label = loop_area_names[kk]) +
     theme_light() +
     theme(legend.title = element_blank()) +
-    facet_wrap(~SPECIES_CODE, scales = "free")
+    facet_wrap(~SPECIES_CODE)
   
   png(filename = 
         here::here("analysis", "effort_reduction", "plots", sub_dir, paste0("p_", loop_area_id[kk], "_biomass_pct_ts.png")),
@@ -306,10 +324,65 @@ for(kk in 1:length(loop_area_id)) {
   print(p_biomass_pct)
   dev.off()
   
+  # Plot: Biomass absolute percent change timeseries ----
+  p_biomass_abs_pct <-
+    ggplot() +
+    geom_jitter(
+      data =
+        dplyr::filter(
+          reduced_pct_change,
+          AREA_ID == loop_area_id[kk]
+        ),
+      mapping = aes(x = YEAR, y = ABS_PCT_BIOMASS_MT),
+      size = rel(0.3),
+      color = "grey50",
+      alpha = 0.2, 
+      width = 0.25,
+      height = 0) +
+    geom_line(data = 
+                dplyr::filter(
+                  reduced_pct_change_year,
+                  AREA_ID == loop_area_id[kk]
+                ),
+              mapping = aes(x = YEAR, y = MEAN_ABS_PCT_BIOMASS_MT)) +
+    geom_hline(data = 
+                 dplyr::filter(
+                   reduced_pct_change_overall,
+                   AREA_ID == loop_area_id[kk]
+                 ),
+               mapping = 
+                 aes(yintercept = MEAN_ABS_PCT_BIOMASS_MT),
+               linetype = 2) +
+    scale_x_continuous(name = "Year") +
+    scale_y_continuous(name = "Mean biomass change (%)", limits = c(0, NA)) +
+    ggtitle(label = loop_area_names[kk]) +
+    theme_light() +
+    theme(legend.title = element_blank()) +
+    facet_wrap(~SPECIES_CODE)
+  
+  png(filename = 
+        here::here("analysis", "effort_reduction", "plots", sub_dir, paste0("p_", loop_area_id[kk], "_biomass_abs_pct_ts.png")),
+      width = 8, 
+      height = 6, 
+      units = "in", 
+      res = 300)
+  print(p_biomass_abs_pct)
+  dev.off()
+  
   # Plot: CV change ----
   
   p_cv_change <- 
     ggplot() +
+    geom_jitter(
+      data =
+        dplyr::filter(
+          reduced_pct_change,
+          AREA_ID == loop_area_id[kk]
+        ),
+      mapping = aes(x = YEAR, y = DIFF_CV),
+      size = rel(0.2),
+      color = "grey50",
+      alpha = 0.5) +
     geom_line(
       data = 
         dplyr::filter(
@@ -330,11 +403,11 @@ for(kk in 1:length(loop_area_id)) {
         aes(yintercept = MEAN_DIFF_CV),
       linetype = 2) +
     scale_x_continuous(name = "Year") +
-    scale_y_continuous(name = "Mean CV change", limits = c(0, NA)) +
+    scale_y_continuous(name = expression('Mean '*CV[reduced]-CV[full])) +
     ggtitle(label = loop_area_names[kk]) +
     theme_light() +
     theme(legend.title = element_blank()) +
-    facet_wrap(~SPECIES_CODE, scales = "free")
+    facet_wrap(~SPECIES_CODE)
   
   png(filename = 
         here::here("analysis", "effort_reduction", "plots", sub_dir, paste0("p_", loop_area_id[kk], "_cv_diff.png")),
