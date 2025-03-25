@@ -15,7 +15,7 @@ library(crabpack) # 1.0.0
 
 # Control pars
 prop_drop <- 0.25
-n_iter <- 5
+n_iter <- 100
 seed <- 1337
 survey_set <- "EBS" # EBS or NBS
 survey_years <- if(survey_set == "EBS") {1987:2024} else {2010:2024}
@@ -139,15 +139,6 @@ for(ii in 1:n_iter) {
   
 }
 
-# Combine outputs into a data frame
-reduced_sampling_results <- do.call(rbind, biomass_subarea_results)
-
-# Calculate CVs
-reduced_sampling_results$CV <- sqrt(reduced_sampling_results$BIOMASS_VAR)/reduced_sampling_results$BIOMASS_MT
-end_time <- Sys.time()
-
-difftime(end_time, start_time)
-
 # }
 # Save groundfish outputs
 saveRDS(
@@ -186,7 +177,17 @@ saveRDS(
   compress = "xz"
 )
 
+end_time <- Sys.time()
+
+difftime(end_time, start_time)
+
 # Calculate summary statistics -----
+
+# Combine outputs into a data frame
+reduced_sampling_results <- do.call(rbind, biomass_subarea_results)
+
+# Calculate CVs
+reduced_sampling_results$CV <- sqrt(reduced_sampling_results$BIOMASS_VAR)/reduced_sampling_results$BIOMASS_MT
 
 reduced_pct_change <- 
   reduced_sampling_results |>
