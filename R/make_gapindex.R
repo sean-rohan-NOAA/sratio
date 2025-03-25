@@ -47,7 +47,7 @@ make_gapindex <- function(gapdata) {
       biomass_stratum = biomass_stratum
     )
   
-  alk <- calc_alk(gapdata = gapdata)
+  if(!is.null(gapdata[['size']])) {
   
   sizecomp_stratum <- 
     calc_sizecomp_stratum(
@@ -61,19 +61,32 @@ make_gapindex <- function(gapdata) {
       gapdata = gapdata,
       sizecomp_stratum = sizecomp_stratum
     )
+    
+    alk <- calc_alk(gapdata = gapdata)
+    
+    agecomp_stratum <-
+      calc_agecomp_stratum(
+        gapdata = gapdata,
+        alk = alk,
+        sizecomp_stratum = sizecomp_stratum
+      )
+    
+    agecomp_region <-
+      calc_agecomp_region(
+        gapdata = gapdata,
+        agecomp_stratum = agecomp_stratum
+      )
+    
+  } else {
+    
+    sizecomp_stratum <- NULL
+    sizecomp_subarea <- NULL
+    alk <- NULL
+    agecomp_stratum <- NULL
+    agecomp_region <- NULL
+    
+  }
   
-  agecomp_stratum <-
-    calc_agecomp_stratum(
-      gapdata = gapdata,
-      alk = alk,
-      sizecomp_stratum = sizecomp_stratum
-    )
-  
-  agecomp_region <-
-    calc_agecomp_region(
-      gapdata = gapdata,
-      agecomp_stratum = agecomp_stratum
-    )
   
   return(
     list(
