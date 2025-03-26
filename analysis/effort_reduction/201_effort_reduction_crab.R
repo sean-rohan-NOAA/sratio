@@ -77,9 +77,34 @@ for(ii in 1:nrow(crab_species_surveys)) {
 }
 
 crab_biomass_results <- do.call(rbind, crab_simulated_biomass)
+crab_observed_results <- do.call(rbind, crab_observed_biomass)
 
 saveRDS(
   object = crab_biomass_results, 
-  file = here::here("analysis", "effort_reduction", "output", sub_dir, paste0(survey_set, "_crab_biomass_district.rds")),
+  file = here::here("analysis", 
+                    "effort_reduction", 
+                    "output", 
+                    sub_dir, 
+                    paste0(
+                      paste(
+                        unique(crab_species_surveys$region), 
+                        collapse = "_"), 
+                      "_crab_biomass_district.rds")
+  ),
+  compress = "xz"
+)
+
+saveRDS(
+  object = crab_observed_results, 
+  file = here::here("analysis", 
+                    "effort_reduction", 
+                    "output", 
+                    sub_dir, 
+                    paste0(
+                      paste(
+                        unique(crab_species_surveys$region), 
+                        collapse = "_"
+                      ), "_crab_biomass_observed.rds")
+  ),
   compress = "xz"
 )
