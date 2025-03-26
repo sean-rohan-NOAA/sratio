@@ -23,6 +23,8 @@ crab_simulated_biomass <- vector(mode = "list", length = nrow(crab_species_surve
 
 for(ii in 1:nrow(crab_species_surveys)) {
   
+  cat(paste0(ii, " ", crab_species_surveys$species[ii], " ", crab_species_surveys$region[ii]," ", Sys.time(), "\n"))
+  
   # Load a list where each object in the list contains stations to drop
   station_draws <- readRDS(
     file = here::here("analysis", "effort_reduction", "output", 
@@ -70,6 +72,14 @@ for(ii in 1:nrow(crab_species_surveys)) {
       dplyr::mutate(iter = jj)
   }
   
-  crab_simulated_biomass <- simulated_reduced
+  crab_simulated_biomass[[ii]] <- do.call(rbind, simulated_reduced)
   
 }
+
+crab_biomass_results <- do.call(rbind, crab_simulated_biomass)
+
+saveRDS(
+  object = crab_biomass_results, 
+  file = here::here("analysis", "effort_reduction", "output", sub_dir, paste0(survey_set, "_crab_biomass_district.rds")),
+  compress = "xz"
+)

@@ -17,7 +17,7 @@ library(crabpack) # 1.0.0
 prop_drop <- 0.25
 n_iter <- 100
 seed <- 1337
-survey_set <- "EBS" # EBS or NBS
+survey_set <- "NBS" # EBS or NBS
 survey_years <- if(survey_set == "EBS") {1987:2024} else {2010:2024}
 survey_definition_id <- ifelse(survey_set == "EBS", 98, 143)
 
@@ -58,11 +58,6 @@ effred_remove_stations <-
 # Connect 
 channel <- gapindex::get_connected()
 
-# Assign stations to subareas ----
-region_layers <- akgfmaps::get_base_layers(select.region = tolower(survey_set))
-
-# for(jj in 1:nrow(akfin_species)) {
-
 # Calculate baseline data products ----
 dat <- 
   gapindex::get_data(
@@ -75,17 +70,34 @@ dat <-
 
 observed <- make_gapindex(gapdata = dat)
 
-station_subareas <- 
-  sf::st_centroid(region_layers$survey.grid) |>
-  sf::st_intersection(region_layers$survey.strata) |>
-  sf::st_drop_geometry() |>
-  dplyr::select(STATION, STRATUM) |>
-  dplyr::inner_join(
-    dplyr::filter(
-      dat$stratum_groups, 
-      AREA_ID %in% 1:9,
-      DESIGN_YEAR == max(dat$stratum_groups$DESIGN_YEAR)), 
-    by = "STRATUM")
+# Identify subareas (EBS) or strata (NBS) for each station ----
+region_layers <- akgfmaps::get_base_layers(select.region = tolower(survey_set))
+
+if(survey_set == "EBS") {
+  
+  station_subareas <- 
+    sf::st_centroid(region_layers$survey.grid) |>
+    sf::st_intersection(region_layers$survey.strata) |>
+    sf::st_drop_geometry() |>
+    dplyr::select(STATION, STRATUM) |>
+    dplyr::inner_join(
+      dplyr::filter(
+        dat$stratum_groups, 
+        AREA_ID %in% 1:9,
+        DESIGN_YEAR == max(dat$stratum_groups$DESIGN_YEAR)), 
+      by = "STRATUM")
+  
+} 
+
+if(survey_set == "NBS") {
+  
+  station_subareas <- 
+    sf::st_centroid(region_layers$survey.grid) |>
+    sf::st_intersection(region_layers$survey.strata) |>
+    sf::st_drop_geometry() |>
+    dplyr::select(STATION, AREA_ID = STRATUM)
+  
+}
 
 observed$biomass_subarea$CV <- sqrt(observed$biomass_subarea$BIOMASS_VAR)/observed$biomass_subarea$BIOMASS_MT
 
@@ -103,7 +115,7 @@ set.seed(seed)
 
 for(ii in 1:n_iter) {
   
-  print(ii)
+  cat(paste0(ii, " ", Sys.time(), "\n"))
   
   # Draw stations
   station_draws[[ii]] <- 
@@ -139,7 +151,6 @@ for(ii in 1:n_iter) {
   
 }
 
-# }
 # Save groundfish outputs
 saveRDS(
   object = observed, 
@@ -192,7 +203,7 @@ reduced_sampling_results$CV <- sqrt(reduced_sampling_results$BIOMASS_VAR)/reduce
 reduced_pct_change <- 
   reduced_sampling_results |>
   dplyr::inner_join(
-    ebs_observed$biomass_subarea |>
+    observed$biomass_subarea |>
       dplyr::select(SPECIES_CODE, 
                     AREA_ID,
                     YEAR,
@@ -253,7 +264,7 @@ for(kk in 1:length(loop_area_id)) {
       alpha = 0.3) +
     geom_line(data = 
                 dplyr::filter(
-                  ebs_observed$biomass_subarea, 
+                  observed$biomass_subarea, 
                   AREA_ID == loop_area_id[kk]),
               mapping = 
                 aes(
@@ -294,7 +305,7 @@ for(kk in 1:length(loop_area_id)) {
       alpha = 0.3) +
     geom_line(data = 
                 dplyr::filter(
-                  ebs_observed$biomass_subarea, 
+                  observed$biomass_subarea, 
                   AREA_ID == loop_area_id[kk]),
               mapping = 
                 aes(
