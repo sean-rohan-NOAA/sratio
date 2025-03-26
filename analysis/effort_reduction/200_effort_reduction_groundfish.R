@@ -17,7 +17,7 @@ library(crabpack) # 1.0.0
 prop_drop <- 0.25
 n_iter <- 100
 seed <- 1337
-survey_set <- "NBS" # EBS or NBS
+survey_set <- "EBS" # EBS or NBS
 survey_years <- if(survey_set == "EBS") {1987:2024} else {2010:2024}
 survey_definition_id <- ifelse(survey_set == "EBS", 98, 143)
 
@@ -194,6 +194,20 @@ difftime(end_time, start_time)
 
 # Calculate summary statistics -----
 
+biomass_subarea_results <- 
+  readRDS(
+  here::here("analysis", "effort_reduction", "output", sub_dir, 
+             paste0(survey_set, "_fish_biomass_stratum.rds")
+             )
+  )
+
+observed <- 
+  readRDS(
+    here::here("analysis", "effort_reduction", "output", sub_dir, 
+               paste0(survey_set, "_fish_observed.rds")
+    )
+  )
+  
 # Combine outputs into a data frame
 reduced_sampling_results <- do.call(rbind, biomass_subarea_results)
 
