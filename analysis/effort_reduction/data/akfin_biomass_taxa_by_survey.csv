@@ -1,8 +1,8 @@
 SPECIES_CODE,SURVEY_DEFINITION_ID,COMMON_NAME,SPECIES_NAME,PLOT
 420,98,big skate,Beringraja binoculata,FALSE
 435,98,Bering skate,Bathyraja interrupta,FALSE
-471,98,Alaska skate,Arctoraja parmifera,TRUE
-471,143,Alaska skate,Arctoraja parmifera,TRUE
+471,98,Alaska skate,Arctoraja parmifera,FALSE
+471,143,Alaska skate,Arctoraja parmifera,FALSE
 472,98,Aleutian skate,Bathyraja aleutica,FALSE
 10110,98,arrowtooth flounder,Atheresthes stomias,TRUE
 10110,143,arrowtooth flounder,Atheresthes stomias,TRUE
