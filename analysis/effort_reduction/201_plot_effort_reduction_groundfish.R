@@ -1,5 +1,5 @@
 library(sratio)
-
+library(cowplot)
 
 # Control pars
 prop_drop <- 0.25
@@ -479,7 +479,8 @@ for(kk in 1:length(loop_area_id)) {
       theme_light() +
       theme(legend.title = element_blank())
     
-    title <- ggdraw() + draw_label(paste0(loop_area_names[kk], " ", akfin_species$COMMON_NAME[ll]) , fontface = 'bold', size = 14)
+    title <- cowplot::ggdraw() + 
+      cowplot::draw_label(paste0(loop_area_names[kk], " ", akfin_species$COMMON_NAME[ll]) , fontface = 'bold', size = 14)
     
     png(filename = 
           here::here("analysis", "effort_reduction", "plots", sub_dir, survey_set, 
