@@ -1,8 +1,8 @@
 SPECIES_CODE,SURVEY_DEFINITION_ID,COMMON_NAME,SPECIES_NAME,PLOT
 420,98,big skate,Beringraja binoculata,FALSE
 435,98,Bering skate,Bathyraja interrupta,FALSE
-471,98,Alaska skate,Arctoraja parmifera,FALSE
-471,143,Alaska skate,Arctoraja parmifera,FALSE
+471,98,Alaska skate,Arctoraja parmifera,TRUE
+471,143,Alaska skate,Arctoraja parmifera,TRUE
 472,98,Aleutian skate,Bathyraja aleutica,FALSE
 10110,98,arrowtooth flounder,Atheresthes stomias,TRUE
 10110,143,arrowtooth flounder,Atheresthes stomias,TRUE
@@ -16,7 +16,7 @@ SPECIES_CODE,SURVEY_DEFINITION_ID,COMMON_NAME,SPECIES_NAME,PLOT
 10130,143,flathead sole,Hippoglossoides elassodon,FALSE
 10140,98,Bering flounder,Hippoglossoides robustus,TRUE
 10140,143,Bering flounder,Hippoglossoides robustus,TRUE
-10180,98,Dover sole,Microstomus pacificus,FALSE
+10180,98,Dover sole,Microstomus pacificus,TRUE
 10200,98,rex sole,Glyptocephalus zachirus,TRUE
 10210,98,yellowfin sole,Limanda aspera,TRUE
 10210,143,yellowfin sole,Limanda aspera,TRUE
