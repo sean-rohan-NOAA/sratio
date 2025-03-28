@@ -506,3 +506,115 @@ for(kk in 1:length(loop_area_id)) {
   }
   
 }
+
+# Dropping stations example
+removed_stations <- 
+  readRDS(
+  file = here::here("analysis", "effort_reduction", "output", sub_dir, paste0(survey_set, "_removed_stations.rds"))
+)
+
+
+map_layers <- akgfmaps::get_base_layers(
+  select.region = ifelse(survey_set == "EBS", "sebs", "NBS"),
+  set.crs = "EPSG:3338"
+)
+
+crab_strata <- akgfmaps::get_crab_strata(
+  select.region = ifelse(survey_set == "EBS", "sebs", "NBS"),
+  set.crs = "EPSG:3338"
+)
+
+map_layers$survey.grid$DROPPED <- map_layers$survey.grid$STATION %in% removed_stations[[5]]
+
+p_dropped_stations <- 
+  ggplot() +
+  geom_sf(data = map_layers$akland) +
+  geom_sf(data = map_layers$survey.strata, fill = NA, color = "black") +
+  geom_sf(data = sf::st_centroid(dplyr::filter(map_layers$survey.grid, DROPPED)),
+          mapping = aes(color = "15 min."),
+          size = rel(0.7)) +
+  geom_sf(data = sf::st_centroid(dplyr::filter(map_layers$survey.grid, !DROPPED)),
+          mapping = aes(color = "30 min."),
+          size = rel(0.7)) +
+  geom_sf(data = map_layers$graticule, linewidth = 0.2, alpha = 0.3) +
+  scale_color_manual(values = c("15 min." = "blue", "30 min." = "grey70")) +
+  scale_x_continuous(breaks = map_layers$lon.breaks, limits = map_layers$plot.boundary$x) +
+  scale_y_continuous(breaks = map_layers$lat.breaks, limits = map_layers$plot.boundary$y) +
+  theme_few() +
+  theme(legend.title = element_blank())
+
+png(
+  filename = here::here("analysis", "effort_reduction", "plots", sub_dir, survey_set,
+                        paste0("ex_dropped_", sub_dir, ".png")
+  ),
+  width = 6, 
+  height = 4, 
+  res = 300, 
+  units = "in"
+)
+print(p_dropped_stations)
+dev.off()
+
+
+p_dropped_stations_crab <- 
+  ggplot() +
+  geom_sf(data = map_layers$akland) +
+  geom_sf(data = crab_strata, fill = NA, color = "black", linewidth = 0.4) +
+  geom_sf(data = sf::st_centroid(dplyr::filter(map_layers$survey.grid, DROPPED)),
+          mapping = aes(color = "15 min."),
+          size = rel(0.5)) +
+  geom_sf(data = sf::st_centroid(dplyr::filter(map_layers$survey.grid, !DROPPED)),
+          mapping = aes(color = "30 min."),
+          size = rel(0.5)) +
+  geom_sf(data = map_layers$graticule, linewidth = 0.2, alpha = 0.3) +
+  scale_color_manual(values = c("15 min." = "blue", "30 min." = "grey70")) +
+  scale_x_continuous(breaks = map_layers$lon.breaks, limits = map_layers$plot.boundary$x) +
+  scale_y_continuous(breaks = map_layers$lat.breaks, limits = map_layers$plot.boundary$y) +
+  facet_wrap(~factor(STOCK, levels = c("Bristol Bay RKC", "Pribilof Islands RKC", "Pribilof Islands BKC", "St. Matthew BKC", "EBS snow crab", "Tanner W", "Tanner E")), ncol = 4) +
+  theme_few() +
+  theme(legend.title = element_blank())
+
+png(
+  filename = here::here("analysis", "effort_reduction", "plots", sub_dir, survey_set,
+                        paste0("ex_subareas_", sub_dir, ".png")
+  ),
+  width = 8, 
+  height = 4, 
+  res = 300, 
+  units = "in"
+)
+print(p_dropped_stations_crab)
+dev.off()
+
+
+subareas <- map_layers$survey.strata |>
+  dplyr::mutate(SUBAREA = floor(STRATUM/10)) |>
+  dplyr::select(SUBAREA) |>
+  dplyr::group_by(SUBAREA)|>
+  dplyr::summarise(do_union = TRUE)
+
+p_subarea <- 
+  ggplot() +
+  geom_sf(data = map_layers$akland) +
+  geom_sf(data = subareas,
+          mapping = aes(fill = factor(SUBAREA)), color = NA) +
+  geom_sf(data = map_layers$survey.strata, fill = NA, color = "black",
+          mapping = aes(linetype = "Stratum"), linewidth = rel(1.01)) +
+  geom_sf(data = map_layers$graticule, linewidth = 0.2, alpha = 0.3) +
+  scale_fill_tableau(name = "Subarea") +
+  scale_linetype_manual(name = NULL, values = 2) +
+  scale_x_continuous(breaks = map_layers$lon.breaks, limits = map_layers$plot.boundary$x) +
+  scale_y_continuous(breaks = map_layers$lat.breaks, limits = map_layers$plot.boundary$y) +
+  theme_few()
+
+png(
+  filename = here::here("analysis", "effort_reduction", "plots", sub_dir, survey_set,
+                        paste0("ex_fish_strata_", sub_dir, ".png")
+  ),
+  width = 6, 
+  height = 4, 
+  res = 300, 
+  units = "in"
+)
+print(p_subarea)
+dev.off()
