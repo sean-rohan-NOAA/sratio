@@ -16,8 +16,7 @@ SPECIES_CODE,SURVEY_DEFINITION_ID,COMMON_NAME,SPECIES_NAME,PLOT
 10130,143,flathead sole,Hippoglossoides elassodon,FALSE
 10140,98,Bering flounder,Hippoglossoides robustus,TRUE
 10140,143,Bering flounder,Hippoglossoides robustus,TRUE
-10150,98,slender sole,Lyopsetta exilis,FALSE
-10180,98,Dover sole,Microstomus pacificus,FALSE
+10180,98,Dover sole,Microstomus pacificus,TRUE
 10200,98,rex sole,Glyptocephalus zachirus,TRUE
 10210,98,yellowfin sole,Limanda aspera,TRUE
 10210,143,yellowfin sole,Limanda aspera,TRUE
