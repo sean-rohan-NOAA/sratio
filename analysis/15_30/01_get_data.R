@@ -705,6 +705,8 @@ get_data <- function(species_codes) {
     dplyr::select(HAULJOIN, SPECIES_CODE, SAMPLING_FACTOR) |>
     dplyr::inner_join(fish_lengths)
   
+  fish_lengths$SAMPLING_FACTOR[fish_lengths$SAMPLING_FACTOR < 1] <- 1
+  
   # Get crab carapace data ----
   # 1998: Get Goddard (1997) and Somerton et al. (2002) data
   crab_1995_1998 <- sratio::crab_size_1995_1998 |>
@@ -797,7 +799,7 @@ get_data <- function(species_codes) {
   selectivity_flag <- dplyr::select(crab_fish, HAULJOIN, MATCHUP, SPECIES_CODE, FREQUENCY) |>
     dplyr::group_by(HAULJOIN, MATCHUP, SPECIES_CODE) |>
     dplyr::summarise(N_MEASURED = sum(FREQUENCY), .groups = "keep") |>
-    dplyr::inner_join(sratio::species_code_label(x = "all") |> # Sample size function
+    dplyr::inner_join(sratio::species_code_label(x = "all") |> # Set minimum sample size for selectivity analysis
                         dplyr::select(SPECIES_CODE, MIN_SAMPLE_SIZE),
                       by = "SPECIES_CODE") |>
     dplyr::mutate(USE_FOR_SELECTIVITY = N_MEASURED >= MIN_SAMPLE_SIZE) |>

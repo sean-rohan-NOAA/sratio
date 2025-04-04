@@ -1,8 +1,8 @@
 Package: sratio
 Type: Package
 Title: Selectivity and catchability ratios
-Version: 2025.03.21
-Date: 2025-03-21
+Version: 2025.04.03
+Date: 2025-04-03
 Authors@R: c(person("Sean", "Rohan", email = "sean.rohan@noaa.gov", role = c("aut", "cre")), 
             person("Rebecca", "Haehn", email = "rebecca.haehn@noaa.gov", role = "aut"))
 Maintainer: Sean Rohan <sean.rohan@noaa.gov>
