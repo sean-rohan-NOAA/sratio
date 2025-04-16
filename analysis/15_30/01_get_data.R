@@ -550,30 +550,37 @@ get_data <- function(species_codes) {
     dplyr::filter(STATIONID %in% akgfmaps::get_survey_stations(select.region = "sebs", include.corners = TRUE))
   
   
-  bonus_hauls_2024 <- bonus_hauls_2024 |>
+  bonus_hauls_2024 <- 
+    bonus_hauls_2024 |>
     dplyr::group_by(STATIONID) |>
     dplyr::summarise(N = n()) |>
     dplyr::filter(N > 1) |>
     dplyr::inner_join(bonus_hauls_2024, by = "STATIONID")
-    
-  all_hauls <- dplyr::bind_rows(hauls_2021,
-                                hauls_short_2022,
-                                hauls_normal_2022,
-                                hauls_short_2023,
-                                hauls_normal_2023,
-                                hauls_normal_2024,
-                                hauls_short_2024,
-                                bonus_hauls_2024,
-                                hauls_1998,
-                                hauls_1995
-                                )  |>
-    dplyr::mutate(AREA_SWEPT_KM2 = NET_WIDTH/1000*DISTANCE_FISHED,
-                  TOW_SPEED_KNOTS = DISTANCE_FISHED/DURATION * 0.539957) |>
-    dplyr::mutate(TREATMENT = factor(
-      plyr::round_any(DURATION, 0.25), 
-      levels = c(0.25, 0.5), 
-      labels = c(15, 30)
-    )
+  
+  all_hauls <- 
+    dplyr::bind_rows(
+      hauls_2021,
+      hauls_short_2022,
+      hauls_normal_2022,
+      hauls_short_2023,
+      hauls_normal_2023,
+      hauls_normal_2024,
+      hauls_short_2024,
+      bonus_hauls_2024,
+      hauls_1998,
+      hauls_1995
+    )  |>
+    dplyr::mutate(
+      AREA_SWEPT_KM2 = NET_WIDTH/1000*DISTANCE_FISHED,
+      TOW_SPEED_KNOTS = DISTANCE_FISHED/DURATION * 0.539957
+    ) |>
+    dplyr::mutate(
+      TREATMENT = 
+        factor(
+          plyr::round_any(DURATION, 0.25), 
+          levels = c(0.25, 0.5), 
+          labels = c(15, 30)
+        )
     )
   
   no_pair <- dplyr::group_by(all_hauls, STATIONID, CRUISE, TREATMENT) |>
@@ -645,10 +652,11 @@ get_data <- function(species_codes) {
   
   net_numbers <- dplyr::bind_rows(net_number_1995_1998, net_number_2021_2024)
   
-  
-  all_hauls <- dplyr::left_join(all_hauls,
-                                net_numbers,
-                                by = c("VESSEL", "CRUISE", "HAUL"))
+  all_hauls <- dplyr::left_join(
+    all_hauls,
+    net_numbers,
+    by = c("VESSEL", "CRUISE", "HAUL")
+  )
   
   # Get catch data ----
   catch <- RODBC::sqlQuery(
@@ -671,7 +679,8 @@ get_data <- function(species_codes) {
     dplyr::inner_join(all_hauls[c("HAULJOIN", "MATCHUP")], by = "HAULJOIN") 
   
   # Get length data ----
-  fish_lengths <- RODBC::sqlQuery(
+  fish_lengths <- 
+    RODBC::sqlQuery(
     channel = channel,
     query = paste0(
       "SELECT
@@ -695,7 +704,8 @@ get_data <- function(species_codes) {
     dplyr::inner_join(all_hauls[c("HAULJOIN", "MATCHUP")], by = "HAULJOIN")
   
   # Calculate sampling factors for fish
-  fish_lengths <- fish_lengths |>
+  fish_lengths <- 
+    fish_lengths |>
     dplyr::group_by(HAULJOIN, SPECIES_CODE) |>
     dplyr::summarise(N_LENGTHS = sum(FREQUENCY)) |>
     dplyr::inner_join(catch[c("HAULJOIN", "SPECIES_CODE", "NUMBER_FISH")], 
@@ -703,95 +713,25 @@ get_data <- function(species_codes) {
     dplyr::ungroup() |>
     dplyr::mutate(SAMPLING_FACTOR = NUMBER_FISH/N_LENGTHS) |>
     dplyr::select(HAULJOIN, SPECIES_CODE, SAMPLING_FACTOR) |>
-    dplyr::inner_join(fish_lengths)
+    dplyr::inner_join(fish_lengths) |>
+    dplyr::rename(SIZE = LENGTH)
   
   fish_lengths$SAMPLING_FACTOR[fish_lengths$SAMPLING_FACTOR < 1] <- 1
   
   # Get crab carapace data ----
-  # 1998: Get Goddard (1997) and Somerton et al. (2002) data
-  crab_1995_1998 <- sratio::crab_size_1995_1998 |>
-    dplyr::select(-STATIONID, -HAULJOIN) |>
-    dplyr::filter(!(SPECIES_CODE %in% c(69323, 69400))) |> # Remove BKC and horsehair crab
-    dplyr::mutate(FREQUENCY = 1)
-  
-  
-  # 2021 and 2022 Crab
-  crab_2021_2022 <- RODBC::sqlQuery(
-    channel = channel,
-    query = paste0(
-      "SELECT
-        VESSEL, 
-        CRUISE,
-        HAUL,
-        SPECIES_CODE,
-        SEX,
-        LENGTH,
-        WIDTH,
-        WEIGHT,
-        SHELL_CONDITION,
-        SAMPLING_FACTOR
-      FROM 
-        CRAB.EBSCRAB_15_30_COMPARISON_PROJECT 
-      WHERE 
-      SPECIES_CODE IN (", paste(species_codes, collapse = ","), ")"
-      )
-    ) |>
-    dplyr::mutate(VESSEL = as.numeric(VESSEL),
-                  CRUISE = as.numeric(CRUISE),
-                  HAUL = as.numeric(HAUL),
-                  SPECIES_CODE = as.numeric(SPECIES_CODE),
-                  SEX = as.numeric(SEX),
-                  SHELL_CONDITION = as.numeric(SHELL_CONDITION),
-                  LENGTH = as.numeric(LENGTH),
-                  WIDTH = as.numeric(WIDTH),
-                  SAMPLING_FACTOR = as.numeric(SAMPLING_FACTOR),
-                  FREQUENCY = 1)
-  
-  # 2023 Crab
-  crab_2023 <- RODBC::sqlQuery(
-    channel = channel,
-    paste0(
-      "SELECT 
-        SPECIES_CODE,
-        SEX,
-        SHELL_CONDITION,
-        LENGTH,
-        WIDTH,
-        WEIGHT,
-        VESSEL,
-        CRUISE,
-        HAUL,
-        SAMPLING_FACTOR 
-      FROM 
-        CRAB.EBSCRAB_15_30_SLOPE_SHELF_COMPARISON_2023TOWS 
-      WHERE
-        SPECIES_CODE IN (", paste(species_codes, collapse = ","), ")"
-      )
-    ) |>
-    dplyr::mutate(VESSEL = as.numeric(VESSEL),
-                  CRUISE = as.numeric(CRUISE),
-                  HAUL = as.numeric(HAUL),
-                  SPECIES_CODE = as.numeric(SPECIES_CODE),
-                  SEX = as.numeric(SEX),
-                  SHELL_CONDITION = as.numeric(SHELL_CONDITION),
-                  LENGTH = as.numeric(LENGTH),
-                  WIDTH = as.numeric(WIDTH),
-                  SAMPLING_FACTOR = as.numeric(SAMPLING_FACTOR),
-                  FREQUENCY = 1
-                  )
-  
-  crab_2024 <- read.csv(file = here::here("analysis", "15_30", "data", "ebscrab_15_30_slope_shelf_comparison_2024tows.csv")) |>
-    dplyr::filter(!is.na(SPECIES_CODE)) |>
-    dplyr::select(-WEIGHT, - HAULJOIN) |>
-    dplyr::mutate(FREQUENCY = 1)
-
-  # 2024 Crab
-  crab <- dplyr::bind_rows(crab_2021_2022, crab_2023, crab_1995_1998, crab_2024) |>
+  # Provided by Shannon Hennessey on April 14, 2025
+  # Includes data from some hauls in 1995 that were not included because they were not included in a tow pair
+  crab <- 
+    read.csv(file = here::here("analysis", "15_30", "data", "specimen_1530_ss.csv")) |>
+    dplyr::filter(SPECIES_CODE %in% c(68560, 68580, 69322, 69323)) |>
+    dplyr::select(HAULJOIN, SPECIES_CODE, SEX, SIZE, SHELL_CONDITION, CALCULATED_WEIGHT, WEIGHT, SAMPLING_FACTOR) |>
+    dplyr::mutate(FREQUENCY = 1) |>
     dplyr::inner_join(
-      all_hauls[c("VESSEL", "CRUISE", "HAUL", "HAULJOIN", "MATCHUP")], 
-      by = c("VESSEL", "CRUISE", "HAUL")) |>
-    dplyr::mutate(SAMPLING_FACTOR = dplyr::if_else(is.na(SAMPLING_FACTOR), 1, SAMPLING_FACTOR),
-                  FREQUENCY = dplyr::if_else(is.na(FREQUENCY), 1, FREQUENCY))
+      dplyr::select(
+        all_hauls, HAULJOIN, VESSEL, CRUISE, HAUL, MATCHUP
+      ),
+      by = "HAULJOIN"
+    )
 
   crab_fish <- dplyr::bind_rows(crab, fish_lengths)
   
@@ -826,22 +766,11 @@ get_data <- function(species_codes) {
                   HAUL, 
                   SPECIES_CODE, 
                   SEX, 
-                  LENGTH, 
-                  WIDTH, 
+                  SIZE,
                   WEIGHT,
                   SHELL_CONDITION,
                   SAMPLING_FACTOR, 
-                  FREQUENCY, 
-                  CHELA_HEIGHT, 
-                  EGG_COLOR, 
-                  EGG_CONDITION, 
-                  CLUTCH_SIZE, 
-                  DISEASE_CODE, 
-                  DISEASE_DORSAL, 
-                  DISEASE_VENTRAL, 
-                  DISEASE_LEGS, 
-                  MERUS_LENGTH, 
-                  COMMENTS)
+                  FREQUENCY)
   
   # Check number of hauls with size data
   dplyr::select(crab_fish, VESSEL, CRUISE, HAUL) |>
@@ -899,12 +828,13 @@ get_data <- function(species_codes) {
   for(ii in 1:length(species_codes)) {
     
     # Retrieve survey data for selected species
-    gapindex_1530[[ii]] <- gapindex::get_data(year_set = 1982:2024, 
-                                       survey_set = "EBS", 
-                                       spp_codes = species_codes[ii],
-                                       pull_lengths = TRUE, 
-                                       sql_channel = channel)
-
+    gapindex_1530[[ii]] <- 
+      gapindex::get_data(year_set = 1982:2024, 
+                         survey_set = "EBS", 
+                         spp_codes = species_codes[ii],
+                         pull_lengths = TRUE, 
+                         channel = channel)
+    
   }
   
   save(gapindex_1530, file = here::here("data", "gapindex_1530.rda"), compress = "xz")

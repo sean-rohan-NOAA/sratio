@@ -22,7 +22,6 @@ dat <- dplyr::inner_join(
   haul_df,
   size_df,
   by = c("CRUISE", "MATCHUP", "HAULJOIN", "VESSEL", "HAUL")) |>
-  dplyr::mutate(SIZE = dplyr::if_else(!is.na(LENGTH), LENGTH, WIDTH)) |>
   dplyr::select(HAULJOIN, CRUISE, MATCHUP, TREATMENT, AREA_SWEPT_KM2, SPECIES_CODE, SIZE, FREQUENCY, SAMPLING_FACTOR)
 
 species_codes <- unique(dat$SPECIES_CODE)

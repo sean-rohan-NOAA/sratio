@@ -8,9 +8,9 @@
 68560,1995,430,"Carapace width (mm)","Tanner crab",20,10
 68580,1995,1773,"Carapace width (mm)","snow crab",20,10
 69322,1995,12,"Carapace length (mm)","red king crab",20,5
-68560,1998,251,"Carapace width (mm)","Tanner crab",20,10
-68580,1998,206,"Carapace width (mm)","snow crab",20,10
-69322,1998,3753,"Carapace length (mm)","red king crab",20,5
+68560,1998,501,"Carapace width (mm)","Tanner crab",20,10
+68580,1998,4310,"Carapace width (mm)","snow crab",20,10
+69322,1998,6148,"Carapace length (mm)","red king crab",20,5
 471,2021,245,"Total length (cm)","Alaska skate",10,5
 10110,2021,1570,"Fork length (cm)","arrowtooth flounder",6,10
 10130,2021,2560,"Fork length (cm)","flathead sole",6,10
@@ -28,7 +28,7 @@
 21720,2022,1105,"Fork length (cm)","Pacific cod",6,10
 21740,2022,2379,"Fork length (cm)","walleye pollock",6,10
 68560,2022,408,"Carapace width (mm)","Tanner crab",20,10
-69322,2022,233,"Carapace length (mm)","red king crab",20,5
+69322,2022,231,"Carapace length (mm)","red king crab",20,5
 10110,2023,30,"Fork length (cm)","arrowtooth flounder",6,10
 10130,2023,383,"Fork length (cm)","flathead sole",6,10
 10210,2023,493,"Fork length (cm)","yellowfin sole",6,10
@@ -46,6 +46,6 @@
 10285,2024,942,"Fork length (cm)","Alaska plaice",6,10
 21720,2024,1823,"Fork length (cm)","Pacific cod",6,10
 21740,2024,50793,"Fork length (cm)","walleye pollock",6,10
-68560,2024,3874,"Carapace width (mm)","Tanner crab",20,10
+68560,2024,3871,"Carapace width (mm)","Tanner crab",20,10
 68580,2024,4791,"Carapace width (mm)","snow crab",20,10
 69322,2024,242,"Carapace length (mm)","red king crab",20,5
