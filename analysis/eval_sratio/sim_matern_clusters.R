@@ -1,5 +1,5 @@
 
-seed <- 1337
+seed <- NULL
 ref_distance_fished_m <- 2800
 distance_between_tows_m <- 1000
 fish_density_n_km2 = 150
@@ -7,8 +7,8 @@ grid_dim_m = c(3000, 3000)
 cluster_density_n_km2 = 2
 cluster_radius_m = 400
 open_boundary = TRUE
-seed = seed
 draws = 100
+n_iter = 1000
 
 # Function to generate distributions
 sim_matern_clusters <- 
@@ -113,88 +113,131 @@ sim_encounters <-
   
   }
 
-test <- 
-  sim_matern_clusters(
-    fish_density_n_km2 = fish_density_n_km2,
-    grid_dim_m = grid_dim_m,
-    cluster_density_n_km2 = cluster_density_n_km2,
-    cluster_radius_m = cluster_radius_m,
-    open_boundary = open_boundary,
-    seed = seed, 
-    draws = draws
-  )
 
-
-encounters <-
-  data.frame(
-    draw = 1:draws,
-    enc_ran_30 = 
-      unlist(
-        lapply(
-          X = test[['random_points']], 
-          FUN = sim_encounters, 
-          origin_m = c(0, grid_dim_m[2]/2), 
-          effort_m = c(ref_distance_fished_m, 17)
-        )
-      ),
-    enc_ran_15 = 
-      unlist(
-        lapply(
-          X = test[['random_points']], 
-          FUN = sim_encounters, 
-          origin_m = c(0, grid_dim_m[2]/2 + distance_between_tows_m), 
-          effort_m = c(ref_distance_fished_m/2, 17)
-        )
-      ),
-    enc_ran_5 = 
-      unlist(
-        lapply(
-          X = test[['random_points']], 
-          FUN = sim_encounters, 
-          origin_m = c(0, grid_dim_m[2]/2 + distance_between_tows_m), 
-          effort_m = c(ref_distance_fished_m/6, 17)
-        )
-      ),
-    enc_clu_30 = 
-      unlist(
-        lapply(
-          X = test[['cluster_points']], 
-          FUN = sim_encounters, 
-          origin_m = c(0, grid_dim_m[2]/2), 
-          effort_m = c(ref_distance_fished_m, 17)
-        )
-      ),
-    enc_clu_15 = 
-      unlist(
-        lapply(
-          X = test[['cluster_points']], 
-          FUN = sim_encounters, 
-          origin_m = c(0, grid_dim_m[2]/2 + distance_between_tows_m), 
-          effort_m = c(ref_distance_fished_m/2, 17)
-        )
-      ),
-    enc_clu_5 = 
-      unlist(
-        lapply(
-          X = test[['cluster_points']], 
-          FUN = sim_encounters, 
-          origin_m = c(0, grid_dim_m[2]/2 + distance_between_tows_m), 
-          effort_m = c(ref_distance_fished_m/6, 17)
-        )
-      )
-  )
-
-
-# Simulate retention
-set.seed(seed)
-
-for(ii in 2:ncol(encounters)) {
+for(jj in 1:length(n_iter)) {
   
-  encounters <- cbind(
-    encounters, 
-    mapply(function(n) rbinom(1, n, 0.5), encounters[, ii])
+  test <- 
+    sim_matern_clusters(
+      fish_density_n_km2 = fish_density_n_km2,
+      grid_dim_m = grid_dim_m,
+      cluster_density_n_km2 = cluster_density_n_km2,
+      cluster_radius_m = cluster_radius_m,
+      open_boundary = open_boundary,
+      seed = seed, 
+      draws = draws
     )
   
-  names(encounters)[ncol(encounters)] <- gsub(x = names(encounters)[ii], pattern = "enc", replacement = "ret")
+  
+  encounters <-
+    data.frame(
+      draw = 1:draws,
+      enc_ran_30 = 
+        unlist(
+          lapply(
+            X = test[['random_points']], 
+            FUN = sim_encounters, 
+            origin_m = c(0, grid_dim_m[2]/2), 
+            effort_m = c(ref_distance_fished_m, 17)
+          )
+        ),
+      enc_ran_15 = 
+        unlist(
+          lapply(
+            X = test[['random_points']], 
+            FUN = sim_encounters, 
+            origin_m = c(0, grid_dim_m[2]/2 + distance_between_tows_m), 
+            effort_m = c(ref_distance_fished_m/2, 17)
+          )
+        ),
+      enc_ran_5 = 
+        unlist(
+          lapply(
+            X = test[['random_points']], 
+            FUN = sim_encounters, 
+            origin_m = c(0, grid_dim_m[2]/2 + distance_between_tows_m), 
+            effort_m = c(ref_distance_fished_m/6, 17)
+          )
+        ),
+      enc_clu_30 = 
+        unlist(
+          lapply(
+            X = test[['cluster_points']], 
+            FUN = sim_encounters, 
+            origin_m = c(0, grid_dim_m[2]/2), 
+            effort_m = c(ref_distance_fished_m, 17)
+          )
+        ),
+      enc_clu_15 = 
+        unlist(
+          lapply(
+            X = test[['cluster_points']], 
+            FUN = sim_encounters, 
+            origin_m = c(0, grid_dim_m[2]/2 + distance_between_tows_m), 
+            effort_m = c(ref_distance_fished_m/2, 17)
+          )
+        ),
+      enc_clu_5 = 
+        unlist(
+          lapply(
+            X = test[['cluster_points']], 
+            FUN = sim_encounters, 
+            origin_m = c(0, grid_dim_m[2]/2 + distance_between_tows_m), 
+            effort_m = c(ref_distance_fished_m/6, 17)
+          )
+        )
+    )
+  
+  
+  # Simulate retention
+  set.seed(seed)
+  
+  for(ii in 2:ncol(encounters)) {
+    
+    encounters <- cbind(
+      encounters, 
+      mapply(function(n) rbinom(1, n, 0.5), encounters[, ii])
+    )
+    
+    names(encounters)[ncol(encounters)] <- gsub(x = names(encounters)[ii], pattern = "enc", replacement = "ret")
+    
+  }
+  
+  
+  # Compare selectivity ratio approach to Poisson GLM
+  ex_dat <- dplyr::select(encounters, draw, ret_ran_30, ret_ran_15) |>
+    tidyr::pivot_longer(cols = c("ret_ran_30", "ret_ran_15")) |>
+    dplyr::mutate(duration_fac = stringr::str_extract(string = name, pattern = "(\\d)+"),
+                  duration_num = as.numeric(duration_fac)*2800/30)
+  
+  
+  # Pred Poisson
+  mod_pois <- glm(value ~ duration_fac + offset(log(duration_num)), family = poisson(link = "log"), data = ex_dat)
+  
+  pois_pred <-
+    predict(mod_pois,
+            newdata =
+              data.frame(duration_fac = c("15", "30"),
+                         duration_num = c(1400, 2800)),
+            type = "response")
+  
+  # Pred sratio binomial
+  encounters$r_15_30 <- encounters$enc_ran_15/1400 / (encounters$enc_ran_30/2800 + encounters$enc_ran_15/1400)
+  
+  mod_sratio <- glm(r_15_30 ~ 1, family = binomial(link = "logit"), data = encounters)
+  
+  
+  
+  
+  poisson_results[jj] <- pois_pred[1]/pois_pred[2]
+  sratio_results[jj] <- predict(mod_sratio, newdata = data.frame(x = 1), type = "response")
+  
+  
   
 }
+
+par(mfrow = c(1, 2))
+hist(poisson_results)
+abline(v = 0.5, col = "red")
+
+hist(sratio_results)
+abline(v = 0.5, col = "red")
