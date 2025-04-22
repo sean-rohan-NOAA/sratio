@@ -15,7 +15,7 @@ sp_codes <- sort(unique(catch_df$SPECIES_CODE))
 
 cpue_dat <- catch_df |>
   dplyr::inner_join(haul_df) |>
-  dplyr::select(MATCHUP, SPECIES_CODE, WEIGHT, MATCHUP, TREATMENT) |>
+  dplyr::select(MATCHUP, SPECIES_CODE, WEIGHT, MATCHUP, TREATMENT, YEAR) |>
   dplyr::mutate(TREATMENT = paste0("WEIGHT_", TREATMENT)) |>
   tidyr::pivot_wider(names_from = TREATMENT, values_from = WEIGHT, values_fill = 0) |>
   dplyr::inner_join(readRDS(file = here::here("analysis", "15_30", "output", "n_by_treatment_1530.rds")) |>
@@ -24,8 +24,8 @@ cpue_dat <- catch_df |>
                       dplyr::mutate(MATCHUP = as.numeric(as.character(MATCHUP)))) |>
   dplyr::mutate(CPUE_30 = WEIGHT_30/AREA_SWEPT_KM2_30,
                 CPUE_15 = WEIGHT_15/AREA_SWEPT_KM2_15) |>
-  dplyr::mutate(LOG10_CPUE_30 = log10(CPUE_30+1),
-                LOG10_CPUE_15 = log10(CPUE_15+1))
+  dplyr::mutate(LOG_CPUE_30 = log(CPUE_30+1),
+                LOG_CPUE_15 = log(CPUE_15+1))
 
 sp_codes <- sort(unique(catch_df$SPECIES_CODE))
 
@@ -36,21 +36,23 @@ dir.create(here::here("analysis", "15_30",
 
 # Bayesian linear regression for log10(CPUE[30])~log10(CPUE[15]) ----
 
-# May need to run species by species to avoid crashing
+preds <- vector(mode = "list", length = length(sp_codes))
+
 for(ii in 1:length(sp_codes)) {
   
   print(ii)
   
   sel_spp <- dplyr::filter(cpue_dat, SPECIES_CODE == sp_codes[ii])
   
-  mod <- brms::brm(
-    formula = LOG10_CPUE_30 ~ LOG10_CPUE_15 1, 
-    data = sel_spp, 
-    iter = 7000, 
-    chains = 4,
-    thin = 5,
-    warmup = 2000
-  )
+  mod <- 
+    brms::brm(
+      formula = LOG_CPUE_30 ~ LOG_CPUE_15 + 0, 
+      data = sel_spp, 
+      iter = 7000, 
+      chains = 4,
+      thin = 5,
+      warmup = 2000
+    )
   
   posterior_df <- brms::as_draws_df(mod)
   
@@ -69,15 +71,84 @@ for(ii in 1:length(sp_codes)) {
   
   pp_check(mod)
   
+  
+  # Example: generate a sequence of new x values
+  new_x <- data.frame(
+    LOG_CPUE_15 = 
+      seq(
+        plyr::round_any(
+          min(sel_spp$LOG_CPUE_15), 
+          accuracy = 0.1, 
+          f = floor
+        ), 
+        plyr::round_any(
+          max(sel_spp$LOG_CPUE_15), 
+          accuracy = 0.1, 
+          f = ceiling), 
+        by = 0.01)
+  )
+  
+  new_x$CPUE_15 <- exp(new_x$LOG_CPUE_15)
+  
+  # Get posterior linear predictions (log scale, without random effects)
+  fit_vals <- posterior_linpred(
+    mod, 
+    newdata = new_x, 
+    transform = FALSE, 
+    re_formula = NA)
+  
+  # Compute mu (mean of log preds) and sigma^2 (variance) for each x
+  mu <- colMeans(fit_vals)
+  sigma2 <- apply(fit_vals, 2, var)
+  
+  # Bias-corrected mean predictions
+  bias_corrected <- exp(mu + 0.5 * sigma2)
+  
+  # Bias-corrected credible intervals for predictions
+  lower <- apply(exp(fit_vals + 0.5 * sigma2), 2, quantile, probs = 0.025)
+  upper <- apply(exp(fit_vals + 0.5 * sigma2), 2, quantile, probs = 0.975)
+  
+  bc_preds <- new_x |>
+    dplyr::mutate(
+      SPECIES_CODE = sp_codes[ii],
+      CPUE_30_FIT = bias_corrected,
+      CPUE_30_LWR = lower,
+      CPUE_30_UPR = upper
+    )
+  
+  preds[[ii]] <- bc_preds
+  
+  p1 <- ggplot() +
+    geom_ribbon(data = bc_preds,
+                mapping = aes(x = CPUE_15, ymin = CPUE_30_LWR, ymax = CPUE_30_UPR), alpha = 0.5) +
+    geom_path(data = bc_preds,
+              mapping = aes(x = CPUE_15, y = CPUE_30_FIT)) +
+    geom_point(data = sel_spp,
+               mapping = aes(x = CPUE_15, y = CPUE_30)) +
+    geom_abline(slope = 1, intercept = 0, linetype = 3) +
+    ggtitle(label = sp_codes[ii]) +
+    scale_x_log10() +
+    scale_y_log10()
+  
+  print(p1)
+  
   rm(mod, posterior_df)
   
 }
 
-# test <-  lm(formula = I(CPUE_30/CPUE_15) ~ 1,
-#    data = sel_spp)
-# plot(test)
-
-# hist((sel_spp$WEIGHT_30/sel_spp$AREA_SWEPT_KM2_30)/(sel_spp$WEIGHT_15/sel_spp$AREA_SWEPT_KM2_15))
+ggplot() +
+  geom_point(data = cpue_dat,
+             mapping = aes(x = CPUE_15, y = CPUE_30, color = factor(YEAR))) +
+  geom_ribbon(data = do.call(rbind, preds),
+              mapping = aes(x = CPUE_15, ymin = CPUE_30_LWR, ymax = CPUE_30_UPR), alpha = 0.5) +
+  geom_path(data = do.call(rbind, preds),
+            mapping = aes(x = CPUE_15, y = CPUE_30_FIT)) +
+  geom_abline(slope = 1, intercept = 0, linetype = 3) +
+  scale_color_tableau(name = "Year") +
+  facet_wrap(~SPECIES_CODE, scales = "free") +
+  scale_x_log10(name = expression(CPUE[15])) +
+  scale_y_log10(name = expression(CPUE[30])) +
+  theme_bw()
 
 zeroint_paths <- list.files(path = here::here("analysis", "15_30", "output"), 
                             pattern = "cpue_brms_zeroint_posterior", 
@@ -95,13 +166,13 @@ for(jj in 1:length(zeroint_paths)) {
 
 slope_quantiles <- cpue_fit |>
   dplyr::group_by(SPECIES_CODE) |>
-  dplyr::summarise(qmin = min(b_LOG10_CPUE_15),
-                   q025 = quantile(b_LOG10_CPUE_15, 0.025),
-                   q250 = quantile(b_LOG10_CPUE_15, 0.25),
-                   q500 = quantile(b_LOG10_CPUE_15, 0.5),
-                   q750 = quantile(b_LOG10_CPUE_15, 0.75),
-                   q975 = quantile(b_LOG10_CPUE_15, 0.975),
-                   qmax = max(b_LOG10_CPUE_15),
+  dplyr::summarise(qmin = min(b_LOG_CPUE_15),
+                   q025 = quantile(b_LOG_CPUE_15, 0.025),
+                   q250 = quantile(b_LOG_CPUE_15, 0.25),
+                   q500 = quantile(b_LOG_CPUE_15, 0.5),
+                   q750 = quantile(b_LOG_CPUE_15, 0.75),
+                   q975 = quantile(b_LOG_CPUE_15, 0.975),
+                   qmax = max(b_LOG_CPUE_15),
                    type = "Slope")
 
 saveRDS(object = slope_quantiles,
@@ -113,7 +184,7 @@ png(here::here("analysis", "15_30", "plots", "total_cpue_fit", "cpue_model_densi
 print(
 ggplot() +
   geom_density(data = cpue_fit,
-               mapping = aes(x = b_LOG10_CPUE_15)) +
+               mapping = aes(x = b_LOG_CPUE_15)) +
   geom_vline(xintercept = 1, linetype = 2) +
   facet_wrap(~sratio:::species_code_label(SPECIES_CODE, type = "common_name", make_factor = TRUE), 
              scales = "free") +
@@ -129,7 +200,7 @@ png(here::here("analysis", "15_30", "plots", "total_cpue_fit", "cpue_model_violi
 print(
 ggplot() +
   geom_violin(data = cpue_fit,
-              mapping = aes(x = b_LOG10_CPUE_15, 
+              mapping = aes(x = b_LOG_CPUE_15, 
                             y = sratio:::species_code_label(SPECIES_CODE, 
                                                             type = "common_name", 
                                                             make_factor = TRUE)),
@@ -149,7 +220,7 @@ png(here::here("analysis", "15_30", "plots", "total_cpue_fit", "cpue_model_violi
 print(
   ggplot() +
     geom_violin(data = cpue_fit,
-                mapping = aes(x = b_LOG10_CPUE_15, 
+                mapping = aes(x = b_LOG_CPUE_15, 
                               y = sratio:::species_code_label(SPECIES_CODE, 
                                                               type = "common_name", 
                                                               make_factor = TRUE)),
@@ -170,20 +241,20 @@ png(here::here("analysis", "15_30", "plots", "total_cpue_fit", "cpue_model_boxpl
 print(
   ggplot() +
   geom_path(data = dplyr::group_by(cpue_fit, SPECIES_CODE) |>
-              dplyr::summarise(q025 = quantile(b_LOG10_CPUE_15, 0.025),
-                               q975 = quantile(b_LOG10_CPUE_15, 0.975)) |>
+              dplyr::summarise(q025 = quantile(b_LOG_CPUE_15, 0.025),
+                               q975 = quantile(b_LOG_CPUE_15, 0.975)) |>
               tidyr::pivot_longer(cols = c(q025, q975)),
             mapping = aes(x = value, 
                           y = sratio:::species_code_label(SPECIES_CODE, type = "common_name", make_factor = TRUE))) +
   geom_path(data = dplyr::group_by(cpue_fit, SPECIES_CODE) |>
-               dplyr::summarise(q250 = quantile(b_LOG10_CPUE_15, 0.25),
-                                q750 = quantile(b_LOG10_CPUE_15, 0.75)) |>
+               dplyr::summarise(q250 = quantile(b_LOG_CPUE_15, 0.25),
+                                q750 = quantile(b_LOG_CPUE_15, 0.75)) |>
               tidyr::pivot_longer(cols = c(q250, q750)),
              mapping = aes(x = value, 
                            y = sratio:::species_code_label(SPECIES_CODE, type = "common_name", make_factor = TRUE)),
             linewidth = 1.5) +
   geom_point(data = dplyr::group_by(cpue_fit, SPECIES_CODE) |>
-               dplyr::summarise(median = median(b_LOG10_CPUE_15)),
+               dplyr::summarise(median = median(b_LOG_CPUE_15)),
              mapping = aes(x = median, 
                            y = sratio:::species_code_label(SPECIES_CODE, type = "common_name", make_factor = TRUE)), 
              shape = 21, fill = "white") +

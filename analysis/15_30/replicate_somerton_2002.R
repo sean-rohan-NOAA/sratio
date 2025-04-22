@@ -144,90 +144,102 @@ cpue <-
                 COMBINED_COUNT = COUNT_30 + COUNT_15)
 
 
-  test <- cpue[cpue$SPECIES_CODE == 69322, ]
-
-  mod_cpue_rkc <- 
+# RKC models ----
+mod_cpue_rkc_1 <- 
   lm(
-    formula = I(log(CPUE_NO_KM2_15/CPUE_NO_KM2_30)) ~ SEX + VESSEL,
-    data = test
+    formula = CPUE_LOG_RATIO ~ SEX + VESSEL,
+    data = cpue[cpue$SPECIES_CODE == 69322, ]
   )
-  
-  cov(test$CPUE_NO_KM2_15, test$CPUE_NO_KM2_30)
 
-summary(mod_cpue_rkc)
-anova(mod_cpue_rkc)
+summary(mod_cpue_rkc_1)
+anova(mod_cpue_rkc_1)
 
-mod_cpue_sc <- 
+mod_cpue_rkc_2 <- 
+  lm(
+    formula = CPUE_LOG_RATIO ~ SEX,
+    data = cpue[cpue$SPECIES_CODE == 69322, ]
+  )
+
+mod_cpue_rkc_3 <- 
+  lm(
+    formula = CPUE_LOG_RATIO ~ VESSEL,
+    data = cpue[cpue$SPECIES_CODE == 69322, ]
+  )
+
+mod_cpue_rkc_4 <- 
+  lm(
+    formula = CPUE_LOG_RATIO ~ 1,
+    data = cpue[cpue$SPECIES_CODE == 69322, ]
+  )
+
+# Best model is #4
+AIC(mod_cpue_rkc_1, mod_cpue_rkc_2, mod_cpue_rkc_3, mod_cpue_rkc_4)
+summary(mod_cpue_rkc_4)
+
+# Snow crab models ----
+mod_cpue_sc_1 <- 
   lm(
     formula = CPUE_LOG_RATIO ~ SEX + VESSEL,
     data = cpue[cpue$SPECIES_CODE == 68580, ]
   )
 
-summary(mod_cpue_sc)
-anova(mod_cpue_sc)
+summary(mod_cpue_sc_1)
+anova(mod_cpue_sc_1)
 
-mod_cpue_tc <- 
+mod_cpue_sc_2 <- 
+  lm(
+    formula = CPUE_LOG_RATIO ~ SEX,
+    data = cpue[cpue$SPECIES_CODE == 68580, ]
+  )
+
+mod_cpue_sc_3 <- 
+  lm(
+    formula = CPUE_LOG_RATIO ~ VESSEL,
+    data = cpue[cpue$SPECIES_CODE == 68580, ]
+  )
+
+mod_cpue_sc_4 <- 
+  lm(
+    formula = CPUE_LOG_RATIO ~ 1,
+    data = cpue[cpue$SPECIES_CODE == 68580, ]
+  )
+
+# Best model is #4
+AIC(mod_cpue_sc_1, mod_cpue_sc_2, mod_cpue_sc_3, mod_cpue_sc_4)
+summary(mod_cpue_sc_4)
+
+
+# Tanner crab models ----
+mod_cpue_tc_1 <- 
   lm(
     formula = CPUE_LOG_RATIO ~ SEX + VESSEL,
     data = cpue[cpue$SPECIES_CODE == 68560, ]
   )
 
-summary(mod_cpue_tc)
-anova(mod_cpue_tc)
+summary(mod_cpue_tc_1)
+anova(mod_cpue_tc_1)
 
+mod_cpue_tc_2 <- 
+  lm(
+    formula = CPUE_LOG_RATIO ~ SEX,
+    data = cpue[cpue$SPECIES_CODE == 68560, ]
+  )
 
-test <- glm(
-  formula = cbind(COUNT_15, COUNT_30) ~ 1 + offset(log(AREA_SWEPT_KM2_15/AREA_SWEPT_KM2_30)),
-  family = binomial(),
-  data = dplyr::filter(cpue, SPECIES_CODE == 68560, SEX == 2)
-)
+mod_cpue_tc_3 <- 
+  lm(
+    formula = CPUE_LOG_RATIO ~ VESSEL,
+    data = cpue[cpue$SPECIES_CODE == 68560, ]
+  )
 
-test$coefficients
-sratio::inv_logit(test$coefficients)
+mod_cpue_tc_4 <- 
+  lm(
+    formula = CPUE_LOG_RATIO ~ 1,
+    data = cpue[cpue$SPECIES_CODE == 68560, ]
+  )
 
-
-predict(test, newdata = data.frame(AREA_SWEPT_KM2_15 = 0.024, AREA_SWEPT_KM2_30 = c(0.048)), type = "response")
-
-# # What if sampling factors weren't used -----
-# # THIS IS NOT THE CORRECT APPROACH
-# 
-# cpue_wrong <- 
-#   somerton_crab |>
-#   dplyr::group_by(VESSEL, CRUISE, HAUL, TOW_PAIR, TREATMENT, AREA_SWEPT_KM2, SPECIES_CODE, SEX) |>
-#   dplyr::summarize(COUNT = n()) |>
-#   dplyr::ungroup() |>
-#   dplyr::mutate(CPUE_NO_KM2 = COUNT/AREA_SWEPT_KM2) |>
-#   dplyr::select(-HAUL, -CRUISE) |>
-#   tidyr::pivot_wider(names_from = "TREATMENT", 
-#                      values_from = c("CPUE_NO_KM2", "COUNT", "AREA_SWEPT_KM2"),
-#                      values_fill = 0) |>
-#   dplyr::filter(CPUE_NO_KM2_15 > 0, CPUE_NO_KM2_30 > 0) |> # Remove pairs with zero CPUE
-#   dplyr::mutate(CPUE_LOG_RATIO = log(CPUE_NO_KM2_15/CPUE_NO_KM2_30))
-# 
-# 
-# mod_cpue_wrong_rkc <- 
-#   lm(
-#     formula = CPUE_LOG_RATIO ~ 1,
-#     data = cpue_wrong[cpue_wrong$SPECIES_CODE == 69322, ]
-#   )
-# 
-# summary(mod_cpue_wrong_rkc)
-# anova(mod_cpue_wrong_rkc)
-# 
-# mod_cpue_wrong_sc <- 
-#   lm(
-#     formula = CPUE_LOG_RATIO ~ 1,
-#     data = cpue_wrong[cpue_wrong$SPECIES_CODE == 68580, ]
-#   )
-# 
-# summary(mod_cpue_wrong_sc)
-# anova(mod_cpue_wrong_sc)
-# 
-# mod_cpue_wrong_tc <- 
-#   lm(
-#     formula = CPUE_LOG_RATIO ~ 1,
-#     data = cpue[cpue$SPECIES_CODE == 68560, ]
-#   )
+# Best model is #4
+AIC(mod_cpue_tc_1, mod_cpue_tc_2, mod_cpue_tc_3, mod_cpue_tc_4)
+summary(mod_cpue_tc_4)
 
 # Function to extract model intercept, variance, and bias-corrected ratio from Somerton's log-ratio models
 extract_bias_corrected_ratio <- function(mod) {
@@ -244,11 +256,110 @@ extract_bias_corrected_ratio <- function(mod) {
   
 }
 
-extract_bias_corrected_ratio(mod_cpue_wrong_tc)
-extract_bias_corrected_ratio(mod_cpue_tc)
-extract_bias_corrected_ratio(mod_cpue_sc)
-extract_bias_corrected_ratio(mod_cpue_rkc)
+# The best model for all three species is an intercept-only model. Therefore, we use a log ratio 
+# estimator to estimate the mean ratio.
 
+extract_bias_corrected_ratio(mod_cpue_rkc_4)
+extract_bias_corrected_ratio(mod_cpue_sc_4)
+extract_bias_corrected_ratio(mod_cpue_tc_4)
+
+log_ratio_estimator <- function(x, y, confint = 0.95) {
+  
+  stopifnot("x and y must be the same length." = length(x) == length(y))
+  stopifnot("x and y must contain only positive values." = !any(x <= 0 | y <= 0))
+  
+  n <- length(x)
+  
+  log_mu <- mean(log(x/y), na.rm = TRUE)
+  
+  var_log_mu <- var(log(x/y), na.rm = TRUE)
+  
+  crit <- qt(1-(1-confint)/2, df = n-1)
+  
+  # Bias correction factor
+  bc <- 0.5 * var_log_mu / n
+  
+  mu <- exp(log_mu + bc)
+  
+  se <- sqrt(var_log_mu)/sqrt(n)
+  
+  lci_mu <- exp(log_mu - se * crit + bc)
+  
+  uci_mu <- exp(log_mu + se * crit + bc)
+  
+  return(
+    list(
+      mu = mu, 
+      lci_mu = lci_mu,
+      uci_mu = uci_mu,
+      log_mu = log_mu, 
+      n = n, 
+      se = se
+    )
+  )
+  
+}
+
+
+log_ratio_estimator_bootstrap <- function(x, y, conf.level = 0.95, n_boot = 1000, return_boot = FALSE) {
+  
+  n <- length(x)
+  log_mu <- log(x) - log(y)
+  mean_log <- mean(log_mu)
+  var_log <- var(log_mu)
+  
+  # Bias-corrected geometric mean ratio
+  mu <- exp(mean_log + 0.5 * var_log / n)
+  
+  mean_var <- function(x) {
+    cbind(mean(x), var(x))
+  }
+  
+  # Bootstrap sampling
+  boot_means <- replicate(n_boot, {
+    indices <- sample(1:n, size = n, replace = TRUE)
+    mean_var(log(x[indices]) - log(y[indices]))
+  }, simplify = TRUE)
+  
+  boot_means <- t(boot_means)
+  
+  # Calculate bias correction factor for each sample
+  boot_means <- cbind(boot_means, 0.5 * boot_means[, 2] / n)
+  
+  # Bootstrap confidence interval on the ratio scale
+  ci_bounds <- quantile(
+    exp(boot_means[, 1] + boot_means[, 3]), 
+    probs = c((1 - conf.level) / 2, 1 - (1 - conf.level) / 2)
+  )
+  
+  result <- list(
+    mu = mu,
+    lci_mu = ci_bounds[1],
+    uci_mu = ci_bounds[2],
+    log_mu = mean_log,
+    n = n
+  )
+  
+  if(return_boot) {
+    result$bootstrap_distribution <- exp(boot_means)
+  }
+  
+  return(result)
+}
+
+
+log_ratio_estimator_bootstrap(x = cpue$CPUE_NO_KM2_15[cpue$SPECIES_CODE == 68560],
+                    y = cpue$CPUE_NO_KM2_30[cpue$SPECIES_CODE == 68560],
+              n_boot = 1000)
+
+log_ratio_estimator(x = cpue$CPUE_NO_KM2_15[cpue$SPECIES_CODE == 68560],
+                    y = cpue$CPUE_NO_KM2_30[cpue$SPECIES_CODE == 68560])
+
+log_ratio_estimator(x = cpue$CPUE_NO_KM2_15[cpue$SPECIES_CODE == 68580],
+                    y = cpue$CPUE_NO_KM2_30[cpue$SPECIES_CODE == 68580])
+
+log_ratio_estimator(x = cpue$CPUE_NO_KM2_15[cpue$SPECIES_CODE == 69322],
+                    y = cpue$CPUE_NO_KM2_30[cpue$SPECIES_CODE == 69322])
 
 
 fishmethods::fpc(cpue1 = cpue$CPUE_NO_KM2_15[cpue$SPECIES_CODE == 68580 & cpue$SEX == 1],
