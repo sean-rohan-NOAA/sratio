@@ -1,12 +1,12 @@
 Package: sratio
 Type: Package
 Title: Selectivity and catchability ratios
-Version: 2025.04.16
-Date: 2025-04-16
+Version: 2025.05.08
+Date: 2025-05-08
 Authors@R: c(person("Sean", "Rohan", email = "sean.rohan@noaa.gov", role = c("aut", "cre")), 
             person("Rebecca", "Haehn", email = "rebecca.haehn@noaa.gov", role = "aut"))
 Maintainer: Sean Rohan <sean.rohan@noaa.gov>
-Depends: R (>= 4.0.0), plyr, dplyr, tidyr, ggplot2, stats, utils, lubridate, RODBC, getPass, gtools, mgcv, mgcViz, foreach, caret, doParallel, scales, ggthemes, brms, sn
+Depends: R (>= 4.2.0), plyr, dplyr, tidyr, ggplot2, stats, utils, lubridate, RODBC, getPass, gtools, mgcv, mgcViz, foreach, caret, doParallel, scales, ggthemes, brms, sn
 Imports: gapindex
 Remotes: afsc-gap-products/gapindex
 Description: A package for performing selectivity and catchability analyses and obtaining calibration factors.
