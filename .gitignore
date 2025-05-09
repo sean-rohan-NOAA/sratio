@@ -49,3 +49,8 @@ vignettes/*.pdf
 /presentations/
 /output/
 /analysis/eval_sratio/output
+
+# Compiled C++
+*.o
+*.dll
+gearcalib_switch.cpp
