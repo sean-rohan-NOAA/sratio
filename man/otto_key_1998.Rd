@@ -7,7 +7,8 @@
 \format{
 A data frame with 6 variables:
   \describe{
-    \item{TOW_PAIR}{Value identifying the block to which a tow was assigned.}
+    \item{TOW_BLOCK}{Value identifying the *block* to which a tow was assigned.}
+    \item{TOW_PAIR}{Value identifying the tow *pair* for this data set.}
     \item{EXPERIMENTAL_TOW_TYPE}{Numerical tow type code.}
     \item{CRUISE}{Six-digit number identifying the cruise, where the first four digits are the year of the cruise and last four digits are region-specific sequential codes.}
     \item{VESSEL}{Unique numeric vessel code.}

@@ -34,10 +34,10 @@ for(vv in 1:length(survey_opts)) {
   plot_area_ids <- if(survey_set == "EBS") {c(99900, 99901)} else {99902}
   loop_area_names <- if(survey_set == "EBS") {c("EBS Standard Plus NW", "EBS Standard")} else{"NBS"}
   
-  # source(here::here("analysis", "effort_reduction", "201_effort_reduction_groundfish.R"))
-  # source(here::here("analysis", "effort_reduction", "202_plot_effort_reduction_groundfish.R"))
+  source(here::here("analysis", "effort_reduction", "201_effort_reduction_groundfish.R"))
+  source(here::here("analysis", "effort_reduction", "202_plot_effort_reduction_groundfish.R"))
   source(here::here("analysis", "effort_reduction", "203_effort_reduction_crab.R"))
-  # source(here::here("analysis", "effort_reduction", "204_plot_effort_reduction_crab.R"))
+  source(here::here("analysis", "effort_reduction", "204_plot_effort_reduction_crab.R"))
   
 }
 

@@ -1,4 +1,31 @@
-sratio 2025.03.21 (March 21, 2024)
+sratio 2025.04.2 (April 22, 2025)
+----------------------------------------------------------------
+
+- Add more species to 15/30 data set.
+
+
+sratio 2025.04.16 (April 16, 2025)
+----------------------------------------------------------------
+
+- Add all crab size data and include estimated individual crab
+  weights.
+
+sratio 2025.04.11 (April 11, 2025)
+----------------------------------------------------------------
+
+- Add missing 1998 index station hauls to data sets.
+- Add block field to otto_key_1998
+
+
+sratio 2025.04.03 (April 3, 2025)
+----------------------------------------------------------------
+
+BUG FIX
+
+-Correct sampling factors for 2024 15/30 hauls.
+
+
+sratio 2025.03.21 (March 21, 2025)
 ----------------------------------------------------------------
 
 NEW FUNCTIONALITY
