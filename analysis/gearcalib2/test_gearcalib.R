@@ -3,10 +3,10 @@ library(ggplot2)
 library(sratio)
 library(cowplot)
 
-TMB::compile("gearcalib_switch.cpp")
-dyn.load(dynlib("gearcalib_switch"))
-
-source("gearcalib_nb.R")
+# TMB::compile("gearcalib_switch.cpp")
+# dyn.load(dynlib("gearcalib_switch"))
+# 
+# source("gearcalib_nb.R")
 
 # Load output
 dat <- readRDS(file = "C:/Users/sean.rohan/Work/afsc/sratio/analysis/15_30/output/catch_at_length_1530.rds")
