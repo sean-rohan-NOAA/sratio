@@ -143,7 +143,7 @@ gearcalib_fit <-
       parameters = parameters,
       map = map, 
       random = random,
-      DLL="gearcalib_switch"
+      DLL="sratio"
     )
     
     
@@ -172,7 +172,7 @@ gearcalib_fit <-
         parameters = parameters0,
         map = c(map,list(logsdGearRW=factor(NA))),
         random = random,
-        DLL="gearcalib_switch"
+        DLL="sratio"
       )
       
       obj0$env$tracepar <- TRUE

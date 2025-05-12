@@ -53,4 +53,3 @@ vignettes/*.pdf
 # Compiled C++
 *.o
 *.dll
-gearcalib_switch.cpp
