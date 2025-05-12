@@ -351,7 +351,7 @@ gearcalib_plot <- function(fit, select = c("relsel", "density"), boot = NULL, xl
                     mapping = aes(x = l,
                                   y = rel_s,
                                   group = quantile),
-                    linetype = 3
+                    linetype = 2
           )
         
       }
@@ -366,7 +366,6 @@ gearcalib_plot <- function(fit, select = c("relsel", "density"), boot = NULL, xl
       ) +
       scale_y_continuous(
         name = "Relative selectivity",
-        # name = paste(levels(fit$d$Gear)[2]," vs. ", levels(fit$d$Gear)[1]),
         limits = c(0, 2),
         oob = scales::squish_infinite
       ) +
