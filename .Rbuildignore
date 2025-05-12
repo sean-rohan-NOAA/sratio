@@ -1,6 +1,5 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-/data/
 analysis
 assets
 output
@@ -10,3 +9,4 @@ plots
 LICENSE.md
 archive
 .github
+archive

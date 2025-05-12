@@ -12,27 +12,31 @@ haul_df <- sratio::data_1530$haul
 
 sp_codes <- sort(unique(catch_df$SPECIES_CODE))
 
-
 cpue_dat <- catch_df |>
   dplyr::inner_join(haul_df) |>
-  dplyr::select(MATCHUP, SPECIES_CODE, WEIGHT, MATCHUP, TREATMENT, YEAR) |>
-  dplyr::mutate(TREATMENT = paste0("WEIGHT_", TREATMENT)) |>
-  tidyr::pivot_wider(names_from = TREATMENT, values_from = WEIGHT, values_fill = 0) |>
-  dplyr::inner_join(readRDS(file = here::here("analysis", "15_30", "output", "n_by_treatment_1530.rds")) |>
-                      dplyr::select(SPECIES_CODE, MATCHUP, AREA_SWEPT_KM2_15, AREA_SWEPT_KM2_30) |>
-                      unique() |>
-                      dplyr::mutate(MATCHUP = as.numeric(as.character(MATCHUP)))) |>
-  dplyr::mutate(CPUE_30 = WEIGHT_30/AREA_SWEPT_KM2_30,
-                CPUE_15 = WEIGHT_15/AREA_SWEPT_KM2_15) |>
-  dplyr::mutate(LOG_CPUE_30 = log(CPUE_30+1),
-                LOG_CPUE_15 = log(CPUE_15+1))
+  dplyr::select(MATCHUP, SPECIES_CODE, WEIGHT, MATCHUP, TREATMENT, YEAR, AREA_SWEPT_KM2) |>
+  dplyr::mutate(CPUE = WEIGHT/AREA_SWEPT_KM2,
+                LOG_CPUE = log(CPUE+1)) |>
+  dplyr::select(-AREA_SWEPT_KM2) |>
+  tidyr::pivot_wider(names_from =  "TREATMENT", values_from = c("WEIGHT", "CPUE", "LOG_CPUE")) |>
+  dplyr::mutate(WEIGHT_15 = ifelse(is.na(WEIGHT_15), 0, WEIGHT_15),
+                WEIGHT_30 = ifelse(is.na(WEIGHT_30), 0, WEIGHT_30),
+                CPUE_15 = ifelse(is.na(CPUE_15), 0, CPUE_15),
+                CPUE_30 = ifelse(is.na(CPUE_30), 0, CPUE_30),
+                LOG_CPUE_15 = ifelse(is.na(LOG_CPUE_15), 1, LOG_CPUE_15),
+                LOG_CPUE_30 = ifelse(is.na(LOG_CPUE_30), 1, LOG_CPUE_30)) |>
+  dplyr::inner_join(
+    haul_df |>
+      dplyr::select(MATCHUP, TREATMENT, AREA_SWEPT_KM2) |>
+      tidyr::pivot_wider(names_from =  "TREATMENT", values_from = "AREA_SWEPT_KM2", names_prefix = "AREA_SWEPT_KM2")
+  ) |>
+  dplyr::filter(CPUE_15 > 0, CPUE_30 > 0)
 
 sp_codes <- sort(unique(catch_df$SPECIES_CODE))
 
 dir.create(here::here("analysis", "15_30",  
                       "plots", "total_cpue_fit"),
            showWarnings = FALSE)
-
 
 # Bayesian linear regression for log10(CPUE[30])~log10(CPUE[15]) ----
 
@@ -42,7 +46,16 @@ for(ii in 1:length(sp_codes)) {
   
   print(ii)
   
+  dir.create(here::here("analysis", "15_30",  
+                        "output", sp_codes[ii]),
+             showWarnings = FALSE)
+  
   sel_spp <- dplyr::filter(cpue_dat, SPECIES_CODE == sp_codes[ii])
+  
+  if(nrow(sel_spp) < 30) {
+    print(paste0("Skipping ", sp_codes[ii]))
+    next
+  }
   
   mod <- 
     brms::brm(
@@ -58,7 +71,12 @@ for(ii in 1:length(sp_codes)) {
   
   posterior_df$SPECIES_CODE <- sp_codes[ii]
   
-  pp_check(mod, type = "dens_overlay", ndraws = 100)
+  pp_check(mod, type = "dens_overlay", ndraws = 1000)
+  pp_check(mod, type = "loo_pit_overlay", ndraws = 100)
+  pp_check(mod, type = "dens_overlay", ndraws = 1000)
+  pp_check(mod, type = "scatter_avg", ndraws = 100)
+  pp_check(mod, type = "loo_pit_qq", ndraws = 4000, moment_match = TRUE)
+  pp_check(mod, type = "pit_ecdf", ndraws = 4000)
   
   loo_check <- brms::loo(mod, moment_match = TRUE)
   
@@ -69,10 +87,7 @@ for(ii in 1:length(sp_codes)) {
                             sp_codes[ii], 
                             paste0("cpue_brms_zeroint_posterior_", sp_codes[ii], ".rds")))
   
-  pp_check(mod)
-  
-  
-  # Example: generate a sequence of new x values
+  # Generate vector of log(CPUE[15])
   new_x <- data.frame(
     LOG_CPUE_15 = 
       seq(
@@ -312,7 +327,7 @@ ratio_estimators <-
   )
 
 
-ratio_kappenman = 
+ratio_kappenman <- 
   fishmethods::fpc(
     cpue1 = CPUE_30,
     cpue2 = CPUE_15,
@@ -328,11 +343,12 @@ rbind(
 )
 
 
-ratio_randomized_block_anova = fishmethods::fpc(
-  cpue1 = cpue_dat$CPUE_30,
-  cpue2 = cpue_dat$CPUE_15,
-  method = 2
-)
+ratio_randomized_block_anova <- 
+  fishmethods::fpc(
+    cpue1 = cpue_dat$CPUE_30,
+    cpue2 = cpue_dat$CPUE_15,
+    method = 2
+  )
 
 
 # Calculate mean bias ----

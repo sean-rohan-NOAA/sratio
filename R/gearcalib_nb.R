@@ -33,7 +33,7 @@
 #' @details
 #' Model and code adapted from Thygesen et al. (2019; https://github.com/Uffe-H-Thygesen/Intercalibration).
 #' @references Thygesen, U.H., Kristensen, K., Jansen, T., Beyer, J.E., 2019. Intercalibration of survey methods using paired fishing operations and log-Gaussian Cox processes. ICES J. Mar. Sci. 76, 1189–1199. https://doi.org/10.1093/icesjms/fsy191
-#' @importFrom TMB MakeADFun sdreport
+#' @import TMB
 #' @importFrom stats nlminb pchisq
 #' @export
 gearcalib_fit <- 
@@ -132,10 +132,10 @@ gearcalib_fit <-
             )
         )
     
-    file.copy(from = system.file("executables", "gearcalib_switch.cpp", package = "sratio"),
-              to = paste0(getwd(), "/gearcalib_switch.cpp"))
-    compile(paste0(getwd(), "/gearcalib_switch.cpp"))
-    dyn.load(paste0(getwd(), "/", dynlib("gearcalib_switch")))
+    # file.copy(from = system.file("executables", "gearcalib_switch.cpp", package = "gearcalib2"),
+    #           to = paste0(getwd(), "/gearcalib_switch.cpp"))
+    # compile(paste0(getwd(), "/gearcalib_switch.cpp"))
+    # dyn.load(paste0(getwd(), "/", dynlib("gearcalib_switch")))
     
     obj <- 
       TMB::MakeADFun(
@@ -229,7 +229,6 @@ gearcalib_fit <-
 #' The function estimates relative gear efficiency as the ratio of catch densities per swept area between two gear types.
 #' Bootstrap resampling is done at the group level (e.g., strata), maintaining group structure while resampling.
 #' A small constant is added to avoid division by zero.
-#'
 #' @importFrom stats quantile
 #' @export
 gearcalib_boot <- function(d,quantiles = c(0.025,0.16,0.5,0.84,0.975),nboot=1000)
@@ -300,7 +299,6 @@ gearcalib_boot <- function(d,quantiles = c(0.025,0.16,0.5,0.84,0.975),nboot=1000
 #' @details
 #' The relative selectivity plot shows model-based estimates (with ±2 SD ribbons) and optionally raw ratios and bootstrap quantiles.
 #' The CPUE plot shows catch densities per swept area for both gears, with optional log-scale.
-#'
 #' @import ggplot2
 #' @importFrom scales squish_infinite
 #' @export

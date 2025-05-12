@@ -1,7 +1,7 @@
-library(TMB)
 library(ggplot2)
-library(sratio)
+# library(sratio)
 library(cowplot)
+library(selcalib)
 
 # TMB::compile("gearcalib_switch.cpp")
 # dyn.load(dynlib("gearcalib_switch"))
