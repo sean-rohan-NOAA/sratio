@@ -217,16 +217,8 @@ bias_correction <- function(mod) {
 }
 
 # The best model for each species is an intercept-only model. Therefore, we use the intercept-only model for all three species.
-somerton_ratios <- 
-  cbind(
-  data.frame(SPECIES_CODE = c(69322, 68580, 68560)),
-  rbind(
-    bias_correction(mod_cpue_rkc_4),
-    bias_correction(mod_cpue_sc_4),
-    bias_correction(mod_cpue_tc_4)
-  )
-)
 
+# Estimated ratio without bias correction
 raw_fit <- 
   data.frame(
     SPECIES_CODE = c(69322, 68580, 68560),
@@ -237,16 +229,25 @@ raw_fit <-
     )
   )
 
+# Estimated ratio with bias correction
+somerton_ratios <- 
+  cbind(
+  data.frame(SPECIES_CODE = c(69322, 68580, 68560)),
+  rbind(
+    bias_correction(mod_cpue_rkc_4),
+    bias_correction(mod_cpue_sc_4),
+    bias_correction(mod_cpue_tc_4)
+  )
+)
+
+# Make 1:1 lines
 one_to_one <- 
   data.frame(SPECIES_CODE = c(69322, 68580, 68560),
              slope = 1,
              intercept = 0)
 
-ggplot() +
-  geom_point(
-    data = cpue,
-             mapping = aes(x = CPUE_NO_KM2_30, y = CPUE_NO_KM2_15)
-    ) +
+p1 <- 
+  ggplot() +
   geom_abline(
     data = one_to_one,
     mapping = aes(color = "1:1 line",
@@ -274,6 +275,11 @@ geom_abline(
     linetype = "Bias-corrected"
   )
 ) +
+  geom_point(
+    data = cpue,
+    mapping = aes(x = CPUE_NO_KM2_30, y = CPUE_NO_KM2_15),
+    size = rel(0.6)
+  ) +
   geom_rug(
     data = cpue,
     mapping = aes(x = CPUE_NO_KM2_30, y = CPUE_NO_KM2_15),
@@ -294,3 +300,9 @@ geom_abline(
   facet_wrap(~sratio::species_code_label(x = SPECIES_CODE, type = "common_name"), scales = "free") +
   theme_bw() +
   theme(legend.title = element_blank())
+
+
+png(filename = here::here("analysis", "somerton_2002", "plots", "compare_somerton.png"),
+    width = 8, height = 3, units = "in", res = 300)
+print(p1)
+dev.off()
