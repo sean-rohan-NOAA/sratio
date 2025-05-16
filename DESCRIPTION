@@ -7,7 +7,8 @@ Authors@R: c(person("Sean", "Rohan", email = "sean.rohan@noaa.gov", role = c("au
             person("Rebecca", "Haehn", email = "rebecca.haehn@noaa.gov", role = "aut"))
 Maintainer: Sean Rohan <sean.rohan@noaa.gov>
 Depends: R (>= 4.0), TMB, plyr, dplyr, tidyr, ggplot2, stats, utils, lubridate, RODBC, getPass, gtools, mgcv, mgcViz, foreach, caret, doParallel, scales, ggthemes, brms, sn
-Imports: Rcpp
+Imports: Rcpp, gapindex
+Remotes: afsc-gap-products/gapindex
 LinkingTo: TMB, RcppEigen
 Description: A package for performing selectivity and catchability analyses and obtaining calibration factors.
 License: GPL (>=2)

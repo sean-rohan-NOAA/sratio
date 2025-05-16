@@ -4,11 +4,13 @@
 
 library(sratio)
 
-somerton_crab <- readRDS(
+somerton_crab <- 
+  readRDS(
   file = here::here("analysis", "somerton_2002", "data", "somerton_crab.rds")
   )
 
-somerton_hauls_1998 <- readRDS(
+somerton_hauls_1998 <- 
+  readRDS(
   file = here::here("analysis", "somerton_2002", "data", "somerton_hauls_1998.rds")
 )
 
@@ -100,8 +102,13 @@ cpue <-
                      values_from = c("CPUE_NO_KM2", "COUNT", "AREA_SWEPT_KM2"),
                      values_fill = 0) |>
   dplyr::filter(CPUE_NO_KM2_15 > 0, CPUE_NO_KM2_30 > 0) |># Remove pairs with zero CPUE
-  dplyr::mutate(CPUE_LOG_RATIO = log(CPUE_NO_KM2_15/CPUE_NO_KM2_30),
-                COMBINED_COUNT = COUNT_30 + COUNT_15)
+  dplyr::mutate(
+    LOG_CPUE_NO_KM2_30 = log(CPUE_NO_KM2_30),
+    LOG_CPUE_NO_KM2_15 = log(CPUE_NO_KM2_15),
+    CPUE_LOG_RATIO = log(CPUE_NO_KM2_15/CPUE_NO_KM2_30),
+                CPUE_RATIO = CPUE_NO_KM2_15/CPUE_NO_KM2_30,
+                COMBINED_COUNT = COUNT_30 + COUNT_15,
+    common_name = sratio::species_code_label(SPECIES_CODE, type = "common_name"))
 
 
 # RKC models ----
@@ -201,44 +208,95 @@ mod_cpue_tc_4 <-
 AIC(mod_cpue_tc_1, mod_cpue_tc_2, mod_cpue_tc_3, mod_cpue_tc_4)
 summary(mod_cpue_tc_4)
 
-# Function to extract model intercept, variance, and bias-corrected ratio from Somerton's log-ratio models
-bias_correction <- function(mod) {
+# Zero-intercept linear regression between log-ratios
+lm_rkc <- lm(LOG_CPUE_NO_KM2_15 ~ LOG_CPUE_NO_KM2_30 + 0, data = cpue[cpue$SPECIES_CODE == 69322, ])
+lm_tc <- lm(LOG_CPUE_NO_KM2_15 ~ LOG_CPUE_NO_KM2_30 + 0, data = cpue[cpue$SPECIES_CODE == 68560, ])
+lm_sc <- lm(LOG_CPUE_NO_KM2_15 ~ LOG_CPUE_NO_KM2_30 + 0, data = cpue[cpue$SPECIES_CODE == 68580, ])
+
+# Function to extract model intercept, variance, and bias-corrected ratio from log-ratio models
+miller_bias_correct <- function(mod) {
   
-  ratio_variance <- summary(mod)$sigma^2
-  ratio_coef <- coef(mod)["(Intercept)"]
-  ratio_estimate <- exp(ratio_coef + 0.5 * ratio_variance)
-  
-  output <- data.frame("ratio_intercept" = unname(ratio_coef),
-    "ratio_variance" = unname(ratio_variance),
-    "ratio_estimate" = unname(ratio_estimate))
+  if(all(names(coef(mod)) == "(Intercept)")) {
+    
+    log_ratio <- coef(mod)["(Intercept)"]
+    var <- summary(mod)$sigma^2
+    se <- summary(mod)$coefficients[, 2]
+    ratio <- exp(log_ratio)
+    ratio_bc <- exp(log_ratio + 0.5 * var)
+    ratio_lci <- exp(log_ratio - 2 * se + 0.5 * var)
+    ratio_uci <- exp(log_ratio + 2 * se + 0.5 * var)
+    
+    output <- data.frame(
+      log_ratio = unname(log_ratio),
+      var = unname(var),
+      ratio = unname(ratio),
+      ratio_bc = unname(ratio_bc),
+      ratio_lci = ratio_lci,
+      ratio_uci = ratio_uci
+    )
+    
+    rownames(output) <- NULL
+    
+  } else {
+    
+    log_ratio <- coef(mod)[[1]]
+    
+    fit <- data.frame(
+      LOG_CPUE_NO_KM2_30 = 
+        seq(min(mod$model[,2]), max(mod$model[,2]), by = 0.01)
+    )
+    
+    fit$log_ratio <- predict(mod, newdata = fit)
+    fit$se <- predict(mod, newdata = fit, se.fit = TRUE)$se.fit
+    var <- summary(mod)$sigma^2
+    fit$fit <- exp(fit$log_ratio)
+    fit$fit_bc <- exp(fit$log_ratio + 0.5 * var)
+    fit$ratio_lci <- exp(fit$log_ratio - 2 * fit$se + 0.5 * var)
+    fit$ratio_uci <- exp(fit$log_ratio + 2 * fit$se + 0.5 * var)
+    
+    output <-
+      list(fit = fit,
+           pars = c("var" = var, "log_ratio" = log_ratio))
+    
+  }
   
   return(output)
   
 }
 
-# The best model for each species is an intercept-only model. Therefore, we use the intercept-only model for all three species.
-
-# Estimated ratio without bias correction
-raw_fit <- 
-  data.frame(
-    SPECIES_CODE = c(69322, 68580, 68560),
-    ratio_estimate = exp(c(coef(mod_cpue_rkc_4)["(Intercept)"],
-                           coef(mod_cpue_sc_4)["(Intercept)"],
-                           coef(mod_cpue_tc_4)["(Intercept)"]
-    )
-    )
-  )
-
-# Estimated ratio with bias correction
-somerton_ratios <- 
+# Estimated ratio without bias correction using fixed effects ANOVA
+ratios <- 
   cbind(
-  data.frame(SPECIES_CODE = c(69322, 68580, 68560)),
-  rbind(
-    bias_correction(mod_cpue_rkc_4),
-    bias_correction(mod_cpue_sc_4),
-    bias_correction(mod_cpue_tc_4)
+    data.frame(
+      SPECIES_CODE = c(69322, 68580, 68560),
+      common_name = sratio::species_code_label(x = c(69322, 68580, 68560), type = "common_name")),
+    rbind(
+      miller_bias_correct(mod_cpue_rkc_4), 
+      miller_bias_correct(mod_cpue_sc_4),
+      miller_bias_correct(mod_cpue_tc_4)
+    )
   )
-)
+
+# Estimated ratio using a zero-intercept linear regression
+
+fit_rkc <- miller_bias_correct(lm_rkc)
+fit_rkc$fit$SPECIES_CODE <- 69322
+fit_sc <- miller_bias_correct(lm_sc)
+fit_sc$fit$SPECIES_CODE <- 68580
+fit_tc <- miller_bias_correct(lm_tc)
+fit_tc$fit$SPECIES_CODE <- 68560
+
+zeroint_fit <-
+  rbind(fit_rkc$fit,
+        fit_sc$fit,
+        fit_tc$fit)
+
+zeroint_fit$common_name <- 
+  sratio::species_code_label(
+    x = zeroint_fit$SPECIES_CODE, 
+    type = "common_name"
+    )
+
 
 # Make 1:1 lines
 one_to_one <- 
@@ -246,7 +304,48 @@ one_to_one <-
              slope = 1,
              intercept = 0)
 
-p1 <- 
+# Values from Table 2 in Somerton et al. (2002)
+somerton_reported <-
+  data.frame(
+    common_name = sratio::species_code_label(x = c(69322, 68580, 68560), type = "common_name"),
+    ratio_bc = c(1.244, 1.784, 1.681),
+    var = c(0.401, 0.626, 0.583)
+    )
+
+somerton_reported$ratio <- exp(log(somerton_reported$ratio_bc) - 0.5 * somerton_reported$var)
+
+  
+
+# ggplot() +
+#   geom_histogram(
+#     data = cpue,
+#     mapping = aes(x = CPUE_LOG_RATIO),
+#     size = rel(0.6)
+#   ) +
+#   geom_vline(xintercept = mean(cpue$CPUE_LOG_RATIO)) +
+#   facet_wrap(~SPECIES_CODE)
+# 
+# ggplot() +
+#   geom_histogram(
+#     data = cpue,
+#     mapping = aes(x = CPUE_RATIO, fill = VESSEL),
+#     size = rel(0.6)
+#   ) +
+#   geom_vline(xintercept = mean(cpue$CPUE_RATIO)) +
+#   facet_wrap(~SPECIES_CODE)
+# 
+# ggplot() +
+#   geom_point(
+#     data = cpue,
+#     mapping = aes(x = TOW_PAIR, y = CPUE_LOG_RATIO),
+#     size = rel(0.6)
+#   ) +
+#   geom_vline(xintercept = mean(cpue$CPUE_RATIO)) +
+#   facet_wrap(~SPECIES_CODE)
+
+
+
+p2 <- 
   ggplot() +
   geom_abline(
     data = one_to_one,
@@ -256,53 +355,95 @@ p1 <-
                   intercept = intercept)
   ) +
   geom_abline(
-    data = raw_fit,
+    data = somerton_reported,
+    mapping = 
+      aes(slope = ratio_bc, intercept = 0, 
+          color = "Somerton BC", 
+          linetype = "Somerton BC")
+  ) +
+  geom_abline(
+    data = somerton_reported,
+    mapping = 
+      aes(slope = ratio, intercept = 0, 
+          color = "Somerton raw", 
+          linetype = "Somerton raw")
+  ) +
+  geom_abline(
+    data = ratios,
     mapping = 
       aes(
-        slope = ratio_estimate,
+        slope = ratio,
         intercept = 0,
-        color = "Ratio",
-        linetype = "Ratio"
+        color = "Reanalysis raw",
+        linetype = "Reanalysis raw"
       )
   ) +
 geom_abline(
-  data = somerton_ratios, 
+  data = ratios, 
   mapping = 
     aes(
-    slope = ratio_estimate, 
+    slope = ratio_bc, 
     intercept = 0,
-    color = "Bias-corrected",
-    linetype = "Bias-corrected"
+    color = "Reanalysis BC",
+    linetype = "Reanalysis BC"
   )
 ) +
+  geom_line(
+    data = zeroint_fit,
+    mapping = aes(x = exp(LOG_CPUE_NO_KM2_30),
+                  y = fit,
+                  linetype = "lm raw",
+                  color = "lm raw")
+  ) +
+  geom_line(
+    data = zeroint_fit,
+    mapping = aes(x = exp(LOG_CPUE_NO_KM2_30),
+                  y = fit_bc,
+                  linetype = "lm BC",
+                  color = "lm BC")
+  ) +
   geom_point(
     data = cpue,
     mapping = aes(x = CPUE_NO_KM2_30, y = CPUE_NO_KM2_15),
     size = rel(0.6)
   ) +
-  geom_rug(
-    data = cpue,
-    mapping = aes(x = CPUE_NO_KM2_30, y = CPUE_NO_KM2_15),
-    sides = "b"
-  ) +
   scale_color_manual(name = NULL, 
-                     values = c("Bias-corrected" = "red",
-                                             "Ratio" = "blue",
-                                             "1:1 line" = "black")
-                     ) +
+                     values = 
+                       c("Reanalysis BC" = "red",
+                         "Reanalysis raw" = "salmon",
+                         "1:1 line" = "black",
+                         "Somerton BC" = "blue",
+                         "Somerton raw" = "cyan",
+                         "lm BC" = "darkgreen",
+                         "lm raw" = "green"
+                       )
+  ) +
   scale_linetype_manual(name = NULL, 
-                        values = c("Bias-corrected" = 1,
-                                                "Ratio" = 1,
-                                                "1:1 line" = 2)
-                        ) +
+                        values = 
+                          c("Reanalysis BC" = 1,
+                            "Reanalysis raw" = 1,
+                            "1:1 line" = 2,
+                            "Somerton BC" = 1,
+                            "Somerton raw" = 1,
+                            "lm BC" = 1,
+                            "lm raw" = 1
+                          )
+  ) +
   scale_x_log10(name = expression(CPUE[30]~('#'%.%km^-2))) +
   scale_y_log10(name = expression(CPUE[15]~('#'%.%km^-2))) +
-  facet_wrap(~sratio::species_code_label(x = SPECIES_CODE, type = "common_name"), scales = "free") +
+  facet_wrap(~common_name, scales = "free") +
   theme_bw() +
   theme(legend.title = element_blank())
 
+print(p2)
 
 png(filename = here::here("analysis", "somerton_2002", "plots", "compare_somerton.png"),
     width = 8, height = 3, units = "in", res = 300)
-print(p1)
+print(p2)
 dev.off()
+
+write.csv(
+  ratios, 
+  file = here::here("analysis", "somerton_2002", "plots", "ratio_estimates.csv"), 
+  row.names = FALSE
+  )
