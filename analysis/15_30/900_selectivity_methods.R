@@ -27,7 +27,7 @@ d_input <-
     Lvec = as.numeric(names(sel_dat)[6:ncol(sel_dat)])
   )
 
-# Thygesen et al. (2019) log-Gaussian Cox process model ----
+# Thygesen et al. (2019) log-Gaussian Cox process model --------------------------------------------
 fit <- gearcalib_fit(d = d_input, model = "poisson")
 
 # Fix random walk logsd at a tiny value when the Hessian is not positive definite
@@ -66,26 +66,26 @@ cowplot::plot_grid(
   nrow = 1
 )
 
-# Kotwicki selectivity ratio on haul-level data ----
+# Kotwicki selectivity ratio on haul-level data ----------------------------------------------------
 
 
-# Kotwicki selectivity ratio on aggregate data ----
+# Kotwicki selectivity ratio on aggregate data -----------------------------------------------------
 
 
-# selfisher on haul-level data ----
+# selfisher on haul-level data ---------------------------------------------------------------------
 
 
-# selfisher on aggregate data ----
+# selfisher on aggregate data ----------------------------------------------------------------------
 
 
-# Webster et al. (2020) ----
+# Webster et al. (2020) ----------------------------------------------------------------------------
 
 
-# Miller binomial on haul-level data ----
+# Miller binomial on haul-level data ---------------------------------------------------------------
 
 
-# Miller betabinomial on haul-level data ----
+# Miller betabinomial on haul-level data -----------------------------------------------------------
 
 
-# Regression w/ Tweedie on aggregate data ----
+# Regression w/ Tweedie on aggregate data ----------------------------------------------------------
 

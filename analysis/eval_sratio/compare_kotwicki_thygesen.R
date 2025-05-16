@@ -1,5 +1,4 @@
 library(sratio)
-library(gearcalib)
 
 # Densities: 
 # ---- Equal: 6, 10, 20, 50; 
@@ -11,16 +10,14 @@ library(gearcalib)
 # 20 size classes
 sim_settings <- 
   expand.grid(
-    # density = c(6, 10, 20, 50, 100),
     density = c(6, 10, 20, 50),
     effort1 = 1,
     effort2 = 0.5,
     q_ratio = 1,
-    # n_pairs = c(20, 50, 100),
-    n_pairs = c(20, 50),
+    n_pairs = c(20, 50, 100),
     s_pattern1 = "logistic1",
     s_pattern2 = "logistic1",
-    n_sizes = 13,
+    n_sizes = 15,
     n_bootstrap = 100,
     sratio_type = "absolute",
     # weighting_method = c("none", "count", "residuals_by_count"),
@@ -257,8 +254,7 @@ for(ii in 1:nrow(sim_settings)) {
           Gear = factor(boot_samples_wide$treatment)
         )
       
-      # out <- gearcalibFitNB(d = d_input, model = "zip")
-      out <- gearcalibFitNB(d = d_input, model = "poisson")
+      out <- gearcalib_fit(d = d_input, model = "poisson")
       
       thygesen_boot_fit[[kk]] <- data.frame(
         size = as.numeric(names(boot_samples_wide)[6:ncol(boot_samples_wide)]),
@@ -364,29 +360,6 @@ dir.create(here::here("analysis", "eval_sratio", "output"), recursive = TRUE, sh
 saveRDS(object = bootstrap_results,
         file = here::here("analysis", "eval_sratio", "output", "sim_bootstrap.rds"))
 
-ggplot() +
-  geom_ribbon(data = bootstrap_results[[ii]],
-              mapping = aes(x = size,
-                            ymin = sratio_q025,
-                            max = sratio_q975),
-              alpha = 0.5,
-              fill = "grey20") +
-  geom_path(data = bootstrap_results[[ii]],
-            mapping = aes(x = size,
-                          y = sratio_q250),
-            linetype = 3) +
-  geom_path(data = bootstrap_results[[ii]],
-            mapping = aes(x = size,
-                          y = sratio_q750),
-            linetype = 3) +
-  geom_path(data = bootstrap_results[[ii]],
-            mapping = aes(x = size,
-                          y = sratio_q500)) +
-  geom_path(data = size_selectivity_density,
-            mapping = aes(x = size, y = s12, color = "True value")) +
-  scale_y_log10(name = expression(italic(S['L,30,15'])~(SR)), expand = c(0.05, 0.05)) +
-  theme_bw()
-
 bootstrap_results <- readRDS(file = here::here("analysis", "eval_sratio", "output", "sim_bootstrap.rds"))
 
 bootstrap_df <- do.call("rbind", bootstrap_results)
@@ -394,22 +367,6 @@ bootstrap_df <- do.call("rbind", bootstrap_results)
 # Mean relative error ----
 max_mre <- 200
 
-ggplot() +
-  geom_path(data = dplyr::filter(bootstrap_df, 
-                                 s_pattern1 == s_pattern2, 
-                                 effort1 > effort2, 
-                                 q_ratio == 1) |>
-              dplyr::mutate(s_12_mre_pct = s_12_mre*100) |>
-              dplyr::mutate(s_12_mre_pct = if_else(s_12_mre_pct > max_mre, max_mre, s_12_mre_pct)),
-            mapping = aes(x = size, y = s_12_mre_pct, color = "Thygesen et al. (2019)", group = scenario, linetype =),
-            linewidth = 1.5) + 
-  scale_y_continuous(name = "Mean relative error (%)", limits = c(-10, max_mre+1), expand = c(0,0)) +
-  scale_x_continuous(limits = c(1,20)) +
-  scale_color_colorblind(name = "Weighting method") +
-  facet_grid(density ~ n_pairs) +
-  ggtitle("Mean relative error (%) in selectivity ratio for hauls with equal catchability and selectivity (logistic), but where gear #2 has half the effort.\nColumns = Number of hauls, Rows = Fish density.") +
-  theme_bw() +
-  theme(legend.position = "bottom")
 
 ggplot() +
   geom_path(data = dplyr::filter(bootstrap_df, 
@@ -419,17 +376,7 @@ ggplot() +
                                  method == "Kotwicki et al. (2017)") |>
               dplyr::mutate(s_12_mre_pct = s_12_mre*100) |>
               dplyr::mutate(s_12_mre_pct = if_else(s_12_mre_pct > max_mre, max_mre, s_12_mre_pct)),
-            mapping = aes(x = size, y = s_12_mre_pct, color = weighting_method, group = scenario),
-            linewidth = 1.5) + 
-  scale_y_continuous(name = "Mean relative error (%)", limits = c(-10, max_mre+1), expand = c(0,0)) +
-  scale_x_continuous(limits = c(1,20)) +
-  scale_color_colorblind(name = "Weighting method") +
-  facet_grid(density ~ n_pairs) +
-  ggtitle("Mean relative error (%) in selectivity ratio for hauls with equal catchability and selectivity (logistic), but where gear #2 has half the effort.\nThree different observation weighting methods.\nColumns = Number of hauls, Rows = Fish density.") +
-  theme_bw() +
-  theme(legend.position = "bottom")
-
-ggplot() +
+            mapping = aes(x = size, y = s_12_mre_pct, color = method, group = scenario)) +
   geom_path(data = dplyr::filter(bootstrap_df, 
                                  s_pattern1 == s_pattern2, 
                                  effort1 > effort2, 
@@ -437,51 +384,11 @@ ggplot() +
                                  method == "Thygesen et al. (2019)") |>
               dplyr::mutate(s_12_mre_pct = s_12_mre*100) |>
               dplyr::mutate(s_12_mre_pct = if_else(s_12_mre_pct > max_mre, max_mre, s_12_mre_pct)),
-            mapping = aes(x = size, y = s_12_mre_pct, color = "LCGP (Poisson)", group = scenario)) + 
+            mapping = aes(x = size, y = s_12_mre_pct, color = method, group = scenario)) + 
   scale_y_continuous(name = "Mean relative error (%)", expand = c(0,0)) +
-  scale_x_continuous(limits = c(1,20)) +
+  scale_x_continuous(limits = c(1,15)) +
   scale_color_colorblind(name = "Method") +
   facet_grid(density ~ n_pairs) +
-  ggtitle("Mean relative error (%) in selectivity ratio for hauls with equal catchability and selectivity (logistic), but where gear #2 has half the effort.\nThree different observation weighting methods.\nColumns = Number of hauls, Rows = Fish density.") +
-  theme_bw() +
-  theme(legend.position = "bottom")
-
-ggplot() +
-  geom_path(data = dplyr::filter(bootstrap_df, 
-                                 s_pattern1 == s_pattern2, 
-                                 effort1 > effort2, 
-                                 q_ratio == 1) |>
-              dplyr::mutate(s_12_mre_pct = s_12_mre*100) |>
-              dplyr::mutate(s_12_mre_pct = if_else(s_12_mre_pct > max_mre, max_mre, s_12_mre_pct)),
-            mapping = aes(x = size, y = s_12_mre_pct, color = weighting_method, group = scenario),
-            linewidth = 1.2) + 
-  geom_hline(yintercept = 0, linetype = 2) +
-  scale_y_continuous(name = "Mean relative error (%)", limits = c(-10, 10), expand = c(0,0)) +
-  scale_x_continuous(limits = c(1,20)) +
-  scale_color_colorblind(name = "Weighting method") +
-  facet_grid(density ~ n_pairs) +
-  ggtitle("Mean relative error (%) in selectivity ratio for hauls with equal catchability and selectivity (logistic), but where gear #2 has half the effort (for focal range of -10% to 10%.\nThree observation weighting methods.\nColumns = Number of hauls, Rows = Fish density.") +
-  theme_bw() +
-  theme(legend.position = "bottom")
-
-ggplot() +
-  geom_bar(data = dplyr::filter(bootstrap_df, 
-                                s_pattern1 == s_pattern2, 
-                                effort1 > effort2, 
-                                q_ratio == 1) |>
-             dplyr::select(size, n_pairs, density, mean_count1, mean_count2) |>
-             unique() |>
-             tidyr::pivot_longer(cols = c("mean_count1", "mean_count2")),
-           mapping = aes(x = size, 
-                         y = value, 
-                         fill = name),
-           position = "dodge",
-           stat = "identity",
-           linewidth = 1.2) + 
-  scale_y_continuous(name = "Mean catch frequency", expand = c(0,0)) +
-  scale_x_continuous(limits = c(1,20)) +
-  scale_fill_colorblind(name = "Gear") +
-  facet_grid(density ~ n_pairs) +
-  ggtitle("Mean number of lengths per haul for hauls with equal catchability and selectivity (logistic), but where gear #2 has half the effort.\nColumns = Number of hauls, Rows = Fish density.") +
+  ggtitle("Columns = Number of hauls, Rows = Fish density.") +
   theme_bw() +
   theme(legend.position = "bottom")

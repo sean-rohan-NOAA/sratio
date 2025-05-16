@@ -228,6 +228,6 @@ d_input <-
     Gear = factor(test$name)
   )
 
-out <- gearcalibFitNB(d = d_input, model = "zip")
+out <- gearcalibFitNB(d = d_input, model = "poisson")
 
 plot.gearcalibFit(out)
