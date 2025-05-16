@@ -5,7 +5,7 @@ library(sratio)
 # Somerton, D.A., Otto, R.S., Syrjala, S.E., 2002. Can changes in tow duration on bottom trawl surveys lead to changes in CPUE and mean size? Fish. Res. 55, 63–70. https://doi.org/10.1016/S0165-7836(01)00293-4
 
 # Load data from Somerton's archived .txt data tables? If FALSE, uses filtered data that are available in CRABBASE. 
-use_original_files = TRUE
+use_original_cpue_files = TRUE
 
 somerton_crab <- 
   readRDS(
@@ -94,7 +94,7 @@ anova(mod_carapace_tc_f)
 
 # CPUE ratio regression ----- 
 
-if(use_original_files) {
+if(use_original_cpue_files) {
   
   # Load data from Somerton's archived files
   somerton_catch <- 
