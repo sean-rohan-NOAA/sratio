@@ -1,18 +1,21 @@
+library(sratio)
+
 # Attempt to replicate Somerton et al. (2002)
 
 # Somerton, D.A., Otto, R.S., Syrjala, S.E., 2002. Can changes in tow duration on bottom trawl surveys lead to changes in CPUE and mean size? Fish. Res. 55, 63–70. https://doi.org/10.1016/S0165-7836(01)00293-4
 
-library(sratio)
+# Load data from Somerton's archived .txt data tables? If FALSE, uses filtered data that are available in CRABBASE. 
+use_original_files = TRUE
 
 somerton_crab <- 
   readRDS(
-  file = here::here("analysis", "somerton_2002", "data", "somerton_crab.rds")
+    file = here::here("analysis", "somerton_2002", "data", "somerton_crab.rds")
   )
 
 somerton_hauls_1998 <- 
   readRDS(
-  file = here::here("analysis", "somerton_2002", "data", "somerton_hauls_1998.rds")
-)
+    file = here::here("analysis", "somerton_2002", "data", "somerton_hauls_1998.rds")
+  )
 
 # Calculate weighted mean carapace width (snow and Tanner) or length (RKC)
 mean_carapace_size <- 
@@ -30,7 +33,7 @@ mean_carapace_size <-
     MEAN_WIDTH = sratio::weighted_mean(x = WIDTH, w = SAMPLING_FACTOR, na_rm = TRUE),
     MEAN_LENGTH = sratio::weighted_mean(x = LENGTH, w = SAMPLING_FACTOR, na_rm = TRUE),
     .groups = "keep"
-    ) |>
+  ) |>
   dplyr::mutate(MEAN_CARAPACE = ifelse(SPECIES_CODE == 69322, MEAN_LENGTH, MEAN_WIDTH))
 
 
@@ -46,9 +49,9 @@ anova(mod_carapace_rkc_m)
 
 mod_carapace_rkc_f <- 
   lm(
-  formula = MEAN_CARAPACE ~ TREATMENT + VESSEL,
-  data = mean_carapace_size[mean_carapace_size$SPECIES_CODE == 69322 & mean_carapace_size$SEX == 2, ]
-)
+    formula = MEAN_CARAPACE ~ TREATMENT + VESSEL,
+    data = mean_carapace_size[mean_carapace_size$SPECIES_CODE == 69322 & mean_carapace_size$SEX == 2, ]
+  )
 
 summary(mod_carapace_rkc_f)
 anova(mod_carapace_rkc_f)
@@ -91,24 +94,77 @@ anova(mod_carapace_tc_f)
 
 # CPUE ratio regression ----- 
 
-cpue <- 
-  somerton_crab |>
-  dplyr::group_by(VESSEL, CRUISE, HAUL, TOW_PAIR, TREATMENT, AREA_SWEPT_KM2, SPECIES_CODE, SEX) |>
-  dplyr::summarize(COUNT = sum(SAMPLING_FACTOR)) |>
-  dplyr::ungroup() |>
-  dplyr::mutate(CPUE_NO_KM2 = COUNT/AREA_SWEPT_KM2) |>
-  dplyr::select(-HAUL, -CRUISE) |>
-  tidyr::pivot_wider(names_from = "TREATMENT", 
-                     values_from = c("CPUE_NO_KM2", "COUNT", "AREA_SWEPT_KM2"),
-                     values_fill = 0) |>
-  dplyr::filter(CPUE_NO_KM2_15 > 0, CPUE_NO_KM2_30 > 0) |># Remove pairs with zero CPUE
-  dplyr::mutate(
-    LOG_CPUE_NO_KM2_30 = log(CPUE_NO_KM2_30),
-    LOG_CPUE_NO_KM2_15 = log(CPUE_NO_KM2_15),
-    CPUE_LOG_RATIO = log(CPUE_NO_KM2_15/CPUE_NO_KM2_30),
-                CPUE_RATIO = CPUE_NO_KM2_15/CPUE_NO_KM2_30,
-                COMBINED_COUNT = COUNT_30 + COUNT_15,
-    common_name = sratio::species_code_label(SPECIES_CODE, type = "common_name"))
+if(use_original_files) {
+  
+  # Load data from Somerton's archived files
+  somerton_catch <- 
+    rbind(
+      read.table(file = here::here("C:\\Users\\sean.rohan\\Work\\afsc\\sratio\\analysis\\somerton_2002\\data\\Cb2.txt"),
+                 header = TRUE, na.strings = ".") |>
+        dplyr::mutate(SPECIES_CODE = 68560),
+      read.table(file = here::here("C:\\Users\\sean.rohan\\Work\\afsc\\sratio\\analysis\\somerton_2002\\data\\Co2.txt"),
+                 header = TRUE, na.strings = ".") |>
+        dplyr::mutate(SPECIES_CODE = 68580),
+      read.table(file = here::here("C:\\Users\\sean.rohan\\Work\\afsc\\sratio\\analysis\\somerton_2002\\data\\RK2.txt"),
+                 header = TRUE, na.strings = ".") |>
+        dplyr::mutate(SPECIES_CODE = 69322)
+    ) |>
+    dplyr::mutate(CATCH15F = CATCH15T-CATCH15M,
+                  CATCH30F = CATCH30T-CATCH30M) |>
+    dplyr::select(TOW_PAIR = OBS, SPECIES_CODE, CATCH15M, CATCH30M, CATCH15F, CATCH30F) |>
+    tidyr::pivot_longer(cols = c("CATCH15M", "CATCH30M", "CATCH15F", "CATCH30F")) |>
+    dplyr::mutate(TREATMENT = factor(ifelse(stringr::str_detect(name, "30"), 30, 15)),
+                  SEX = factor(ifelse(stringr::str_detect(name, "F"), "F", "M"))) |>
+    dplyr::select(-name) |>
+    tidyr::pivot_wider(values_from = "value", names_from = "TREATMENT", names_prefix = "COUNT_")
+  
+  somerton_effort <- 
+    read.table(file = here::here("C:\\Users\\sean.rohan\\Work\\afsc\\sratio\\analysis\\somerton_2002\\data\\Cb1.txt"),
+               header = TRUE, na.strings = ".") |>
+    dplyr::select(TOW_PAIR = OBS, EFFORT15, EFFORT30, VESSEL) |>
+    tidyr::pivot_longer(cols = c("EFFORT15", "EFFORT30")) |>
+    dplyr::mutate(TREATMENT = factor(ifelse(stringr::str_detect(name, "30"), 30, 15))) |>
+    dplyr::select(-name) |>
+    dplyr::mutate(value = value/100,
+                  VESSEL = factor(VESSEL)) |>
+    tidyr::pivot_wider(values_from = "value", names_from = "TREATMENT", names_prefix = "AREA_SWEPT_KM2_")
+  
+  cpue <- 
+    dplyr::inner_join(somerton_catch, somerton_effort) |>
+    dplyr::mutate(
+      CPUE_NO_KM2_15 = COUNT_15 / AREA_SWEPT_KM2_15,
+      CPUE_NO_KM2_30 = COUNT_30 / AREA_SWEPT_KM2_30
+    ) |># Remove pairs with zero CPUE
+    dplyr::mutate(
+      LOG_CPUE_NO_KM2_30 = log(CPUE_NO_KM2_30),
+      LOG_CPUE_NO_KM2_15 = log(CPUE_NO_KM2_15),
+      CPUE_LOG_RATIO = log(CPUE_NO_KM2_15/CPUE_NO_KM2_30),
+      CPUE_RATIO = CPUE_NO_KM2_15/CPUE_NO_KM2_30,
+      COMBINED_COUNT = COUNT_30 + COUNT_15,
+      common_name = sratio::species_code_label(SPECIES_CODE, type = "common_name")) |>
+    dplyr::filter(CPUE_NO_KM2_15 > 0, CPUE_NO_KM2_30 > 0)
+  
+} else{
+  cpue <- 
+    somerton_crab |>
+    dplyr::group_by(VESSEL, CRUISE, HAUL, TOW_PAIR, TREATMENT, AREA_SWEPT_KM2, SPECIES_CODE, SEX) |>
+    dplyr::summarize(COUNT = sum(SAMPLING_FACTOR)) |>
+    dplyr::ungroup() |>
+    dplyr::mutate(CPUE_NO_KM2 = COUNT/AREA_SWEPT_KM2) |>
+    dplyr::select(-HAUL, -CRUISE) |>
+    tidyr::pivot_wider(names_from = "TREATMENT", 
+                       values_from = c("CPUE_NO_KM2", "COUNT", "AREA_SWEPT_KM2"),
+                       values_fill = 0) |>
+    dplyr::filter(CPUE_NO_KM2_15 > 0, CPUE_NO_KM2_30 > 0) |># Remove pairs with zero CPUE
+    dplyr::mutate(
+      LOG_CPUE_NO_KM2_30 = log(CPUE_NO_KM2_30),
+      LOG_CPUE_NO_KM2_15 = log(CPUE_NO_KM2_15),
+      CPUE_LOG_RATIO = log(CPUE_NO_KM2_15/CPUE_NO_KM2_30),
+      CPUE_RATIO = CPUE_NO_KM2_15/CPUE_NO_KM2_30,
+      COMBINED_COUNT = COUNT_30 + COUNT_15,
+      common_name = sratio::species_code_label(SPECIES_CODE, type = "common_name"))
+}
+
 
 
 # RKC models ----
@@ -295,7 +351,7 @@ zeroint_fit$common_name <-
   sratio::species_code_label(
     x = zeroint_fit$SPECIES_CODE, 
     type = "common_name"
-    )
+  )
 
 
 # Make 1:1 lines
@@ -310,11 +366,11 @@ somerton_reported <-
     common_name = sratio::species_code_label(x = c(69322, 68580, 68560), type = "common_name"),
     ratio_bc = c(1.244, 1.784, 1.681),
     var = c(0.401, 0.626, 0.583)
-    )
+  )
 
 somerton_reported$ratio <- exp(log(somerton_reported$ratio_bc) - 0.5 * somerton_reported$var)
 
-  
+
 
 # ggplot() +
 #   geom_histogram(
@@ -378,16 +434,16 @@ p2 <-
         linetype = "Reanalysis raw"
       )
   ) +
-geom_abline(
-  data = ratios, 
-  mapping = 
-    aes(
-    slope = ratio_bc, 
-    intercept = 0,
-    color = "Reanalysis BC",
-    linetype = "Reanalysis BC"
-  )
-) +
+  geom_abline(
+    data = ratios, 
+    mapping = 
+      aes(
+        slope = ratio_bc, 
+        intercept = 0,
+        color = "Reanalysis BC",
+        linetype = "Reanalysis BC"
+      )
+  ) +
   geom_line(
     data = zeroint_fit,
     mapping = aes(x = exp(LOG_CPUE_NO_KM2_30),
@@ -446,4 +502,4 @@ write.csv(
   ratios, 
   file = here::here("analysis", "somerton_2002", "plots", "ratio_estimates.csv"), 
   row.names = FALSE
-  )
+)
