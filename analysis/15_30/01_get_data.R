@@ -768,6 +768,7 @@ get_data <- function(species_codes) {
                   SEX, 
                   SIZE,
                   WEIGHT,
+                  CALCULATED_WEIGHT,
                   SHELL_CONDITION,
                   SAMPLING_FACTOR, 
                   FREQUENCY)

@@ -1,3 +1,8 @@
+#' @useDynLib sratio
+.onUnload <- function (lib) {
+  library.dynam.unload("sratio", lib)
+}
+
 #' Internal function to make a wide-format CPUE data frame
 #' 
 #' @noRd
