@@ -99,13 +99,13 @@ if(use_original_cpue_files) {
   # Load data from Somerton's archived files
   somerton_catch <- 
     rbind(
-      read.table(file = here::here("C:\\Users\\sean.rohan\\Work\\afsc\\sratio\\analysis\\somerton_2002\\data\\Cb2.txt"),
+      read.table(file = here::here("analysis", "somerton_2002", "data", "Cb2.txt"),
                  header = TRUE, na.strings = ".") |>
         dplyr::mutate(SPECIES_CODE = 68560),
-      read.table(file = here::here("C:\\Users\\sean.rohan\\Work\\afsc\\sratio\\analysis\\somerton_2002\\data\\Co2.txt"),
+      read.table(file = here::here("analysis", "somerton_2002", "data", "Co2.txt"),
                  header = TRUE, na.strings = ".") |>
         dplyr::mutate(SPECIES_CODE = 68580),
-      read.table(file = here::here("C:\\Users\\sean.rohan\\Work\\afsc\\sratio\\analysis\\somerton_2002\\data\\RK2.txt"),
+      read.table(file = here::here("analysis", "somerton_2002", "data", "RK2.txt"),
                  header = TRUE, na.strings = ".") |>
         dplyr::mutate(SPECIES_CODE = 69322)
     ) |>
@@ -119,7 +119,7 @@ if(use_original_cpue_files) {
     tidyr::pivot_wider(values_from = "value", names_from = "TREATMENT", names_prefix = "COUNT_")
   
   somerton_effort <- 
-    read.table(file = here::here("C:\\Users\\sean.rohan\\Work\\afsc\\sratio\\analysis\\somerton_2002\\data\\Cb1.txt"),
+    read.table(file = here::here("analysis", "somerton_2002", "data", "Cb1.txt"),
                header = TRUE, na.strings = ".") |>
     dplyr::select(TOW_PAIR = OBS, EFFORT15, EFFORT30, VESSEL) |>
     tidyr::pivot_longer(cols = c("EFFORT15", "EFFORT30")) |>
