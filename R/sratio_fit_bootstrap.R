@@ -190,7 +190,7 @@ sratio_fit_bootstrap <- function(x,
     
     if(is(model, "try-error")) {
       fit_df <- NULL
-      warning(paste0("sratio_fit_bootstrap: Failed to fit sample ", ii, "."))
+      warning(paste0("sratio_fit_bootstrap: Failed to fit sample ", iter, "."))
     } else {
       # Create prediction data.frame. Includes unused block value to avoid an error; doesn't get used with random effects off
       fit_df <- expand.grid(size = size_values,
