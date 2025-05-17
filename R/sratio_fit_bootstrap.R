@@ -177,15 +177,16 @@ sratio_fit_bootstrap <- function(x,
     
     # Fit model
     model <- 
-      # try(
-      sratio_fit_gamm(data = boot_df,
-                             k = k_mod,
-                             gam_formula = 
-                               gam_formula,
-                             gam_family = fit_family, 
-                             obs_weight_control = obs_weight_control)$mod#,
-      # silent = TRUE
-    # )
+      try(
+        sratio_fit_gamm(
+          data = boot_df,
+          k = k_mod,
+          gam_formula = 
+            gam_formula,
+          gam_family = fit_family, 
+          obs_weight_control = obs_weight_control)$mod,
+        silent = TRUE
+      )
     
     if(is(model, "try-error")) {
       fit_df <- NULL
