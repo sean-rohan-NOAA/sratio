@@ -216,6 +216,8 @@ sratio_fit_bootstrap <- function(x,
   
   results <- do.call("rbind", bootstrap_output)
   
+  return(results)
+  
   names(results)[match(c("size", "block"), table = names(results))] <- c(size_col, block_col)
   
   return(results)
