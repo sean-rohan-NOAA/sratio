@@ -135,7 +135,8 @@ for(ii in 1:length(sp_code)) {
   }
   
   # Rename columns to match inputs
-  pratio_species <- dplyr::bind_rows(binomial_fits, beta_fits) |> 
+  pratio_species <- 
+    dplyr::bind_rows(binomial_fits, beta_fits) |> 
     dplyr::mutate(SPECIES_CODE = sp_code[ii]) |>
     dplyr::select(model,
                   obs_weight_method,

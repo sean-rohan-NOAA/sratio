@@ -39,21 +39,6 @@ sratio_fit_bootstrap <- function(x,
                                  sratio_type = "absolute",
                                  n_cores = 1) {
   
-  # x = boot_samples
-  # treatment_order = c(1,2)
-  # treatment_col = "treatment"
-  # count_col = "count"
-  # size_col = "size"
-  # block_col = "new_block"
-  # effort_col = "effort"
-  # sampling_factor_col = "sampling_factor"
-  # gam_family = "binomial"
-  # gam_formula = formula(p ~ s(size, bs = "tp", k = 8) + s(block, bs = "re") + offset(log_qratio))
-  # k = 8
-  # obs_weight_control = obs_weight_control
-  # sratio_type = sratio_type
-  # n_cores = 4
-  
   # Make treatment_order a factor and retain the rank order from input
   if(class(treatment_order) != "factor") {
     treatment_order <- factor(treatment_order, levels = treatment_order)
@@ -184,27 +169,43 @@ sratio_fit_bootstrap <- function(x,
       
     }
     
+    if(length(unique(boot_df$size)) < (k-1)) {
+      k_mod <- length(unique(boot_df$size)) - 1
+    } else {
+      k_mod <- k
+    }
+    
     # Fit model
     model <- 
+      # try(
       sratio_fit_gamm(data = boot_df,
-                             k = k,
+                             k = k_mod,
                              gam_formula = 
                                gam_formula,
                              gam_family = fit_family, 
-                             obs_weight_control = obs_weight_control)$mod
+                             obs_weight_control = obs_weight_control)$mod#,
+      # silent = TRUE
+    # )
     
-    # Create prediction data.frame. Includes unused block value to avoid an error; doesn't get used with random effects off
-    fit_df <- expand.grid(size = size_values,
-                          log_qratio = log_qratio_values,
-                          block = -999) 
+    if(is(model, "try-error")) {
+      fit_df <- NULL
+      warning(paste0("sratio_fit_bootstrap: Failed to fit sample ", ii, "."))
+    } else {
+      # Create prediction data.frame. Includes unused block value to avoid an error; doesn't get used with random effects off
+      fit_df <- expand.grid(size = size_values,
+                            log_qratio = log_qratio_values,
+                            block = -999) 
+      
+      # Calculate selectivity ratio
+      fit_df$p12 <- predict(model, 
+                            newdata = fit_df,
+                            exclude = "s(block)", # random effect of block is off
+                            type = "response")
+      fit_df$s12 <- fit_df$p12/(1-fit_df$p12)
+      fit_df$draw <- iter
+    }
     
-    # Calculate selectivity ratio
-    fit_df$p12 <- predict(model, 
-                          newdata = fit_df,
-                          exclude = "s(block)", # random effect of block is off
-                          type = "response")
-    fit_df$s12 <- fit_df$p12/(1-fit_df$p12)
-    fit_df$draw <- iter
+
     
     return(fit_df)
     
