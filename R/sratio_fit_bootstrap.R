@@ -56,6 +56,10 @@ sratio_fit_bootstrap <- function(x,
                                       scale_method,
                                       sratio_type) {
     
+    if(is.null(x)) {
+      return(NULL)
+    }
+    
     names(x)[
       match(
         c(size_col, block_col, treatment_col, count_col, effort_col, sampling_factor_col), 
@@ -146,11 +150,15 @@ sratio_fit_bootstrap <- function(x,
   log_qratio_values <- unique(unlist(lapply(x, 
                                             FUN = function(z) {unique(z[["log_qratio"]])})))
   
+  # bootstrap_output <- vector(mode = "list", length = length(x))
+  
   cl <- parallel::makeCluster(n_cores)
   doParallel::registerDoParallel(cl)
 
   bootstrap_output <- foreach::foreach(iter = 1:length(x),
                                        .packages = c("mgcv", "dplyr", "sratio")) %dopar% {
+  
+  # for(iter in 1:length(x)) {
   
     boot_df <- x[[iter]]
     
@@ -169,18 +177,12 @@ sratio_fit_bootstrap <- function(x,
       
     }
     
-    if(length(unique(boot_df$size)) < (k-1)) {
-      k_mod <- length(unique(boot_df$size)) - 1
-    } else {
-      k_mod <- k
-    }
-    
     # Fit model
     model <- 
       try(
         sratio_fit_gamm(
           data = boot_df,
-          k = k_mod,
+          k = k,
           gam_formula = 
             gam_formula,
           gam_family = fit_family, 
@@ -207,6 +209,7 @@ sratio_fit_bootstrap <- function(x,
     }
     
 
+    # bootstrap_output[[iter]] <- fit_df
     
     return(fit_df)
     
@@ -214,9 +217,9 @@ sratio_fit_bootstrap <- function(x,
   
   doParallel::stopImplicitCluster()
   
-  results <- do.call("rbind", bootstrap_output)
+  # return(bootstrap_output)
   
-  return(results)
+  results <- do.call("rbind", bootstrap_output)
   
   names(results)[match(c("size", "block"), table = names(results))] <- c(size_col, block_col)
   
