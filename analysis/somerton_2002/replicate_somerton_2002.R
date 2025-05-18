@@ -264,10 +264,20 @@ mod_cpue_tc_4 <-
 AIC(mod_cpue_tc_1, mod_cpue_tc_2, mod_cpue_tc_3, mod_cpue_tc_4)
 summary(mod_cpue_tc_4)
 
-# Zero-intercept linear regression between log-ratios
+par(mfrow = c(2,2))
+plot(mod_cpue_tc_4)
+plot(mod_cpue_rkc_4)
+plot(mod_cpue_sc_4)
+
+# Alternative: Zero-intercept linear regression between log-ratios
+# Linear regression models might be suitable for log transformation
 lm_rkc <- lm(LOG_CPUE_NO_KM2_15 ~ LOG_CPUE_NO_KM2_30 + 0, data = cpue[cpue$SPECIES_CODE == 69322, ])
 lm_tc <- lm(LOG_CPUE_NO_KM2_15 ~ LOG_CPUE_NO_KM2_30 + 0, data = cpue[cpue$SPECIES_CODE == 68560, ])
 lm_sc <- lm(LOG_CPUE_NO_KM2_15 ~ LOG_CPUE_NO_KM2_30 + 0, data = cpue[cpue$SPECIES_CODE == 68580, ])
+
+plot(lm_rkc)
+plot(lm_tc)
+plot(lm_sc)
 
 # Function to extract model intercept, variance, and bias-corrected ratio from log-ratio models
 miller_bias_correct <- function(mod) {
@@ -371,33 +381,80 @@ somerton_reported <-
 somerton_reported$ratio <- exp(log(somerton_reported$ratio_bc) - 0.5 * somerton_reported$var)
 
 
+# Additional exploratory plots ---- 
+ggplot() +
+  geom_histogram(
+    data = cpue,
+    mapping = aes(x = CPUE_LOG_RATIO),
+    bins = 20
+  ) +
+  geom_vline(xintercept = mean(cpue$CPUE_LOG_RATIO)) +
+  facet_wrap(~SPECIES_CODE)
 
-# ggplot() +
-#   geom_histogram(
-#     data = cpue,
-#     mapping = aes(x = CPUE_LOG_RATIO),
-#     size = rel(0.6)
-#   ) +
-#   geom_vline(xintercept = mean(cpue$CPUE_LOG_RATIO)) +
-#   facet_wrap(~SPECIES_CODE)
-# 
-# ggplot() +
-#   geom_histogram(
-#     data = cpue,
-#     mapping = aes(x = CPUE_RATIO, fill = VESSEL),
-#     size = rel(0.6)
-#   ) +
-#   geom_vline(xintercept = mean(cpue$CPUE_RATIO)) +
-#   facet_wrap(~SPECIES_CODE)
-# 
-# ggplot() +
-#   geom_point(
-#     data = cpue,
-#     mapping = aes(x = TOW_PAIR, y = CPUE_LOG_RATIO),
-#     size = rel(0.6)
-#   ) +
-#   geom_vline(xintercept = mean(cpue$CPUE_RATIO)) +
-#   facet_wrap(~SPECIES_CODE)
+ggplot(
+  data = cpue,
+           mapping = aes(x = COUNT_15, y = CPUE_LOG_RATIO)) +
+  geom_point() +
+  geom_smooth() +
+  scale_x_log10() +
+  facet_wrap(~SPECIES_CODE, scales = "free_x")
+
+ggplot(
+  data = cpue,
+  mapping = aes(x = COUNT_15, y = COUNT_30)) +
+  geom_point() +
+  geom_smooth() +
+  geom_abline(slope = 2, intercept = 0, linetype = 2) +
+  scale_x_log10() +
+  scale_y_log10() +
+  facet_wrap(~SPECIES_CODE, scales = "free_x")
+
+ggplot(
+  data = cpue,
+  mapping = aes(x = COUNT_15, y = COUNT_30)) +
+  geom_point() +
+  geom_smooth() +
+  geom_abline(slope = 2, intercept = 0, linetype = 2) +
+  scale_x_log10() +
+  scale_y_log10() +
+  facet_wrap(~SPECIES_CODE, scales = "free_x")
+
+
+ggplot(
+  data = cpue,
+  mapping = aes(x = COUNT_30, y = CPUE_LOG_RATIO)) +
+  geom_point() +
+  geom_smooth() +
+  scale_x_log10() +
+  facet_wrap(~SPECIES_CODE, scales = "free_x")
+
+p1_a <- 
+  ggplot() +
+  geom_histogram(
+    data = dplyr::select(cpue, COUNT_15, COUNT_30, TOW_PAIR, common_name) |>
+      tidyr::pivot_longer(cols = c("COUNT_15", "COUNT_30"),
+                          names_to = "TREATMENT",
+                          values_to = "COUNT"),
+    mapping = aes(x = COUNT),
+    bins = 20
+  ) +
+  scale_x_log10() +
+  scale_y_continuous(name = "Count") +
+  facet_grid(common_name~TREATMENT) +
+  theme_bw()
+
+p1_b <- 
+  ggplot() +
+  stat_ecdf(
+    data = dplyr::select(cpue, CPUE_NO_KM2_15, CPUE_NO_KM2_30, TOW_PAIR, common_name) |>
+      tidyr::pivot_longer(cols = c("CPUE_NO_KM2_15", "CPUE_NO_KM2_30"),
+                          names_to = "TREATMENT",
+                          values_to = "CPUE_NO_KM2"),
+    mapping = aes(x = CPUE_NO_KM2, color = TREATMENT)
+  ) +
+  scale_x_log10() +
+  theme_bw() +
+  facet_wrap(~common_name)
 
 
 

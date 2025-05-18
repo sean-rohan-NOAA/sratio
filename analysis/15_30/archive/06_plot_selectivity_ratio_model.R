@@ -27,40 +27,6 @@ year_colors <- c(`1995` = "#0072B2",
                  `2023` = "#000000", 
                  `2024` = "#E69F00")
 
-# set_species_order <- function(SPECIES_CODE, type = "common_name") {
-#   
-#   output <- factor(SPECIES_CODE, 
-#          levels = c(21740,
-#                     21720,
-#                     11111,
-#                     10115,
-#                     10110,
-#                     10115,
-#                     10210,
-#                     10261,
-#                     10130,
-#                     471,
-#                     69322,
-#                     68580,
-#                     68560),
-#          labels = c("walleye pollock", 
-#                     "Pacific cod",
-#                     "sablefish",
-#                     "Greenland turbot",
-#                     "arrowtooth flounder", 
-#                     "Kamchatka flounder",
-#                     "yellowfin sole",
-#                     "northern rock sole", 
-#                     "flathead sole", 
-#                     "Alaska skate",
-#                     "red king crab",
-#                     "snow crab", 
-#                     "Tanner crab"))
-# 
-#   return(output)
-#   
-# }
-
 fits_all_species <- data.frame()
 
 for(ii in 1:length(bootstrap_results_path)) {
