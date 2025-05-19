@@ -2,9 +2,9 @@
 #'
 #' Estimates the geometric mean of the log-ratio of two paired samples
 #'
-#' @param x A numeric vector of positive values (e.g., treatment group).
-#' @param y A numeric vector of positive values (e.g., control group). Must be the same length as `x`.
-#' @param conf.level Confidence level for the bootstrap confidence interval. Defaults to 0.95.
+#' @param x A numeric vector of positive values.
+#' @param y A numeric vector of positive values.
+#' @param conf_level Confidence level for the bootstrap confidence interval. Defaults to 0.95.
 #' @param n_boot Number of bootstrap samples to draw. Defaults to 1000.
 #' @param return_boot Logical; if `TRUE`, the function also returns the full bootstrap distribution (on the ratio scale). Defaults to `FALSE`.
 #' @return A list with the following components:

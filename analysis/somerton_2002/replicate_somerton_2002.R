@@ -415,14 +415,14 @@ p2 <-
   geom_path(
     data = pred_df,
     mapping = 
-      aes(x = pred_df$CPUE_NO_KM2_30, y = pred_df$fit_bc, 
+      aes(x = CPUE_NO_KM2_30, y = fit_bc, 
           color = "Somerton BC", 
           linetype = "Somerton BC")
   ) +
   geom_path(
     data = pred_df,
     mapping = 
-      aes(x = pred_df$CPUE_NO_KM2_30, y = pred_df$fit, 
+      aes(x = CPUE_NO_KM2_30, y = fit, 
           color = "Somerton raw", 
           linetype = "Somerton raw")
   ) +
