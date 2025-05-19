@@ -7,17 +7,17 @@
 log_ratio_estimator_bootstrap(
   x,
   y,
-  conf.level = 0.95,
+  conf_level = 0.95,
   n_boot = 1000,
   return_boot = FALSE
 )
 }
 \arguments{
-\item{x}{A numeric vector of positive values (e.g., treatment group).}
+\item{x}{A numeric vector of positive values.}
 
-\item{y}{A numeric vector of positive values (e.g., control group). Must be the same length as `x`.}
+\item{y}{A numeric vector of positive values.}
 
-\item{conf.level}{Confidence level for the bootstrap confidence interval. Defaults to 0.95.}
+\item{conf_level}{Confidence level for the bootstrap confidence interval. Defaults to 0.95.}
 
 \item{n_boot}{Number of bootstrap samples to draw. Defaults to 1000.}
 
@@ -35,6 +35,5 @@ A list with the following components:
 }
 }
 \description{
-Estimates the geometric mean of the log-ratio of two paired samples with 
-a bias correction and computes a bootstrap confidence interval.
+Estimates the geometric mean of the log-ratio of two paired samples
 }

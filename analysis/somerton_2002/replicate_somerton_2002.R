@@ -264,10 +264,20 @@ mod_cpue_tc_4 <-
 AIC(mod_cpue_tc_1, mod_cpue_tc_2, mod_cpue_tc_3, mod_cpue_tc_4)
 summary(mod_cpue_tc_4)
 
-# Zero-intercept linear regression between log-ratios
+par(mfrow = c(2,2))
+plot(mod_cpue_tc_4)
+plot(mod_cpue_rkc_4)
+plot(mod_cpue_sc_4)
+
+# Alternative: Zero-intercept linear regression between log-ratios
+# Linear regression models might be suitable for log transformation
 lm_rkc <- lm(LOG_CPUE_NO_KM2_15 ~ LOG_CPUE_NO_KM2_30 + 0, data = cpue[cpue$SPECIES_CODE == 69322, ])
 lm_tc <- lm(LOG_CPUE_NO_KM2_15 ~ LOG_CPUE_NO_KM2_30 + 0, data = cpue[cpue$SPECIES_CODE == 68560, ])
 lm_sc <- lm(LOG_CPUE_NO_KM2_15 ~ LOG_CPUE_NO_KM2_30 + 0, data = cpue[cpue$SPECIES_CODE == 68580, ])
+
+plot(lm_rkc)
+plot(lm_tc)
+plot(lm_sc)
 
 # Function to extract model intercept, variance, and bias-corrected ratio from log-ratio models
 miller_bias_correct <- function(mod) {
@@ -354,7 +364,7 @@ zeroint_fit$common_name <-
   )
 
 
-# Make 1:1 lines
+# Make lines
 one_to_one <- 
   data.frame(SPECIES_CODE = c(69322, 68580, 68560),
              slope = 1,
@@ -363,6 +373,7 @@ one_to_one <-
 # Values from Table 2 in Somerton et al. (2002)
 somerton_reported <-
   data.frame(
+    SPECIES_CODE = c(69322, 68580, 68560),
     common_name = sratio::species_code_label(x = c(69322, 68580, 68560), type = "common_name"),
     ratio_bc = c(1.244, 1.784, 1.681),
     var = c(0.401, 0.626, 0.583)
@@ -370,36 +381,27 @@ somerton_reported <-
 
 somerton_reported$ratio <- exp(log(somerton_reported$ratio_bc) - 0.5 * somerton_reported$var)
 
-
-
-# ggplot() +
-#   geom_histogram(
-#     data = cpue,
-#     mapping = aes(x = CPUE_LOG_RATIO),
-#     size = rel(0.6)
-#   ) +
-#   geom_vline(xintercept = mean(cpue$CPUE_LOG_RATIO)) +
-#   facet_wrap(~SPECIES_CODE)
-# 
-# ggplot() +
-#   geom_histogram(
-#     data = cpue,
-#     mapping = aes(x = CPUE_RATIO, fill = VESSEL),
-#     size = rel(0.6)
-#   ) +
-#   geom_vline(xintercept = mean(cpue$CPUE_RATIO)) +
-#   facet_wrap(~SPECIES_CODE)
-# 
-# ggplot() +
-#   geom_point(
-#     data = cpue,
-#     mapping = aes(x = TOW_PAIR, y = CPUE_LOG_RATIO),
-#     size = rel(0.6)
-#   ) +
-#   geom_vline(xintercept = mean(cpue$CPUE_RATIO)) +
-#   facet_wrap(~SPECIES_CODE)
-
-
+pred_df <-
+  rbind(
+    data.frame(
+      CPUE_NO_KM2_30 = 
+        exp(seq(min(log(cpue$CPUE_NO_KM2_30[cpue$SPECIES_CODE == 68560])), max(log(cpue$CPUE_NO_KM2_30[cpue$SPECIES_CODE == 68560])), by = 0.1)),
+      SPECIES_CODE = 68560
+    ),
+    data.frame(
+      CPUE_NO_KM2_30 = 
+        exp(seq(min(log(cpue$CPUE_NO_KM2_30[cpue$SPECIES_CODE == 68580])), max(log(cpue$CPUE_NO_KM2_30[cpue$SPECIES_CODE == 68580])), by = 0.1)),
+      SPECIES_CODE = 68580
+    ),
+    data.frame(
+      CPUE_NO_KM2_30 = 
+        exp(seq(min(log(cpue$CPUE_NO_KM2_30[cpue$SPECIES_CODE == 69322])), max(log(cpue$CPUE_NO_KM2_30[cpue$SPECIES_CODE == 69322])), by = 0.1)),
+      SPECIES_CODE = 69322
+    )
+  ) |>
+  dplyr::inner_join(somerton_reported) |>
+  dplyr::mutate(fit_bc = CPUE_NO_KM2_30*ratio_bc,
+                fit = CPUE_NO_KM2_30*ratio)
 
 p2 <- 
   ggplot() +
@@ -410,39 +412,19 @@ p2 <-
                   slope = slope,
                   intercept = intercept)
   ) +
-  geom_abline(
-    data = somerton_reported,
+  geom_path(
+    data = pred_df,
     mapping = 
-      aes(slope = ratio_bc, intercept = 0, 
+      aes(x = CPUE_NO_KM2_30, y = fit_bc, 
           color = "Somerton BC", 
           linetype = "Somerton BC")
   ) +
-  geom_abline(
-    data = somerton_reported,
+  geom_path(
+    data = pred_df,
     mapping = 
-      aes(slope = ratio, intercept = 0, 
+      aes(x = CPUE_NO_KM2_30, y = fit, 
           color = "Somerton raw", 
           linetype = "Somerton raw")
-  ) +
-  geom_abline(
-    data = ratios,
-    mapping = 
-      aes(
-        slope = ratio,
-        intercept = 0,
-        color = "Reanalysis raw",
-        linetype = "Reanalysis raw"
-      )
-  ) +
-  geom_abline(
-    data = ratios, 
-    mapping = 
-      aes(
-        slope = ratio_bc, 
-        intercept = 0,
-        color = "Reanalysis BC",
-        linetype = "Reanalysis BC"
-      )
   ) +
   geom_line(
     data = zeroint_fit,
@@ -465,20 +447,16 @@ p2 <-
   ) +
   scale_color_manual(name = NULL, 
                      values = 
-                       c("Reanalysis BC" = "red",
-                         "Reanalysis raw" = "salmon",
-                         "1:1 line" = "black",
-                         "Somerton BC" = "blue",
-                         "Somerton raw" = "cyan",
+                       c("1:1 line" = "black",
+                         "Somerton BC" = "red",
+                         "Somerton raw" = "salmon",
                          "lm BC" = "darkgreen",
                          "lm raw" = "green"
                        )
   ) +
   scale_linetype_manual(name = NULL, 
                         values = 
-                          c("Reanalysis BC" = 1,
-                            "Reanalysis raw" = 1,
-                            "1:1 line" = 2,
+                          c("1:1 line" = 2,
                             "Somerton BC" = 1,
                             "Somerton raw" = 1,
                             "lm BC" = 1,
