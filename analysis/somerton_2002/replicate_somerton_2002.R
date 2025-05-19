@@ -448,8 +448,8 @@ p2 <-
   scale_color_manual(name = NULL, 
                      values = 
                        c("1:1 line" = "black",
-                         "Somerton BC" = "blue",
-                         "Somerton raw" = "cyan",
+                         "Somerton BC" = "red",
+                         "Somerton raw" = "salmon",
                          "lm BC" = "darkgreen",
                          "lm raw" = "green"
                        )
