@@ -1,7 +1,6 @@
 #' Log ratio estimator with bootstrap confidence intervals
 #'
-#' Estimates the geometric mean of the log-ratio of two paired samples with 
-#' a bias correction and computes a bootstrap confidence interval.
+#' Estimates the geometric mean of the log-ratio of two paired samples
 #'
 #' @param x A numeric vector of positive values (e.g., treatment group).
 #' @param y A numeric vector of positive values (e.g., control group). Must be the same length as `x`.
@@ -19,52 +18,34 @@
 #' }
 #' @export
 
-log_ratio_estimator_bootstrap <- function(x, y, conf.level = 0.95, n_boot = 1000, return_boot = FALSE) {
+log_ratio_estimator_bootstrap <- function(x, y, conf_level = 0.95, n_boot = 1000, return_boot = FALSE) {
   
-  n <- length(x)
-  log_mu <- log(x) - log(y)
-  mean_log <- mean(log_mu)
-  var_log <- var(log_mu)
-  
-  # Bias-corrected geometric mean ratio
-  mu <- exp(mean_log + 0.5 * var_log / n)
-  
-  mean_var <- function(x) {
-    cbind(mean(x), var(x))
-  }
+  # Original log-ratio estimate
+  log_ratios <- log(x / y)
+  theta_hat <- mean(log_ratios)
   
   # Bootstrap sampling
-  boot_means <- replicate(n_boot, {
+  n <- length(x)
+  boot_estimates <- numeric(n_boot)
+  
+  for (b in 1:n_boot) {
     indices <- sample(1:n, size = n, replace = TRUE)
-    mean_var(log(x[indices]) - log(y[indices]))
-  }, 
-  simplify = TRUE)
-  
-  boot_means <- t(boot_means)
-  
-  # Calculate bias correction factor for each sample
-  boot_means <- cbind(boot_means, 0.5 * boot_means[, 2] / n)
-  
-  # Bootstrap confidence interval on the ratio scale
-  ci_bounds <- quantile(
-    exp(boot_means[, 1] + boot_means[, 3]), 
-    probs = c((1 - conf.level) / 2, 1 - (1 - conf.level) / 2)
-  )
-  
-  result <- list(
-    mu = mu,
-    lci_mu = ci_bounds[1],
-    uci_mu = ci_bounds[2],
-    log_mu = mean_log,
-    n = n
-  )
-  
-  if(return_boot) {
-    result$bootstrap_distribution <- exp(boot_means)
-    result$bootstrap_distribution <- cbind(result$bootstrap_distribution, boot_means)
-    
-    names(result$bootstrap_distribution) <- c("mean", "var", "bc_factor", "bc_mean")
+    boot_log_ratios <- log(x[indices] / y[indices])
+    boot_estimates[b] <- mean(boot_log_ratios)
   }
+  
+  # Standard error and CI
+  se <- sd(boot_estimates)
+  alpha <- 1 - conf_level
+  ci <- quantile(boot_estimates, probs = c(alpha/2, 1 - alpha/2))
+  
+  # Return results
+  return(list(
+    estimate = theta_hat,
+    bootstrap_se = se,
+    conf_interval = ci,
+    boot_estimates = boot_estimates
+  ))
   
   return(result)
 }
