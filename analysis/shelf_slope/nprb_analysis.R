@@ -740,17 +740,6 @@ loocv_error_by_haul <-
     ERROR_SQUARED = (PREDICTED_CPUE_KGKM2_172-CPUE_KGKM2_172)^2
   )
 
-ggplot() +
-  geom_point(
-    data = dplyr::filter(loocv_error_by_haul, COMMON_NAME == "walleye pollock"),
-    mapping = aes(x = PREDICTED_CPUE_KGKM2_172, y = CPUE_KGKM2_172)
-  ) + 
-  geom_abline(slope = 1, intercept = 0, linetype = 2) +
-  facet_wrap(~method) +
-  scale_x_log10(name = expression('Predicted CPUE ('*kg%.%km^-2*')')) +
-  scale_y_log10(name = expression('Observed CPUE ('*kg%.%km^-2*')')) +
-  theme_bw()
-
 
 loocv_table <- 
   loocv_error_by_haul |>
@@ -787,10 +776,33 @@ ggplot() +
   geom_hline(yintercept = 0, linetype = 2) +
   geom_point(data = loocv_long,
              mapping = aes(x = method, y = ifelse(abs(value) < 100, value, sign(value) * 100), color = name, size = LOWEST_RMSE), shape = 1) +
-  facet_wrap(~COMMON_NAME) +
+  facet_wrap(~COMMON_NAME) +3
   scale_y_continuous(name = "Percent error (%)") + 
   theme_bw()
 
+# Prediction error for individual species; starting with pollock
+ggplot() +
+  geom_point(
+    data = dplyr::filter(loocv_error_by_haul, COMMON_NAME == "walleye pollock"),
+    mapping = aes(x = PREDICTED_CPUE_KGKM2_172, y = CPUE_KGKM2_172)
+  ) + 
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  facet_wrap(~method) +
+  scale_x_log10(name = expression('Predicted CPUE ('*kg%.%km^-2*')')) +
+  scale_y_log10(name = expression('Observed CPUE ('*kg%.%km^-2*')')) +
+  theme_bw()
+
+
+ggplot() +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_boxplot(data = loocv_long,
+             mapping = aes(x = method, y = ifelse(abs(value) < 100, value, sign(value) * 100))) +
+  geom_point(data = loocv_long,
+               mapping = aes(x = method, y = ifelse(abs(value) < 100, value, sign(value) * 100), color = COMMON_NAME), shape = 19, size = rel(3.5)) +
+  scale_y_continuous(name = "Percent error (%)") + 
+  scale_color_tableau(name = "Common name", palette = "Tableau 20") +
+  facet_wrap(~name, nrow = 2) +
+  theme_bw()
 
 
 
