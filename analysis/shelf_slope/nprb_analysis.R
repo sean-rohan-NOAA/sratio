@@ -1,4 +1,5 @@
 library(sratio)
+library(fitdistrplus)
 
 # Successful slope tows
 
@@ -16,8 +17,8 @@ gear_codes <-
 
 species_codes <-
   data.frame(
-    SPECIES_CODE = c(21740, 21720, 20510, 30051, 30052, 30060, 30420, 30152, 30020, 10115, 10110, 10112, 10130, 471, 420, 435, 440, 455, 472, 475, 477, 480, 485,  68580),
-    COMMON_NAME = c("walleye pollock", "Pacific cod", "sablefish", "BS/RE rockfish",  "BS/RE rockfish", "Pacific ocean perch", "northern rockfish", "dusky rockfish", "shortspine thornyhead", "Greenland turbot", "arrowtooth flounder", "Kamchatka flounder", "flathead sole", rep("skates", 10),"snow crab")
+    SPECIES_CODE = c(21740, 21720, 20510, 30060, 30420, 30152, 30051, 30052, 30020, 10115, 10110, 10112, 10130, 471, 420, 435, 440, 455, 472, 475, 477, 480, 485,  68580),
+    COMMON_NAME = c("walleye pollock", "Pacific cod", "sablefish", "Pacific ocean perch", "northern rockfish", "dusky rockfish", "BS/RE rockfish",  "BS/RE rockfish", "shortspine thornyhead", "Greenland turbot", "arrowtooth flounder", "Kamchatka flounder", "flathead sole", rep("skates", 10),"snow crab")
   )
 
 species_codes$COMMON_NAME <- 
@@ -32,8 +33,8 @@ analysis_species <- c(
   "walleye pollock", 
   "Pacific cod", 
   "sablefish", 
-  "BS/RE rockfish",  
   "Pacific ocean perch", 
+  "BS/RE rockfish",  
   "shortspine thornyhead", 
   "Greenland turbot", 
   "arrowtooth flounder", 
@@ -74,7 +75,6 @@ cpue_data <-
 ) |>
   dplyr::select(-HAULJOIN, -VESSEL, -HAUL, -CRUISE)
 
-
 cpue_wide <- cpue_data |>
   dplyr::select(-GEAR) |>
   tidyr::pivot_wider(
@@ -83,9 +83,30 @@ cpue_wide <- cpue_data |>
     values_fill = 0
   ) |>
   dplyr::filter(COMMON_NAME %in% analysis_species) |>
-  dplyr::mutate(CPUE_LOG_RATIO = log(CPUE_KGKM2_172/CPUE_KGKM2_44))
+  dplyr::mutate(CPUE_LOG_RATIO = log(CPUE_KGKM2_172/CPUE_KGKM2_44),
+                log_44 = log(CPUE_KGKM2_44+1),
+                log_172 = log(CPUE_KGKM2_172+1))
+
 
 write.csv(cpue_wide, file = here::here("analysis", "shelf_slope", "data", "shelf_slope_cpue.csv"), row.names = FALSE)
+
+# Draw bootstrap samples for each species
+bootstrap_matchups <- vector(mode = "list", length = 1000)
+set.seed(999)
+for(ii in 1:1000) {
+  
+  bootstrap_matchups[[ii]] <- 
+    dplyr::select(cpue_wide, COMMON_NAME, MATCHUP) |>
+    dplyr::group_by(COMMON_NAME) |>
+    dplyr::reframe(n = n(), 
+                   MATCHUP = sample(MATCHUP, size = n, replace = TRUE)) |>
+    dplyr::mutate(draw = ii) |>
+    dplyr::select(-n) |>
+    dplyr::left_join(cpue_wide, join_by(COMMON_NAME, MATCHUP))
+  
+}
+
+saveRDS(bootstrap_matchups, file = here::here("analysis", "shelf_slope", "output", "fpc_bootstrap_samples.rds"))
 
 
 
@@ -263,11 +284,17 @@ fit_mgcv <- function(x, common_name, formula = log_172 ~ s(log_44, bs = "tp"), f
 # Fishing power comparison methods ----
 # Methods: 1 = Ratio of Means, 2 = Randomized Block ANOVA, 3 = Multiplicative Model, 4 = Kappenman 1992.
 
-est_fpc <- function(x, common_name, cpue1_name = "CPUE_KGKM2_172", cpue2_name = "CPUE_KGKM2_44", method = 1:4, loocv = FALSE, kapp_zeros = "ind", boot_type = "paired") {
+est_fpc <- function(x, common_name, cpue1_name = "CPUE_KGKM2_172", cpue2_name = "CPUE_KGKM2_44", method = 1:4, loocv = FALSE, kapp_zeros = "ind", boot_type = "paired", nboot = 1000) {
   
   x_sel <- dplyr::filter(x, COMMON_NAME == common_name)
   
-  fpc_results <- fishmethods::fpc(cpue1 = x_sel[[cpue1_name]], cpue2 = x_sel[[cpue2_name]], method = method)
+  fpc_results <- 
+    fishmethods::fpc(
+      cpue1 = x_sel[[cpue1_name]], 
+      cpue2 = x_sel[[cpue2_name]], 
+      method = method, 
+      nboot = nboot
+    )
   
   fpc_results$COMMON_NAME <- common_name
   
@@ -288,7 +315,9 @@ est_fpc <- function(x, common_name, cpue1_name = "CPUE_KGKM2_172", cpue2_name = 
                 cpue1 = x_sel[[cpue1_name]][-ii], 
                 cpue2 = x_sel[[cpue2_name]][-ii], 
                 method = method,
-                boot_type = boot_type)
+                boot_type = boot_type,
+                nboot = nboot
+                )
         )
       
       loocv_results <- rbind(loocv_results, fold_fit)
@@ -348,10 +377,9 @@ fit_somerton_ratio <- function(x, common_name, cpue1_name, cpue2_name, loocv = F
     
   }
   
-  # Bootstrap for CIs?
-  
   return(
-    list(ratio = ratio,
+    list(model = ratio_mod,
+         ratio = ratio,
          loocv_results = loocv_results)
   )
   
@@ -421,13 +449,13 @@ est_ccr <- function(x, common_name, cpue1_name = "CPUE_KGKM2_172", cpue2_name = 
     return(fn(c1/(c1+c2), na.rm = TRUE))
   }
   
-  ccr_to_ser <- function(val) {
+  ccr_to_fpc <- function(val) {
     return(val/(1-val))
   }
   
   ccr <- 
     data.frame(
-      common_name = common_name,
+      COMMON_NAME = common_name,
       ccr_mean = f_ccr(c1 = x_sel[[cpue1_name]], c2 = x_sel[[cpue2_name]], fn = mean),
       ccr_sd = f_ccr(c1 = x_sel[[cpue1_name]], c2 = x_sel[[cpue2_name]], fn = sd),
       lwr_ci_boot = NA,
@@ -435,8 +463,8 @@ est_ccr <- function(x, common_name, cpue1_name = "CPUE_KGKM2_172", cpue2_name = 
       ccr_median = f_ccr(c1 = x_sel[[cpue1_name]], c2 = x_sel[[cpue2_name]], fn = median)
     )
   
-  ccr$ser_mean <- ccr_to_ser(ccr$ccr_mean)
-  ccr$ser_median <- ccr_to_ser(ccr$ccr_median)
+  ccr$fpc <- ccr_to_fpc(ccr$ccr_mean)
+  ccr$fpc_median <- ccr_to_fpc(ccr$ccr_median)
 
   # bootstrap for CIs when bootstrap_ci is numeric
   
@@ -455,8 +483,8 @@ est_ccr <- function(x, common_name, cpue1_name = "CPUE_KGKM2_172", cpue2_name = 
     ccr$ccr_lwr_ci_boot <- quantile(ccr_samp, p = 0.025)
     ccr$ccr_upr_ci_boot <- quantile(ccr_samp, p = 0.975)
     
-    ccr$ser_lwr_ci_boot <- ccr_to_ser(ccr$ccr_lwr_ci_boot)
-    ccr$ser_upr_ci_boot <- ccr_to_ser(ccr$ccr_upr_ci_boot)
+    ccr$fpc_lwr_ci_boot <- ccr_to_fpc(ccr$ccr_lwr_ci_boot)
+    ccr$fpc_upr_ci_boot <- ccr_to_fpc(ccr$ccr_upr_ci_boot)
     
   }
   
@@ -469,11 +497,13 @@ est_ccr <- function(x, common_name, cpue1_name = "CPUE_KGKM2_172", cpue2_name = 
     
     for(ii in 1:nrow(x_sel)) {
       
-      ccr_mean <- f_ccr(c1 = x_sel[[cpue1_name]][-ii], c2 = x_sel[[cpue2_name]][-ii])
+      ccr_fit <- f_ccr(c1 = x_sel[[cpue1_name]][-ii], c2 = x_sel[[cpue2_name]][-ii])
       
-      loocv_results <- rbind(loocv_results, cbind(x_sel[ii, ], ccr_mean))
+      loocv_results <- rbind(loocv_results, cbind(x_sel[ii, ], ccr_fit))
       
     }
+    
+    loocv_results$fpc_fit <- ccr_to_fpc(loocv_results$ccr_fit)
     
   }
   
@@ -504,6 +534,7 @@ est_median_ratio <- function(x, common_name, cpue1_name, cpue2_name, loocv = FAL
   
   ser <- 
     data.frame(
+      COMMON_NAME = common_name,
       ser_median = median(x_sel[[cpue1_name]]/x_sel[[cpue2_name]], na.rm = TRUE),
       ser_mean = mean(x_sel[[cpue1_name]]/x_sel[[cpue2_name]], na.rm = TRUE),
       ser_lwr_ci_boot = NA,
@@ -562,27 +593,132 @@ est_median_ratio <- function(x, common_name, cpue1_name, cpue2_name, loocv = FAL
   
 }
 
+# Catch comparison rate using beta distribution ----
 
+est_ccr_beta <- function(x, common_name, cpue1_name = "CPUE_KGKM2_172", cpue2_name = "CPUE_KGKM2_44", loocv = FALSE, bootstrap_ci = 1000) {
+  
+  x_sel <- dplyr::filter(x, COMMON_NAME == common_name)
+  
+  n_obs <- nrow(x_sel)
+  
+  f_ccr <- function(c1, c2) {
+    return(c1/(c1+c2))
+  }
+  
+  ccr_to_fpc <- function(val) {
+    return(val/(1-val))
+  }
+  
+  # Catch comparison rate
+  p <- f_ccr(c1 = x_sel[[cpue1_name]], c2 = x_sel[[cpue2_name]])
+  
+  beta_fit <- fitdistrplus::fitdist(p, "beta")
+  
+  ccr <- 
+    data.frame(
+      COMMON_NAME = common_name,
+      par_alpha = beta_fit$estimate[1],
+      par_beta = beta_fit$estimate[2]
+    )
+  
+  ccr$p <- ccr$par_alpha/(ccr$par_alpha+ccr$par_beta)
+  
+  ccr$fpc <- ccr_to_fpc(ccr$p)
+  
+  
+  # bootstrap for CIs when bootstrap_ci is numeric
+  
+  if(is.numeric(bootstrap_ci)) {
+    
+    boot_fpc <- numeric(length = bootstrap_ci)
+    
+    for(jj in 1:bootstrap_ci) {
+      
+      boot_p <- sample(p, size = n_obs, replace = TRUE)
+      
+      boot_fit <- fitdistrplus::fitdist(boot_p, "beta")
+      
+      boot_alpha <- boot_fit$estimate[1]
+      
+      boot_beta <- boot_fit$estimate[2]
+      
+      boot_p <- boot_alpha/(boot_alpha+boot_beta)
+      
+      boot_fpc[jj] <- ccr_to_fpc(boot_p)
+      
+    }
+    
+    ccr$fpc_lwr_ci_boot <- quantile(boot_fpc, p = 0.025)
+    ccr$fpc_upr_ci_boot <- quantile(boot_fpc, p = 0.975)
+    
+  }
+  
+  # Leave one out cross validation
+  loocv_results <- NULL
+  
+  if(loocv) {
+    
+    loocv_results <- data.frame()
+    
+    for(ii in 1:nrow(x_sel)) {
+      
+      loocv_fit <- fitdistrplus::fitdist(p[-ii], "beta")
+      loocv_alpha <- loocv_fit$estimate[1]
+      loocv_beta <- loocv_fit$estimate[2]
+      fpc_fit <- loocv_alpha/(loocv_alpha+loocv_beta)
+      
+      loocv_results <- rbind(loocv_results, cbind(x_sel[ii, ], fpc_fit))
+      
+    }
+    
+  }
+  
+  return(
+    list(
+      ccr = ccr,
+      loocv_results = loocv_results
+    )
+  )
+  
+  
+}
 
-# Catch comparison rate
-# Loop through species to estimate FPCs ----
+# Loop through species to estimate relative fishing powers for biomass  ----
 
-gam_fits <- fpc_fits <- somerton_fits <- fpc_fits <- ccr_fits <- median_ratio_fits <- vector(mode = "list", length = length(analysis_species))
+# Methods used:
+# GAM, median ratio, log ratio with bias correction (Somerton), RCI/CCR beta (Fanning), 
+# RCI/CCR mean (O'Leary), ratio median (O'Leary), Kappenman
+
+# For each method:
+# - Calculate estimator
+# - Bootstrap to estimate CIs
+# - Generate LOOCV predictions for method comparison
+
+bootstrap_species <- 
+  do.call(rbind, bootstrap_matchups)
+
+gam_fits <- fpc_fits <- somerton_fits <- fpc_fits <- ccr_fits <- ccr_beta_fits <- 
+  median_ratio_fits <- vector(mode = "list", length = length(analysis_species))
+
+bootstrap_fits <- 
+
 gam_pred <- data.frame()
 
 loocv_pred <- data.frame()
 
-# for(ii in 1:2) { # Takes awhile, mostly because of the Kappenman estimator
-  for(ii in 1:length(analysis_species)) { # Takes ~2 hours to run because of the Kappenman estimator
+set.seed(999)
+for(ii in 1:1) { # Takes ~2 hours to run because of the Kappenman estimator; otherwise less than a minute
+# for(ii in 1:length(analysis_species)) { # Takes ~2 hours to run because of the Kappenman estimator; otherwise less than a minute
   
   cat(analysis_species[ii], "\n")
   
-  # GAM
+  boot_cpue_samples <- 
+    lapply(bootstrap_matchups, dplyr::filter, COMMON_NAME == analysis_species[[ii]])
+  
+  # GAM - No specific author, but see (Jones et al., 2025 restrictor line paper)
   gam_fits[[ii]] <- 
-    cpue_wide |>
-    dplyr::mutate(log_44 = log(CPUE_KGKM2_44+1),
-                  log_172 = log(CPUE_KGKM2_172+1)) |>
     fit_mgcv(
+      x = cpue_wide,
       common_name = analysis_species[[ii]],
       formula = log_172 ~ s(log_44, bs = "tp", k = 4), 
       family = gaussian(),
@@ -590,7 +726,30 @@ loocv_pred <- data.frame()
   
   gam_pred <- dplyr::bind_rows(gam_pred, gam_fits[[ii]]$fit)
   
-  # Kappenman ratio estimator
+  gam_boot <- 
+    lapply(
+      X = boot_cpue_samples, 
+      FUN = fit_mgcv, 
+      common_name = analysis_species[[ii]],
+      formula = log_172 ~ s(log_44, bs = "tp", k = 4), 
+      family = gaussian(),
+      loocv = FALSE
+    ) |>
+    lapply(FUN = function(x) x[["fit"]]) %>%
+    do.call(rbind, .) |>
+    dplyr::mutate(method = "GAM")
+  
+  loocv_pred <- 
+    gam_fits[[ii]]$loocv_results |>
+    dplyr::mutate(
+      method = "GAM",
+      PREDICTED_CPUE_KGKM2_172 = (exp(fit)-1) # Fit
+    ) |>
+    dplyr::bind_rows(
+      loocv_pred
+    )
+  
+  # Kappenman ratio estimator (Kappenman 1992, Wilderbuer et al., 1998, von Szalay and Brown, 2001)
   fpc_out <-
     est_fpc(
       x = cpue_wide,
@@ -598,12 +757,39 @@ loocv_pred <- data.frame()
       cpue1_name = "CPUE_KGKM2_44",
       cpue2_name = "CPUE_KGKM2_172",
       method = 4, #Kappenman
-      loocv = TRUE)
-  
+      loocv = TRUE,
+      nboot = 0
+    )
+
   fpc_fits[[ii]] <- fpc_out$fpc
   
-  # Somerton ratio
-  somerton_out <- 
+  fpc_boot <- 
+    lapply(
+      X = boot_cpue_samples, 
+      FUN = est_fpc, 
+      common_name = analysis_species[[ii]],
+      cpue1_name = "CPUE_KGKM2_44",
+      cpue2_name = "CPUE_KGKM2_172",
+      method = 4, #Kappenman
+      loocv = FALSE,
+      nboot = 0
+    ) |>
+    lapply(FUN = function(x) x[["fpc"]]) %>%
+    do.call(rbind, .) |>
+    dplyr::mutate(method = "K")
+
+  loocv_pred <-
+    fpc_out$loocv_results |>
+    dplyr::mutate(
+      method = "K",
+      PREDICTED_CPUE_KGKM2_172 = CPUE_KGKM2_44 * FPC
+    ) |>
+    dplyr::bind_rows(
+      loocv_pred
+    )
+
+  # Somerton ratio (Somerton et al., 2002)
+  lr_out <- 
     cpue_wide |>
     dplyr::filter(!is.na(CPUE_LOG_RATIO) & !is.infinite(CPUE_LOG_RATIO)) |>
     fit_somerton_ratio(
@@ -611,68 +797,43 @@ loocv_pred <- data.frame()
       loocv = TRUE
     )
   
-  somerton_fits[[ii]] <- somerton_out$ratio
+  lr_boot <- 
+    lapply(
+      X = boot_cpue_samples, 
+      FUN = dplyr::filter, 
+      !is.na(CPUE_LOG_RATIO) & !is.infinite(CPUE_LOG_RATIO)
+    ) |>
+    lapply(
+      FUN = fit_somerton_ratio, 
+      common_name = analysis_species[[ii]],
+      loocv = FALSE
+    ) |>
+    lapply(FUN = function(x) x[["ratio"]]) %>%
+    do.call(rbind, .)
   
-  # Catch comparison rate (O'Leary et al., 2021)
-  ccr_out <- 
-    est_ccr(
-      x = cpue_wide, 
-      common_name = analysis_species[[ii]], 
-      cpue1_name = "CPUE_KGKM2_172", 
-      cpue2_name = "CPUE_KGKM2_44",
-      loocv = TRUE,
-      bootstrap_ci = 1000
-    )
+  lr_boot <- 
+    lr_boot |>
+    dplyr::select(log_ratio, var, ratio, COMMON_NAME) |>
+    dplyr::mutate(method = "LR") |>
+    dplyr::bind_rows(lr_boot |>
+                       dplyr::select(log_ratio, var, ratio = ratio_bc, COMMON_NAME) |>
+                       dplyr::mutate(method = "LR-BC"))
   
-  ccr_fits[[ii]] <- ccr_out$ccr
-  
-  median_ratio_out <- 
-    est_median_ratio(
-      x = cpue_wide,
-      common_name = analysis_species[[ii]], 
-      cpue1_name = "CPUE_KGKM2_172", 
-      cpue2_name = "CPUE_KGKM2_44",
-      loocv = TRUE, 
-      bootstrap_ci = 1000
-    )
-  
-  ccr_fits[[ii]] <- median_ratio_out$ser
-  
-  # Append LOOCV fits
-  loocv_pred <- 
-    gam_fits[[ii]]$loocv_results |>
-    dplyr::mutate(
-      method = "GAM",
-    PREDICTED_CPUE_KGKM2_172 = (exp(fit)-1) # Fit
-  ) |>
-    dplyr::bind_rows(
-      loocv_pred
-    )
-  
-  loocv_pred <-
-    fpc_out$loocv_results |>
-    dplyr::mutate(
-      method = "K",
-      PREDICTED_CPUE_KGKM2_172 = CPUE_KGKM2_44 * FPC
-      ) |>
-    dplyr::bind_rows(
-      loocv_pred
-    )
-  
+  lr_fits[[ii]] <- lr_out$ratio
   
   loocv_pred <- 
-    somerton_out$loocv_results |>
+    lr_out$loocv_results |>
     dplyr::mutate(
       method = "LR-BC",
-                  # Bias-corrected ratio * 83-112 CPUE
-                  PREDICTED_CPUE_KGKM2_172 = CPUE_KGKM2_44*ratio_bc
-                  ) |>
+      # Bias-corrected ratio * 83-112 CPUE
+      PREDICTED_CPUE_KGKM2_172 = CPUE_KGKM2_44*ratio_bc
+    ) |>
     dplyr::bind_rows(
       loocv_pred
     )
   
   loocv_pred <- 
-    somerton_out$loocv_results |>
+    lr_out$loocv_results |>
     dplyr::mutate(
       method = "LR",
       # Bias-corrected ratio * 83-112 CPUE
@@ -682,45 +843,186 @@ loocv_pred <- data.frame()
       loocv_pred
     )
   
+  # CCR mean (O'Leary et a. 2021)
+  ccr_out <- 
+    est_ccr(
+      x = cpue_wide, 
+      common_name = analysis_species[[ii]], 
+      cpue1_name = "CPUE_KGKM2_172", 
+      cpue2_name = "CPUE_KGKM2_44",
+      loocv = TRUE,
+      bootstrap_ci = FALSE
+    )
+  
+  ccr_boot <- 
+    lapply(
+      X = boot_cpue_samples, 
+      FUN = est_ccr, 
+      common_name = analysis_species[[ii]], 
+      cpue1_name = "CPUE_KGKM2_172", 
+      cpue2_name = "CPUE_KGKM2_44",
+      loocv = FALSE,
+      bootstrap_ci = FALSE
+    ) |>
+    lapply(FUN = function(x) x[["ccr"]]) %>%
+    do.call(rbind, .) |>
+    dplyr::mutate(method = "CCRmean")
+  
+  ccr_fits[[ii]] <- ccr_out$ccr
+  
   loocv_pred <- 
     ccr_out$loocv_results |>
     dplyr::mutate(
-      method = "CCR",
-      PREDICTED_CPUE_KGKM2_172 = CPUE_KGKM2_44*ccr_mean
-      ) |>
+      method = "CCRmean",
+      PREDICTED_CPUE_KGKM2_172 = CPUE_KGKM2_44*fpc_fit
+    ) |>
     dplyr::bind_rows(
       loocv_pred
     )
+  
+  # CCR beta (Fanning 1984)
+  ccr_beta_out <- 
+    est_ccr_beta(
+    x = cpue_wide, 
+    common_name = analysis_species[[ii]], 
+    cpue1_name = "CPUE_KGKM2_172", 
+    cpue2_name = "CPUE_KGKM2_44",
+    loocv = TRUE,
+    bootstrap_ci = FALSE
+  )
+  
+  ccr_beta_boot <- 
+    lapply(
+      X = boot_cpue_samples, 
+      FUN = est_ccr_beta, 
+      common_name = analysis_species[[ii]], 
+      cpue1_name = "CPUE_KGKM2_172", 
+      cpue2_name = "CPUE_KGKM2_44",
+      loocv = FALSE,
+      bootstrap_ci = FALSE
+    ) |>
+    lapply(FUN = function(x) x[["ccr"]]) %>%
+    do.call(rbind, .) |>
+    dplyr::mutate(method = "CCRbeta")
+  
+  ccr_beta_fits[[ii]] <- ccr_beta_out$ccr
+  
+  loocv_pred <- 
+    ccr_beta_out$loocv_results |>
+    dplyr::mutate(
+      method = "CCRbeta",
+      PREDICTED_CPUE_KGKM2_172 = CPUE_KGKM2_44*fpc_fit
+    ) |>
+    dplyr::bind_rows(
+      loocv_pred
+    )
+  
+  
+  # Median ratio (O'Leary et al., 2021)
+  median_ratio_out <- 
+    est_median_ratio(
+      x = cpue_wide,
+      common_name = analysis_species[[ii]], 
+      cpue1_name = "CPUE_KGKM2_172", 
+      cpue2_name = "CPUE_KGKM2_44",
+      loocv = TRUE, 
+      bootstrap_ci = FALSE
+    )
+  
+  median_ratio_boot  <- 
+    lapply(
+      X = boot_cpue_samples, 
+      FUN = est_median_ratio, 
+      common_name = analysis_species[[ii]], 
+      cpue1_name = "CPUE_KGKM2_172", 
+      cpue2_name = "CPUE_KGKM2_44",
+      loocv = FALSE,
+      bootstrap_ci = FALSE
+    ) |>
+    lapply(FUN = function(x) x[["ser"]]) %>%
+    do.call(rbind, .) |>
+    dplyr::mutate(method = "Median")
+  
+  median_ratio_fits[[ii]] <- median_ratio_out$ser
   
   loocv_pred <- 
     median_ratio_out$loocv_results |>
     dplyr::mutate(
-      method = "Med",
+      method = "Median",
       PREDICTED_CPUE_KGKM2_172 = CPUE_KGKM2_44*ser_median
-      ) |>
+    ) |>
     dplyr::bind_rows(
       loocv_pred
     )
   
+  # Bootstrap fits 
+  
+
+  
 }
 
+# Combine predictions rows and add columns -- NEED TO ADD BOOTSTRAP
+fpc_pred <- 
+  do.call(rbind, fpc_fits) |>
+  dplyr::select(COMMON_NAME, fpc = FPC, fpc_lwr = `Boot_95%_LCI`, fpc_upr = `Boot_95%_UCI`) |>
+  dplyr::mutate(method = "K")
 
-#Combine rows and add columns
-fpc_pred <- do.call(rbind, fpc_fits)
-fpc_pred$COMMON_NAME <- 
-  factor(
-    fpc_pred$COMMON_NAME, 
-    levels = species_codes$COMMON_NAME, 
-    labels = species_codes$COMMON_NAME
+ratio_pred_lr <- 
+  do.call(rbind, somerton_fits) |>
+  dplyr::select(COMMON_NAME, fpc = ratio) |>
+  dplyr::mutate(method = "LR")
+
+ratio_pred_lrbc <- 
+  do.call(rbind, somerton_fits) |>
+  dplyr::select(
+    COMMON_NAME, fpc = ratio_bc, 
+    fpc_lwr = ratio_lci, 
+    fpc_upr = ratio_uci
+  ) |>
+  dplyr::mutate(method = "LR-BC")
+
+ccr_mean <- 
+  do.call(rbind, ccr_fits) |>
+  dplyr::select(
+    COMMON_NAME, 
+    fpc = fpc,
+    fpc_lwr = fpc_lwr_ci_boot,
+    fpc_upr = fpc_upr_ci_boot
+  ) |>
+  dplyr::mutate(method = "CCRmean")
+
+ccr_beta <- 
+  do.call(rbind, ccr_beta_fits) |>
+  dplyr::select(
+    COMMON_NAME, 
+    fpc = fpc,
+    fpc_lwr = fpc_lwr_ci_boot,
+    fpc_upr = fpc_upr_ci_boot
+  ) |>
+  dplyr::mutate(method = "CCRbeta")
+
+median_pred <- 
+  do.call(rbind, median_ratio_fits) |>
+  dplyr::select(
+    COMMON_NAME, 
+    fpc = ser_median, 
+    fpc_lwr = ser_lwr_ci_boot, 
+    fpc_upr = ser_upr_ci_boot
+  ) |>
+  dplyr::mutate(method = "Median")
+  
+
+fpc_est <- bind_rows(
+  fpc_pred,
+  ratio_pred_lrbc, 
+  ratio_pred_lr, 
+  ccr_mean,
+  ccr_beta,
+  median_pred
   )
 
-ratio_pred <- do.call(rbind, somerton_fits)
-ratio_pred$COMMON_NAME <- 
-  factor(
-    ratio_pred$COMMON_NAME, 
-    levels = species_codes$COMMON_NAME, 
-    labels = species_codes$COMMON_NAME
-  )
+
+# GAM Fits
 
 gam_pred$COMMON_NAME <- 
   factor(
@@ -729,9 +1031,7 @@ gam_pred$COMMON_NAME <-
     labels = species_codes$COMMON_NAME
   )
 
-loocv_outputs <- loocv_pred |>
-  dplyr::select()
-
+# Calculate RMSE, total percentage error, and mean percentage error ----
 loocv_error_by_haul <- 
   loocv_pred |> 
   dplyr::mutate(
@@ -739,7 +1039,6 @@ loocv_error_by_haul <-
     PERCENT_ERROR = (PREDICTED_CPUE_KGKM2_172-CPUE_KGKM2_172)/CPUE_KGKM2_172*100,
     ERROR_SQUARED = (PREDICTED_CPUE_KGKM2_172-CPUE_KGKM2_172)^2
   )
-
 
 loocv_table <- 
   loocv_error_by_haul |>
@@ -755,7 +1054,6 @@ loocv_table <-
     ) |>
   dplyr::mutate(TPE = (SUM_PREDICTED_WEIGHT_172-SUM_WEIGHT_172)/SUM_WEIGHT_172*100)
 
-
 loocv_long <- 
   loocv_table |>
   dplyr::select(-SUM_WEIGHT_172, -SUM_PREDICTED_WEIGHT_172) |>
@@ -766,65 +1064,150 @@ loocv_long <-
     loocv_table |>
       dplyr::group_by(COMMON_NAME) |>
       dplyr::summarise(RMSE = min(RMSE)) |>
-      dplyr::mutate(LOWEST_RMSE = "y")
+      dplyr::mutate(LOWEST_RMSE = "Yes")
   ) |>
-  dplyr::mutate(LOWEST_RMSE = ifelse(is.na(LOWEST_RMSE), "n", "y"))
+  dplyr::mutate(LOWEST_RMSE = ifelse(is.na(LOWEST_RMSE), "No", "Yes"))
 
+# Save outputs to a file
+save(
+  fpc_pred,
+  ratio_pred,
+  gam_pred,
+  loocv_pred,
+  loocv_error_by_haul,
+  loocv_table,
+  loocv_long,
+  cpue_wide,
+  analysis_species,
+  gear_codes,
+  species_codes,
+  file = here::here("analysis", "shelf_slope", "output", "fpc_output.rda")
+)
+
+# Setup directories for tables and plots
+
+load(here::here("analysis", "shelf_slope", "output", "fpc_output.rda"))
+
+fpc_plot_dir <- here::here("analysis", "shelf_slope", "plots", "fpc_plots")
+sr_plot_dir <- here::here("analysis", "shelf_slope", "plots", "sr_plots")
+dir.create(fpc_plot_dir, recursive = TRUE)
+dir.create(sr_plot_dir, recursive = TRUE)
+
+# Make tables ----
+
+tab_rmse <- 
+  loocv_table |>
+  dplyr::select(COMMON_NAME, method, RMSE) |>
+  tidyr::pivot_wider(names_from = "method", values_from = "RMSE", values_fn = round)
+
+write.csv(
+  tab_rmse,
+  file = here::here("analysis", "shelf_slope", "plots", "fpc_plots", "fpc_rmse.csv"),
+  row.names = FALSE
+)
+
+# Make plots ----
 
 # Mean prediction error - |error| > 100 are set to 100 for comparability
-ggplot() +
+p_err_by_species <- 
+  ggplot() +
   geom_hline(yintercept = 0, linetype = 2) +
   geom_point(data = loocv_long,
              mapping = aes(x = method, y = ifelse(abs(value) < 100, value, sign(value) * 100), color = name, size = LOWEST_RMSE), shape = 1) +
-  facet_wrap(~COMMON_NAME) +3
+  facet_wrap(~COMMON_NAME, ncol = 3) +
+  scale_color_colorblind(name = "Value") +
+  scale_size_discrete(name = "Lowest RMSE", range = c(1.5, 4)) +
   scale_y_continuous(name = "Percent error (%)") + 
-  theme_bw()
+  scale_x_discrete(name = "Method") +
+  theme_bw() +
+  theme(axis.text.y = element_text(size = 8),
+        axis.text.x = element_text(size = 8, angle = 45, hjust = 1),
+        axis.title = element_text(size = 8))
+
+png(filename = here::here(fpc_plot_dir, paste0("fpc_err_by_species.png")), width = 169, height = 169, res = 300, units = "mm")
+print(p_err_by_species)
+dev.off()
+
 
 # Prediction error for individual species; starting with pollock
-ggplot() +
-  geom_point(
-    data = dplyr::filter(loocv_error_by_haul, COMMON_NAME == "walleye pollock"),
-    mapping = aes(x = PREDICTED_CPUE_KGKM2_172, y = CPUE_KGKM2_172)
-  ) + 
-  geom_abline(slope = 1, intercept = 0, linetype = 2) +
-  facet_wrap(~method) +
-  scale_x_log10(name = expression('Predicted CPUE ('*kg%.%km^-2*')')) +
-  scale_y_log10(name = expression('Observed CPUE ('*kg%.%km^-2*')')) +
-  theme_bw()
 
+p_pred_vs_obs_cpue <- vector(mode = "list", length = length(analysis_species))
 
-ggplot() +
+for(kk in analysis_species) {
+  
+  p_pred_vs_obs_cpue <-
+    ggplot() +
+      geom_point(
+        data = dplyr::filter(loocv_error_by_haul, COMMON_NAME == kk),
+        mapping = aes(x = PREDICTED_CPUE_KGKM2_172, y = CPUE_KGKM2_172)
+      ) + 
+      ggtitle(kk) +
+      geom_abline(slope = 1, intercept = 0, linetype = 2) +
+      facet_wrap(~method) +
+      scale_x_log10(name = expression('Predicted CPUE ('*kg%.%km^-2*')')) +
+      scale_y_log10(name = expression('Observed CPUE ('*kg%.%km^-2*')')) +
+      theme_bw()
+  
+  p_obs_vs_pcterr <-
+    ggplot() +
+    geom_point(
+      data = dplyr::filter(loocv_error_by_haul, COMMON_NAME == kk),
+      mapping = aes(x = CPUE_KGKM2_172, y = ifelse(abs(PERCENT_ERROR) < 100, PERCENT_ERROR, sign(PERCENT_ERROR) * 100 ))
+    ) + 
+    ggtitle(kk) +
+    geom_abline(slope = 1, intercept = 0, linetype = 2) +
+    facet_wrap(~method) +
+    scale_x_log10(name = expression('Observed CPUE ('*kg%.%km^-2*')')) +
+    scale_y_continuous(name = "Prediction error (%)", expand = c(0,0), limits = c(-105, 105)) +
+    theme_bw()
+
+  png(filename = here::here(fpc_plot_dir, paste0("fpc_pred_vs_obs_", gsub("[^[:alnum:]]+", "_", kk), ".png")), width = 169, height = 120, res = 300, units = "mm")
+  print(p_pred_vs_obs_cpue)
+  dev.off()
+  
+  png(filename = here::here(fpc_plot_dir, paste0("fpc_cpue_vs_pct_err_", gsub("[^[:alnum:]]+", "_", kk), ".png")), width = 169, height = 120, res = 300, units = "mm")
+  print(p_obs_vs_pcterr)
+  dev.off()
+
+}
+
+p_mpe_tpe_boxplots <- 
+  ggplot() +
   geom_hline(yintercept = 0, linetype = 2) +
   geom_boxplot(data = loocv_long,
-             mapping = aes(x = method, y = ifelse(abs(value) < 100, value, sign(value) * 100))) +
+             mapping = aes(x = method, y = ifelse(abs(value) < 100, value, sign(value) * 100)),
+             outliers = FALSE) +
   geom_point(data = loocv_long,
-               mapping = aes(x = method, y = ifelse(abs(value) < 100, value, sign(value) * 100), color = COMMON_NAME), shape = 19, size = rel(3.5)) +
+               mapping = aes(x = method, y = ifelse(abs(value) < 100, value, sign(value) * 100), color = COMMON_NAME), shape = 19, size = rel(3)) +
   scale_y_continuous(name = "Percent error (%)") + 
   scale_color_tableau(name = "Common name", palette = "Tableau 20") +
   facet_wrap(~name, nrow = 2) +
   theme_bw()
 
+png(filename = here::here(fpc_plot_dir, paste0("fpc_tpe_mpe_boxplot.png")), width = 169, height = 120, res = 300, units = "mm")
+print(p_mpe_tpe_boxplots)
+dev.off()
 
 
-ggplot() +
-  geom_abline(slope = 0, intercept = 0, linetype = 2) +
-  geom_point(
-    data = loocv_error_by_haul,
-    mapping = aes(x = COMMON_NAME, y = PERCENT_ERROR)
-  )
+p_mean_rfp <- ggplot() +
+  geom_vline(xintercept = 1, linetype = 3) +
+  geom_point(data = fpc_est, mapping = aes(y = COMMON_NAME, x = fpc, color = method),
+             size = rel(2.2),
+             alpha = 0.7) +
+  scale_x_continuous(name = expression('Relative fishing power, '*q[PNE]/q[83-112])) +
+  scale_color_tableau() +
+  ggtitle("temporary") +
+  theme_bw() +
+  theme(axis.title.y = element_blank(),
+        legend.position = "inside",
+        legend.title = element_blank(),
+        legend.background = element_blank(),
+        legend.box = element_blank(),
+        legend.position.inside = c(0.8, 0.8))
 
-
-dplyr::filter(loocv_error_by_haul, PERCENT_ERROR < -2000 & !is.infinite(PERCENT_ERROR))
-
-
-ggplot() +
-  geom_point(data = loocv_pred,
-             mapping = 
-               aes(x = exp(fit), CPUE_KGKM2_172+1)) +
-  geom_abline(intercept = 0, slope = 1, linetype = 2) +
-  facet_wrap(~COMMON_NAME) + 
-  scale_x_log10() +
-  scale_y_log10()
+png(filename = here::here(fpc_plot_dir, paste0("fpc_mean_rfp_by_method.png")), width = 120, height = 120, res = 300, units = "mm")
+print(p_mean_rfp)
+dev.off()
 
 ggplot() +
   geom_point(data = loocv_pred,
@@ -838,47 +1221,3 @@ ggplot() +
   scale_y_continuous(name = "LOOCV relative prediction error (%)") +
   theme_bw()
 
-
-ggplot() +
-  geom_ribbon(data = gam_pred,
-            mapping = aes(x = exp(log_44), ymin = exp(lwr), ymax = exp(upr)),
-            color = "grey",
-            alpha = 0.3) +
-  geom_path(data = gam_pred,
-            mapping = aes(x = exp(log_44), y = exp(fit), color = "GAM")) +
-  geom_point(
-    data = cpue_wide,
-    mapping = aes(x = exp(log(CPUE_KGKM2_44+1)), y = exp(log(CPUE_KGKM2_172+1)))
-  ) +
-  geom_abline(data = dplyr::select(fpc_pred, method, FPC, COMMON_NAME),
-              mapping = aes(intercept = 0, slope = FPC, color = method)) +
-  geom_abline(data = ratio_pred,
-              mapping = aes(intercept = 0, slope = ratio_bc, color = "Somerton")) +
-  geom_abline(slope = 1, intercept = 0, linetype = 2) +
-  facet_wrap(~COMMON_NAME, scales = "free") +
-  scale_x_log10(name = expression(ln(CPUE[83-112]+1)*' '*(kg%.%km^-2))) +
-  scale_y_log10(name = expression(ln(CPUE[PNE]+1)*' '*(kg%.%km^-2))) +
-  theme_bw()
-
-
-ggplot() +
-  geom_point(
-    data = cpue_wide,
-    mapping = aes(x = log(CPUE_NOKM2_44+1), y = log(CPUE_NOKM2_172+1))
-  ) +
-  geom_smooth(
-    data = cpue_wide,
-    mapping = aes(x = log(CPUE_NOKM2_44+1), y = log(CPUE_NOKM2_172+1))
-  )+
-  geom_abline(slope = 1, intercept = 0) +
-  facet_wrap(~SPECIES_CODE, scales = "free") +
-  theme_bw()
-
-table(data_ss$size$SPECIES_CODE)
-
-log_44
-
-
-dplyr::filter(cpue_data, SPECIES_CODE == 10112, `172` == 0)
-dplyr::filter(cpue_data, SPECIES_CODE == 10112, `44` == 0)
-dplyr::filter(cpue_data, SPECIES_CODE == 10115, `44` == 0)
