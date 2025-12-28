@@ -1,4 +1,5 @@
 library(sratio)
+library(nortest)
 
 # Attempt to replicate Somerton et al. (2002)
 
@@ -133,14 +134,14 @@ if(use_original_cpue_files) {
     dplyr::inner_join(somerton_catch, somerton_effort) |>
     dplyr::mutate(
       CPUE_NO_KM2_15 = COUNT_15 / AREA_SWEPT_KM2_15,
-      CPUE_NO_KM2_30 = COUNT_30 / AREA_SWEPT_KM2_30
-    ) |># Remove pairs with zero CPUE
-    dplyr::mutate(
+      CPUE_NO_KM2_30 = COUNT_30 / AREA_SWEPT_KM2_30,
       LOG_CPUE_NO_KM2_30 = log(CPUE_NO_KM2_30),
       LOG_CPUE_NO_KM2_15 = log(CPUE_NO_KM2_15),
       CPUE_LOG_RATIO = log(CPUE_NO_KM2_15/CPUE_NO_KM2_30),
       CPUE_RATIO = CPUE_NO_KM2_15/CPUE_NO_KM2_30,
       COMBINED_COUNT = COUNT_30 + COUNT_15,
+      PROP_15 = COUNT_15/(COUNT_15+COUNT_30),
+      EFFORT_RATIO = AREA_SWEPT_KM2_15/AREA_SWEPT_KM2_30,
       common_name = sratio::species_code_label(SPECIES_CODE, type = "common_name")) |>
     dplyr::filter(CPUE_NO_KM2_15 > 0, CPUE_NO_KM2_30 > 0)
   
@@ -162,9 +163,9 @@ if(use_original_cpue_files) {
       CPUE_LOG_RATIO = log(CPUE_NO_KM2_15/CPUE_NO_KM2_30),
       CPUE_RATIO = CPUE_NO_KM2_15/CPUE_NO_KM2_30,
       COMBINED_COUNT = COUNT_30 + COUNT_15,
+      PROP_15 = COUNT_15/(COUNT_15+COUNT_30),
       common_name = sratio::species_code_label(SPECIES_CODE, type = "common_name"))
 }
-
 
 
 # RKC models ----
@@ -194,6 +195,68 @@ mod_cpue_rkc_4 <-
     formula = CPUE_LOG_RATIO ~ 1,
     data = cpue[cpue$SPECIES_CODE == 69322, ]
   )
+
+
+
+species_code <- 68560
+mod_dat <- cpue[cpue$SPECIES_CODE == species_code, ]
+
+mod_beta <- 
+  betareg::betareg(
+    formula = PROP_15 ~ 1 | 1,
+    link = "logit",
+    offset = log(EFFORT_RATIO),
+    data = mod_dat 
+  )
+
+mod_beta_2 <- 
+  betareg::betareg(
+    formula = PROP_15 ~ 1 | LOG_CPUE_NO_KM2_15,
+    link = "logit",
+    offset = log(EFFORT_RATIO),
+    data =  mod_dat
+  )
+
+mod_beta_3 <- 
+  betareg::betareg(
+    formula = PROP_15 ~ 1 | LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
+    link = "logit",
+    offset = log(EFFORT_RATIO),
+    data =  mod_dat
+  )
+
+
+mod_binomial <-
+  glm(
+    formula = PROP_15 ~ 1,
+    family = binomial(link = "logit"),
+    weight = COMBINED_COUNT,
+    offset = log(EFFORT_RATIO),
+    data = mod_dat
+  )
+
+mod_gamma <-
+  glm(
+    formula = PROP_15 ~ 1,
+    family = Gamma(link = "logit"),
+    weight = COMBINED_COUNT,
+    offset = log(EFFORT_RATIO),
+    data = mod_dat
+  )
+
+AIC(mod_beta, mod_beta_2, mod_beta_3)
+
+plot(log(mod_dat$CPUE_NO_KM2_15), residuals(mod_beta))
+plot(log(mod_dat$CPUE_NO_KM2_15), residuals(mod_beta_2))
+plot(log(mod_dat$CPUE_NO_KM2_15), residuals(mod_beta_3))
+plot(log(mod_dat$CPUE_NO_KM2_15), rstandard(mod_binomial))
+
+
+plot(log(mod_dat$CPUE_NO_KM2_15), residuals(mod_gamma))
+
+plot(mod_binomial, which = 1:4)
+
+
 
 # Best model is #4
 AIC(mod_cpue_rkc_1, mod_cpue_rkc_2, mod_cpue_rkc_3, mod_cpue_rkc_4)
@@ -264,10 +327,61 @@ mod_cpue_tc_4 <-
 AIC(mod_cpue_tc_1, mod_cpue_tc_2, mod_cpue_tc_3, mod_cpue_tc_4)
 summary(mod_cpue_tc_4)
 
+
+
+dplyr::bind_rows(
+  AIC(mod_cpue_rkc_1, mod_cpue_rkc_2, mod_cpue_rkc_3, mod_cpue_rkc_4) |>
+    dplyr::mutate(
+      COMMON_NAME = "red king crab",
+      model = c(formula(mod_cpue_rkc_1), formula(mod_cpue_rkc_2), formula(mod_cpue_rkc_3), formula(mod_cpue_rkc_4))
+    ),
+  AIC(mod_cpue_sc_1, mod_cpue_sc_2, mod_cpue_sc_3, mod_cpue_sc_4) |>
+    dplyr::mutate(COMMON_NAME = "snow crab",
+                  model = c(formula(mod_cpue_sc_1), formula(mod_cpue_sc_2), formula(mod_cpue_sc_3), formula(mod_cpue_sc_4))
+    ),
+  AIC(mod_cpue_tc_1, mod_cpue_tc_2, mod_cpue_tc_3, mod_cpue_tc_4) |>
+    dplyr::mutate(COMMON_NAME = "Tanner crab",
+                  model = c(formula(mod_cpue_tc_1), formula(mod_cpue_tc_2), formula(mod_cpue_tc_3), formula(mod_cpue_tc_4))
+    )
+) |>
+  dplyr::mutate(
+    AIC = round(AIC, 2),
+    npar = df + 1
+  ) |>
+  dplyr::select(
+    COMMON_NAME, model, df, AIC
+  )
+
 par(mfrow = c(2,2))
-plot(mod_cpue_tc_4)
 plot(mod_cpue_rkc_4)
+plot(mod_cpue_tc_4)
 plot(mod_cpue_sc_4)
+
+hist(rstandard(mod_cpue_tc_4))
+hist(rstandard(mod_cpue_sc_4))
+hist(rstandard(mod_cpue_rkc_4))
+
+nortest::ad.test(rstandard(mod_cpue_tc_4))
+nortest::ad.test(rstandard(mod_cpue_sc_4))
+nortest::ad.test(rstandard(mod_cpue_rkc_4))
+
+
+
+ggplot(mapping = aes(x = cpue[cpue$SPECIES_CODE == 68560, ]$CPUE_NO_KM2_30, y = abs(rstandard(mod_cpue_tc_4)))) +
+  geom_point() +
+  geom_smooth(method = 'lm') +
+  scale_x_log10()
+
+ggplot(mapping = aes(x = cpue[cpue$SPECIES_CODE == 68580, ]$CPUE_NO_KM2_30, y = abs(rstandard(mod_cpue_sc_4)))) +
+  geom_point() +
+  geom_smooth(method = 'lm') +
+  scale_x_log10()
+
+ggplot(mapping = aes(x = cpue[cpue$SPECIES_CODE == 69322, ]$CPUE_NO_KM2_30, y = abs(rstandard(mod_cpue_rkc_4)))) +
+  geom_point() +
+  geom_smooth(method = 'lm') +
+  scale_x_log10()
+
 
 # Alternative: Zero-intercept linear regression between log-ratios
 # Linear regression models might be suitable for log transformation
@@ -278,6 +392,10 @@ lm_sc <- lm(LOG_CPUE_NO_KM2_15 ~ LOG_CPUE_NO_KM2_30 + 0, data = cpue[cpue$SPECIE
 plot(lm_rkc)
 plot(lm_tc)
 plot(lm_sc)
+
+sd(cpue[cpue$SPECIES_CODE == 68560, ]$CPUE_RATIO)/mean(cpue[cpue$SPECIES_CODE == 68560, ]$CPUE_RATIO)
+sd(cpue[cpue$SPECIES_CODE == 68580, ]$CPUE_RATIO)/mean(cpue[cpue$SPECIES_CODE == 68580, ]$CPUE_RATIO)
+sd(cpue[cpue$SPECIES_CODE == 69322, ]$CPUE_RATIO)/mean(cpue[cpue$SPECIES_CODE == 69322, ]$CPUE_RATIO)
 
 # Function to extract model intercept, variance, and bias-corrected ratio from log-ratio models
 miller_bias_correct <- function(mod) {
