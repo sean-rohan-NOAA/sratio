@@ -1,6 +1,10 @@
 library(sratio)
 library(nortest)
 library(xlsx)
+library(glmmTMB)
+library(DHARMa)
+
+
 
 # Prep data -- move this to a separate file
 
@@ -93,6 +97,9 @@ cpue_other <-
 saveRDS(object = cpue_other, file = here::here("analysis", "somerton_2002", "data", "cpue_other.rds"))
   
 
+dharma_dir <- here::here("analysis", "somerton_2002", "plots", "dharma")
+dir.create(dharma_dir, showWarnings = FALSE)
+
 # Load data ----
 
 cpue_other <- readRDS(here::here("analysis", "somerton_2002", "data", "cpue_other.rds"))
@@ -107,16 +114,54 @@ make_aic_table <-
     results <- data.frame(
       model_name = names(model_list) %||% seq_along(model_list),
       formula    = sapply(model_list, function(m) paste(format(formula(m)), collapse = "")),
+      
+      # Dispersion formula from glmmTMB
+      disp       = sapply(
+        model_list, 
+        function(m){
+          if(is(m, "lm")) {
+            out <- NA} else{
+              out <- paste(format(m$modlInfo$allForm$dispformula))
+            }
+          out
+        }),
       aic        = round(sapply(model_list, AIC), 2),
       k          = sapply(model_list, function(m) attr(logLik(m), "df")),
+      convergence = sapply(
+        model_list, 
+        function(m) {
+          if(is(m, "lm")) {
+            out <- NA} else{
+              out <- m$fit$convergence
+            }
+          out
+        }),
+      pdhess = sapply(
+        model_list, 
+        function(m) {
+          if(is(m, "lm")) {
+            out <- NA} else{
+              out <- m$sdr$pdHess
+            }
+          out
+        }),
+      max_gradient = sapply(
+        model_list, 
+        function(m) {
+          if(is(m, "lm")) {
+            out <- NA} else{
+              out <- max(abs(m$sdr$gradient.fixed))
+            }
+          out
+        }),
       stringsAsFactors = FALSE
     )
     
-    results$delta_aic <- results$aic - min(results$aic)
+    results$pass_check <- results$convergence == 0 & results$pdhess & abs(results$max_gradient) < 0.001
+    
+    results$delta_aic <- results$aic - min(results$aic, na.rm = TRUE)
     
     candidates <- results[results$delta_aic < 2, ]
-    best_name <- candidates$model_name[which.min(candidates$k)]
-    results$best <- results$model_name == best_name
     
     return(results[order(results$aic), ])
   
@@ -124,7 +169,7 @@ make_aic_table <-
 
 
 
-fit_ols <- 
+fit_ols_models <- 
   function(x, bootstrap_samples = NULL) {
 
   # Fit models
@@ -175,14 +220,16 @@ fit_ols <-
   )
   
   loocv_table <- 
-    loocv_ols(
-      model_list = model_list,
-      dat = dat
+    rbind(
+      run_loocv(model_list = model_list, dat = dat, mapper = ols_mapper, bias_correct = TRUE),
+      run_loocv(model_list = model_list, dat = dat, mapper = ols_mapper, bias_correct = FALSE)
     )
+  
+  loocv_table$method <- c("OLS mean", "OLS median")
   
   output <- list(
     models = model_list,
-    best_model = model_list[[loocv_table$model_name[loocv_table$best]]],
+    best_model = model_list[[loocv_table$model_name[loocv_table$best][1]]],
     aic_table = aic_table,
     loocv_table = loocv_table,
     bootstrap_results = bootstrap_results
@@ -197,7 +244,7 @@ fit_ols <-
   output[['kurtosis']] <- e1071::kurtosis(rstandard(output[['best_model']]), type = 2)
   
   fpc <- miller_bias_correct(output[['best_model']])
-  fpc$model_name <- aic_table$model_name[aic_table$best]
+  fpc$model_name <- loocv_table$model_name[loocv_table$best][1]
   
   fpc <- 
     dplyr::bind_rows(
@@ -218,68 +265,48 @@ fit_ols <-
   }
 
 
-
-# LOOCV
-loocv_ols <- 
-  function(model_list, dat) {
+fit_lognormal <-
+  function(x, bootstrap_samples = NULL) {
     
-    results_mean <- results_median <- data.frame(
-      model_name = names(model_list),
-      formula = sapply(model_list, function(m) format(formula(m))),
-      rmse = numeric(length(model_list))
-    )
+    lognormal1 <- 
+      glmmTMB::glmmTMB(
+        formula = CPUE_RATIO ~ 1,
+        family = lognormal(link = "log"),
+        weight = sqrt(COMBINED_COUNT),
+        data = x
+      )
     
-    results_mean$method <- "OLS mean"
-    results_median$method <- "OLS median"
+    model_list <- 
+      list(
+        lognormal1 = lognormal1
+      )
     
-    for(ii in seq_along(model_list)) {
-      mod <- model_list[[ii]]
-      n_obs <- nrow(dat)
-      
-      sq_errors_mean <- rep(Inf, n_obs)
-      sq_errors_median <- rep(Inf, n_obs)
-      
-      mean_fit <- rep(Inf, n_obs)
-      median_fit <- rep(Inf, n_obs)
-      
-      
-      for(jj in 1:n_obs) {
-        
-        train_dat <- dat[-jj, , drop = FALSE]
-        test_dat  <- dat[jj, , drop = FALSE]
-        
-        fit_loocv <- update(mod, data = train_dat)
-        
-        if(length(coef(fit_loocv)) == 1) {
-          fpc <- miller_bias_correct(fit_loocv)
-          
-          sq_errors_median[jj] <- (dat$CPUE_NO_KM2_15[jj] / fpc$ratio - dat$CPUE_NO_KM2_30[jj])^2
-          
-          sq_errors_mean[jj] <- (dat$CPUE_NO_KM2_15[jj] / fpc$ratio_bc - dat$CPUE_NO_KM2_30[jj])^2
-          
-          mean_fit[jj] <- dat$CPUE_NO_KM2_15[jj] / fpc$ratio_bc * dat$AREA_SWEPT_KM2_30[jj]
-          
-          median_fit[jj] <- dat$CPUE_NO_KM2_15[jj] / fpc$ratio * dat$AREA_SWEPT_KM2_30[jj]
-          
-        }
-        
-      }
-      
-      results_mean$rmse[ii] <- sqrt(mean(sq_errors_mean))
-      results_mean$tpe[ii] <- 100 * (sum(mean_fit)-sum(dat$COUNT_30))/sum(dat$COUNT_30)
-      
-      results_median$rmse[ii] <- sqrt(mean(sq_errors_median))
-      results_median$tpe[ii] <- 100 * (sum(median_fit)-sum(dat$COUNT_30))/sum(dat$COUNT_30)
-      
+    bootstrap_results <- NA
+    
+    if(!is.null(bootstrap_samples)) {
+      bootstrap_results <- boot_ols(
+        model_list = model_list,
+        boot_samples_list = bootstrap_samples
+      )
     }
     
-    results <- rbind(
-      results_mean, results_median
+    aic_table <- 
+      make_aic_table(
+        model_list = model_list
+      )
+    
+    loocv_table <- 
+        run_loocv(model_list = model_list, dat = dat, mapper = ratio_mapper)
+    
+    output <- list(
+      models = model_list,
+      best_model = model_list[[loocv_table$model_name[loocv_table$best]]],
+      aic_table = aic_table,
+      loocv_table = loocv_table,
+      bootstrap_results = bootstrap_results
     )
     
-    results$best <- results$rmse == min(results$rmse)
-    
-    return(results)
+    return(output)
     
   }
 
@@ -411,138 +438,86 @@ miller_bias_correct <-
 
 
 
-fit_betareg <- 
+fit_ccr_models <- 
   function(x, bootstrap_samples = NULL) {
-      
-    beta1 <- 
+    
+    bb1 <- 
       glmmTMB::glmmTMB(
         formula = PROP_15 ~ 1,
-        family = beta_family(link = "logit"),
+        family = betabinomial(link = "logit"),
         offset = log(EFFORT_RATIO),
+        weight = COMBINED_COUNT,
         data = x
       )
-  
-    beta2 <- 
+    
+    bb2 <- 
       glmmTMB::glmmTMB(
         formula = PROP_15 ~ 1,
         dispformula = ~ LOG_CPUE_NO_KM2_15,
-        family = beta_family(link = "logit"),
+        family = betabinomial(link = "logit"),
         offset = log(EFFORT_RATIO),
+        weight = COMBINED_COUNT,
         data = x
       )
     
-    beta3 <- 
+    bb3 <- 
       glmmTMB::glmmTMB(
         formula = PROP_15 ~ 1,
         dispformula = ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
-        family = beta_family(link = "logit"),
+        family = betabinomial(link = "logit"),
+        offset = log(EFFORT_RATIO),
+        weight = COMBINED_COUNT,
+        data = x
+      )
+    
+    binomial1 <-
+      glmmTMB::glmmTMB(
+        formula = PROP_15 ~ 1,
+        family = binomial(link = "logit"),
+        weight = COMBINED_COUNT,
         offset = log(EFFORT_RATIO),
         data = x
       )
-
-  model_list <- 
-    list(
-      beta1 = beta1,
-      beta2 = beta2,
-      beta3 = beta3
-    )
-  
-  aic_table <- 
-    make_aic_table(
-      model_list 
-    )
-  
-  loocv_table <-
-    loocv_betareg(
-      model = model_list,
-      dat = x,
-      method = "beta"
-    )
-  
-  bootstrap_results <- NA
-  
-  if(!is.null(bootstrap_samples)) {
-    bootstrap_results <- boot_betareg_binomial(
-      model_list = model_list,
-      boot_samples_list = bootstrap_samples
-    )
-  }
-  
-  output <- list(
-    models = model_list,
-    best_model = model_list[[loocv_table$model_name[loocv_table$best]]],
-    aic_table = aic_table,
-    loocv_table = loocv_table,
-    bootstrap_results = bootstrap_results
-  )
-  
-  fpc <-
-    data.frame(
-      model_name = loocv_table$model_name[loocv_table$best],
-      log_ratio = coef(output[['best_model']])['(Intercept)'],
-      var = vcov(output[['best_model']])[1,1]
-    )
-  
-  fpc$ratio <- exp(fpc$log_ratio)
-  fpc$ratio_lci <- exp(fpc$log_ratio-sqrt(2*fpc$var))
-  fpc$ratio_uci <- exp(fpc$log_ratio+sqrt(2*fpc$var))
-  
-  output$fpc <- fpc
-  
-  # Residual plots
-  
-  return(output)
-  
-  }
-
-
-
-loocv_betareg <- 
-  function(model_list, dat, method) {
     
-    results <- 
-      data.frame(
-        model_name = names(model_list),
-        formula = sapply(model_list, function(m) format(formula(m))),
-        rmse = numeric(length(model_list)),
-        method = method
+    model_list <- 
+      list(
+        bb1 = bb1,
+        bb2 = bb2,
+        bb3 = bb3,
+        binomial1 = binomial1
       )
     
-    for(ii in seq_along(model_list)) {
-      
-      cat("loocv ", names(model_list)[ii], "\n")
-      mod <- model_list[[ii]]
-      n_obs <- nrow(dat)
-      
-      sq_errors <- rep(Inf, n_obs)
-      fit_r <- rep(Inf, n_obs)
-      
-      for(jj in 1:n_obs) {  
-        
-        train_dat <- dat[-jj, , drop = FALSE]
-        test_dat  <- dat[jj, , drop = FALSE]
-        
-        fit_loocv <- update(mod, data = train_dat)
-        
-        # Predict proportion
-        fit_r[jj] <- exp(fixef(fit_loocv)$cond['(Intercept)'])
-        
-      }
-      
-      sq_errors <- (dat$CPUE_NO_KM2_15 /fit_r  - dat$CPUE_NO_KM2_30)^2
-      
-      fit <- dat$CPUE_NO_KM2_15 / fit_r * dat$AREA_SWEPT_KM2_30
-      
-      results$rmse[ii] <- sqrt(mean(sq_errors))
-      results$tpe[ii] <- 100 * (sum(fit)-sum(dat$COUNT_30))/sum(dat$COUNT_30)
-      
+    aic_table <- 
+      make_aic_table(
+        model_list 
+      )
+    
+    loocv_table <-
+      run_loocv(model_list = model_list, dat = dat, mapper = ccr_mapper)
+    
+    bootstrap_results <- NA
+    
+    if(!is.null(bootstrap_samples)) {
+      bootstrap_results <- boot_betareg_binomial(
+        model_list = model_list,
+        boot_samples_list = bootstrap_samples
+      )
     }
     
-    results$best <- results$rmse == min(results$rmse)
+    output <- list(
+      models = model_list,
+      best_model = model_list[[loocv_table$model_name[loocv_table$best]]],
+      aic_table = aic_table,
+      loocv_table = loocv_table,
+      bootstrap_results = bootstrap_results
+    )
     
-    return(results)
+    # Residual plots
+    
+    return(output)
     
   }
+
 
 boot_betareg <- 
   function(model_list, boot_samples_list) {
@@ -620,238 +595,74 @@ boot_betareg <-
   }
 
 
-fit_binomial <- 
-  function(x, bootstrap_samples = NULL) {
-    
-    binomial1 <-
-      glm(
-        formula = PROP_15 ~ 1,
-        family = binomial(link = "logit"),
-        weight = COMBINED_COUNT,
-        offset = log(EFFORT_RATIO),
-        data = x
-      )
-    
-    model_list <- 
-      list(
-        binomial1 = binomial1
-      )
-    
-    aic_table <- 
-      make_aic_table(
-        model_list 
-      )
-    
-    loocv_table <- 
-      loocv_betareg_binomial(
-        model_list = model_list,
-        dat = x,
-        method = "binomial"
-      )
-    
-    bootstrap_results <- NA
-    
-    if(!is.null(bootstrap_samples)) {
-      bootstrap_results <- boot_betareg_binomial(
-        model_list = model_list,
-        boot_samples_list = bootstrap_samples
-      )
-    }
-    
-    output <- list(
-      models = model_list,
-      best_model = model_list[[loocv_table$model_name[loocv_table$best]]],
-      aic_table = aic_table,
-      loocv_table = loocv_table,
-      bootstrap_results = bootstrap_results
-    )
-    
-    fpc <-
-      data.frame(
-        model_name = loocv_table$model_name[loocv_table$best],
-        log_ratio = coef(output[['best_model']])['(Intercept)'],
-        var = vcov(output[['best_model']])[1,1]
-      )
-    
-    fpc$ratio <- exp(fpc$log_ratio)
-    fpc$ratio_lci <- exp(fpc$log_ratio-sqrt(2*fpc$var))
-    fpc$ratio_uci <- exp(fpc$log_ratio+sqrt(2*fpc$var))
-    
-    output$fpc <- fpc
-    
-    return(output)
-    
-  }
 
-
-loocv_binomial <- 
-  function(model_list, dat, method) {
-  
-  results <- 
-    data.frame(
-    model_name = names(model_list),
-    formula = sapply(model_list, function(m) format(formula(m))),
-    rmse = numeric(length(model_list)),
-    method = method
-  )
-  
-  for(ii in seq_along(model_list)) {
-    mod <- model_list[[ii]]
-    n_obs <- nrow(dat)
-    
-    sq_errors <- rep(Inf, n_obs)
-    fit <- rep(Inf, n_obs)
-    
-    for(jj in 1:n_obs) {
-      
-      train_dat <- dat[-jj, , drop = FALSE]
-      test_dat  <- dat[jj, , drop = FALSE]
-      
-      fit_loocv <- update(mod, data = train_dat)
-      
-      fpc <- exp(coef(fit_loocv)['(Intercept)'])
-        
-      sq_errors[jj] <- (dat$CPUE_NO_KM2_15[jj] / fpc  - dat$CPUE_NO_KM2_30[jj])^2
-      
-      fit[jj] <- dat$CPUE_NO_KM2_15[jj] / fpc * dat$AREA_SWEPT_KM2_30[jj]
-
-      
-    }
-    
-    results$rmse[ii] <- sqrt(mean(sq_errors))
-    results$tpe[ii] <- 100 * (sum(fit)-sum(dat$COUNT_30))/sum(dat$COUNT_30)
-    
-  }
-  
-  results$best <- results$rmse == min(results$rmse)
-  
-  return(results)
-  
-}
-
-boot_binomial <- 
-  function(model_list, boot_samples_list) {
-    
-    model_fits <- vector(mode = "list", length = length(model_list))
-    names(model_fits) <- names(model_list)
-    
-    bootstrap_results <- data.frame()
-    
-    for(ii in seq_along(model_list)) {
-      
-      mod <- model_list[[ii]]
-      
-      fits <- data.frame()
-      
-      for(jj in 1:length(boot_samples_list)) {
-        
-        boot_fit <- update(mod, data = boot_samples_list[[jj]])
-        
-        boot_fpc <- as.data.frame(t(coef(boot_fit)))
-        boot_fpc$ratio <- exp(boot_fpc[['(Intercept)']])
-        
-        boot_fpc$model_name <- names(model_list)[ii]
-        
-        fits <- dplyr::bind_rows(
-          fits,
-          boot_fpc
-        )
-        
-      }
-      
-      model_fits[[ii]] <- fits
-      
-      bootstrap_results <- 
-        data.frame(
-          model_name = names(model_list)[ii],
-          
-          ratio = quantile(fits$ratio, 0.5),
-          ratio_lci = quantile(fits$ratio, 0.025),
-          ratio_uci = quantile(fits$ratio, 0.975)
-        ) |>
-        dplyr::bind_rows(
-          bootstrap_results
-        )
-      
-    }
-    
-    output <- 
-      list(
-        ci = bootstrap_results,
-        fits = model_fits
-      )
-    
-  }
-
-
-
-fit_pois_nb <- 
+fit_count_models <- 
   function(x, bootstrap_samples = NULL) {
     
     poisson1 <-
       glmmTMB::glmmTMB(
-        formula = COUNT_30 ~ COUNT_15,
+        formula = COUNT_30 ~ I(CPUE_NO_KM2_15/1000),
         family = poisson(link = "log"),
-        offset = log(1/EFFORT_RATIO),
+        offset = log(AREA_SWEPT_KM2_30),
         data = x
       )
     
     poisson2 <-
       glmmTMB::glmmTMB(
-        formula = COUNT_30 ~ COUNT_15 + I(COUNT_15^2),
+        formula = COUNT_30 ~ I(CPUE_NO_KM2_15/1000) + I((CPUE_NO_KM2_15/1000)^2),
         family = poisson(link = "log"),
-        offset = log(1/EFFORT_RATIO),
+        offset = log(AREA_SWEPT_KM2_30),
         data = x
       )
     
     nbin1 <-
       glmmTMB::glmmTMB(
-        formula = COUNT_30 ~ COUNT_15,
-        family = glmmTMB::nbinom1(link = "log"),
-        offset = log(1/EFFORT_RATIO),
+        formula = COUNT_30 ~ I(CPUE_NO_KM2_15/1000),
+        family = glmmTMB::nbinom2(link = "log"),
+        offset = log(AREA_SWEPT_KM2_30),
         data = x
       )
     
     nbin2 <-
       glmmTMB::glmmTMB(
-        formula = COUNT_30 ~ COUNT_15,
-        family = glmmTMB::nbinom1(link = "log"),
-        offset = log(1/EFFORT_RATIO),
-        disp = ~ CPUE_NO_KM2_15,
+        formula = COUNT_30 ~ I(CPUE_NO_KM2_15/1000),
+        family = glmmTMB::nbinom2(link = "log"),
+        offset = log(AREA_SWEPT_KM2_30),
+        disp = ~ LOG_CPUE_NO_KM2_15,
         data = x
       )
     
     nbin3 <-
       glmmTMB::glmmTMB(
-        formula = COUNT_30 ~ COUNT_15,
-        family = glmmTMB::nbinom1(link = "log"),
-        offset = log(1/EFFORT_RATIO),
+        formula = COUNT_30 ~ I(CPUE_NO_KM2_15/1000),
+        family = glmmTMB::nbinom2(link = "log"),
+        offset = log(AREA_SWEPT_KM2_30),
         disp = ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
         data = x
       )
     
     nbin4 <-
       glmmTMB::glmmTMB(
-        formula = COUNT_30 ~ COUNT_15 + I(COUNT_15^2),
-        family = glmmTMB::nbinom1(link = "log"),
-        offset = log(1/EFFORT_RATIO),
+        formula = COUNT_30 ~ I(CPUE_NO_KM2_15/1000) + I((CPUE_NO_KM2_15/1000)^2),
+        family = glmmTMB::nbinom2(link = "log"),
+        offset = log(AREA_SWEPT_KM2_30),
         data = x
       )
     
     nbin5 <-
       glmmTMB::glmmTMB(
-        formula = COUNT_30 ~ COUNT_15 + I(COUNT_15^2),
-        family = glmmTMB::nbinom1(link = "log"),
-        offset = log(1/EFFORT_RATIO),
+        formula = COUNT_30 ~ I(CPUE_NO_KM2_15/1000) + I((CPUE_NO_KM2_15/1000)^2),
+        family = glmmTMB::nbinom2(link = "log"),
+        offset = log(AREA_SWEPT_KM2_30),
         disp = ~ LOG_CPUE_NO_KM2_15,
         data = x
       )
     
     nbin6 <-
       glmmTMB::glmmTMB(
-        formula = COUNT_30 ~ COUNT_15 + I(COUNT_15^2),
-        family = glmmTMB::nbinom1(link = "log"),
-        offset = log(1/EFFORT_RATIO),
+        formula = COUNT_30 ~ I(CPUE_NO_KM2_15/1000) + I((CPUE_NO_KM2_15/1000)^2),
+        family = glmmTMB::nbinom2(link = "log"),
+        offset = log(AREA_SWEPT_KM2_30),
         disp = ~  LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
         data = x
       )
@@ -879,11 +690,7 @@ fit_pois_nb <-
       )
     
     loocv_table <- 
-      loocv_pois_nb(
-        model_list = model_list,
-        dat = x,
-        method = ""
-      )
+      run_loocv(model_list = model_list, dat = dat, mapper = count_mapper)
     
     bootstrap_results <- NA
     
@@ -910,54 +717,6 @@ fit_pois_nb <-
     
   }
 
-
-
-loocv_pois_nb <- 
-  function(model_list, dat, method) {
-    
-    results <- 
-      data.frame(
-        model_name = names(model_list),
-        formula = sapply(model_list, function(m) format(formula(m))),
-        rmse = numeric(length(model_list)),
-        method = method
-      )
-    
-    for(ii in seq_along(model_list)) {
-      
-      cat(names(model_list)[ii], "\n")
-      mod <- model_list[[ii]]
-      n_obs <- nrow(dat)
-      
-      sq_errors <- rep(Inf, n_obs)
-      fit <- rep(Inf, n_obs)
-      
-      for(jj in 1:n_obs) {  
-        
-        train_dat <- dat[-jj, , drop = FALSE]
-        test_dat  <- dat[jj, , drop = FALSE]
-        
-        fit_loocv <- update(mod, data = train_dat)
-        
-        # Predict counts
-        fit[jj] <- predict(fit_loocv, newdata = test_dat, type = "response")
-        
-        obs <- test_dat$CPUE_NO_KM2_30
-        
-        sq_errors[jj] <- (fit[jj]/test_dat$AREA_SWEPT_KM2_30 - obs)^2
-        
-      }
-      
-      results$rmse[ii] <- sqrt(mean(sq_errors))
-      results$tpe[ii] <- 100 * (sum(fit)-sum(dat$COUNT_30))/sum(dat$COUNT_30)
-      
-    }
-    
-    results$best <- results$rmse == min(results$rmse)
-    
-    return(results)
-    
-  }
 
 boot_pois_nb <- 
   function(model_list, boot_samples_list) {
@@ -1036,6 +795,186 @@ boot_pois_nb <-
 
 
 
+# LOOCV models
+run_loocv <- function(model_list, dat, mapper, ...) {
+  
+  results_list <- lapply(names(model_list), function(m_name) {
+    mod <- model_list[[m_name]]
+    n_obs <- nrow(dat)
+    
+    preds <- numeric(n_obs)
+    
+    for(jj in 1:n_obs) {
+      # Update model excluding one observation
+      fit_loocv <- update(mod, data = dat[-jj, , drop = FALSE])
+      
+      # Use mapper function to get the back-transformed prediction
+      preds[jj] <- mapper(fit_loocv, dat[jj, , drop = FALSE], ...)
+    }
+    
+    obs <- dat$CPUE_NO_KM2_30
+    
+    # Root mean square error
+    rmse <- sqrt(mean((preds - obs)^2))
+    
+    # Total percentage error (relative bias in total count)
+    tpe  <- 100 * (sum(preds * dat$AREA_SWEPT_KM2_30) - sum(dat$COUNT_30)) / sum(dat$COUNT_30)
+    
+    data.frame(model_name = m_name, rmse = rmse, tpe = tpe)
+    
+  })
+  
+  results <- do.call(rbind, results_list)
+  results$best <- results$rmse == min(results$rmse)
+  return(results)
+}
+
+# Mapping functions for converting model predictions to estimation scale
+
+# OLS ratio
+ols_mapper <- function(model, test_row, bias_correct = TRUE, se_fit= FALSE) {
+  
+  sigma2 <- summary(model)$sigma^2
+  
+  if(se_fit) {
+    pred_log_ratio <- predict(model, newdata = test_row, se.fit = TRUE)
+
+    if(bias_correct) {
+      ratio     <- exp(pred_log_ratio$fit + 0.5 * sigma2)
+      ratio_lwr <- exp(pred_log_ratio$fit - 2 * pred_log_ratio$se.fit + 0.5 * sigma2)
+      ratio_upr <- exp(pred_log_ratio$fit + 2 * pred_log_ratio$se.fit + 0.5 * sigma2)
+    } else {
+      ratio     <- exp(pred_log_ratio$fit)
+      ratio_lwr <- exp(pred_log_ratio$fit - 2 * pred_log_ratio$se.fit)
+      ratio_upr <- exp(pred_log_ratio$fit + 2 * pred_log_ratio$se.fit)
+    }
+    
+    output <- 
+      data.frame(
+        fit     = test_row$CPUE_NO_KM2_15 / ratio,
+        fit_lwr = test_row$CPUE_NO_KM2_15 / ratio_lwr,
+        fit_upr = test_row$CPUE_NO_KM2_15 / ratio_upr
+      )
+    
+  } else {
+    pred_log_ratio <- predict(model, newdata = test_row)
+    
+    if(bias_correct) { 
+      # Applying 0.5 * sigma2 bias correction
+      ratio <- exp(pred_log_ratio + 0.5 * sigma2) 
+    } else {
+      ratio <- exp(pred_log_ratio)
+    }
+    
+    output <- test_row$CPUE_NO_KM2_15 / ratio
+  }
+  
+  return(output)
+  
+}
+
+# lognormal ratio
+ratio_mapper <- function(model, test_row, se_fit = FALSE) {
+  # Get predicted ratio
+  
+  if(se_fit) {
+    # Two-fold CV
+    inv_link  <- family(model)$linkinv
+    
+    ratio     <- predict(model, newdata = test_row, type = "link", se.fit = TRUE)
+    ratio_lwr <- ratio$fit - 2* ratio$se.fit
+    ratio_upr <- ratio$fit + 2* ratio$se.fit 
+    
+    ratio     <- inv_link(ratio$fit)
+    ratio_lwr <- inv_link(ratio_lwr)
+    ratio_upr <- inv_link(ratio_upr)
+    
+    output <- 
+      data.frame(
+      fit =     test_row$CPUE_NO_KM2_15 / ratio,
+      fit_lwr = test_row$CPUE_NO_KM2_15 / ratio_lwr,
+      fit_upr = test_row$CPUE_NO_KM2_15 / ratio_upr
+    )
+    
+  } else {
+    # LOOCV
+    ratio <- predict(model, newdata = test_row, type = "response")
+    output <- test_row$CPUE_NO_KM2_15 / ratio
+  }
+  
+  return(output)
+}
+
+# Binomial and beta-binomial
+ccr_mapper <- function(model, test_row, se_fit = FALSE) {
+  
+  if(se_fit) {
+    # Two-fold CV
+    inv_link  <- family(model)$linkinv
+    
+    p         <- predict(model, newdata = test_row, type = "link", se.fit = TRUE)
+    p_lwr     <- p$fit - 2* p$se.fit
+    p_upr     <- p$fit + 2* p$se.fit 
+    
+    ratio     <- (1 - p$fit) / p$fit
+    ratio_lwr <- (1 - p_lwr) / p_lwr
+    ratio_upr <- (1 - p_upr) / p_upr
+    
+    ratio     <- inv_link(ratio)
+    ratio_lwr <- inv_link(ratio_lwr)
+    ratio_upr <- inv_link(ratio_upr)
+    
+    output <- 
+      data.frame(
+        fit =     test_row$CPUE_NO_KM2_15 / ratio,
+        fit_lwr = test_row$CPUE_NO_KM2_15 / ratio_lwr,
+        fit_upr = test_row$CPUE_NO_KM2_15 / ratio_upr
+      )
+    
+  } else {
+    # LOOCV; Get predicted proportion (inv-logit scale)
+    p <- predict(model, newdata = test_row, type = "response")
+    ratio <- (1 - p) / p
+    output <- test_row$CPUE_NO_KM2_15 / ratio
+  }
+
+  return(output)
+}
+
+# Poisson and negative binomial
+count_mapper <- function(model, test_row, se_fit = FALSE) {
+  
+  if(se_fit) {
+    
+    inv_link  <- family(model)$linkinv
+    
+    mu     <- predict(model, newdata = test_row, type = "link", se.fit = TRUE)
+    mu_lwr <- mu$fit - 2 * mu$se.fit
+    mu_upr <- mu$fit + 2 * mu$se.fit 
+    
+    pred_count     <- inv_link(mu$fit)
+    pred_count_lwr <- inv_link(mu_lwr)
+    pred_count_upr <- inv_link(mu_upr)
+    
+    output <- 
+      data.frame(
+        fit =     pred_count / test_row$AREA_SWEPT_KM2_30,
+        fit_lwr = pred_count / test_row$AREA_SWEPT_KM2_30,
+        fit_upr = pred_count / test_row$AREA_SWEPT_KM2_30
+      )
+    
+  } else {
+    # LOOCV; Get predicted counts
+    pred_count <- predict(model, newdata = test_row, type = "response")
+    output <- pred_count / test_row$AREA_SWEPT_KM2_30
+  }
+
+  
+  return(output)
+}
+
+
+
 check_ols_heteroskedasticity <- 
   function(dat, model, predictor, x_axis_name = "Observation", scale = "log10", residual_fn = rstandard) {
   
@@ -1066,93 +1005,46 @@ check_ols_heteroskedasticity <-
   }
 
 
-# Survey-level validation using a different data set
-indpendent_fpc_validation <- 
-  function(fpc, validation_dat) {
-    
-    fpc[, c("rmse", "rmse_lci", "rmse_uci", "tpe", "tpe_lci", "tpe_uci")] <- NA
-    
-    for(ii in 1:nrow(fpc)) {
-      
-      fit <- validation_dat$CPUE_NO_KM2_15 / fpc$ratio[ii] * validation_dat$AREA_SWEPT_KM2_30
-      fit_lci <- validation_dat$CPUE_NO_KM2_15 / fpc$ratio_lci[ii] * validation_dat$AREA_SWEPT_KM2_30
-      fit_uci <- validation_dat$CPUE_NO_KM2_15 / fpc$ratio_uci[ii] * validation_dat$AREA_SWEPT_KM2_30
-
-      fpc$rmse[ii] <- sqrt(mean((validation_dat$CPUE_NO_KM2_15 / fpc$ratio[ii] - validation_dat$CPUE_NO_KM2_30)^2))
-      fpc$rmse_lci[ii] <- sqrt(mean((validation_dat$CPUE_NO_KM2_15 / fpc$ratio_lci[ii] - validation_dat$CPUE_NO_KM2_30)^2))
-      fpc$rmse_uci[ii] <- sqrt(mean((validation_dat$CPUE_NO_KM2_15 / fpc$ratio_uci[ii] - validation_dat$CPUE_NO_KM2_30)^2))
-
-      fpc$tpe[ii] <- 100 * (sum(fit) - sum(validation_dat$COUNT_30))/sum(validation_dat$COUNT_30)
-      fpc$tpe_lci[ii] <- 100 * (sum(fit_lci) - sum(validation_dat$COUNT_30))/sum(validation_dat$COUNT_30)
-      fpc$tpe_uci[ii] <- 100 * (sum(fit_uci) - sum(validation_dat$COUNT_30))/sum(validation_dat$COUNT_30)
-      
-    }
-    
-    return(fpc)
-    
-  }
-
-
 
 twofold_cv <- 
-  function(model_list, validation_dat) {
+  function(model_list, validation_dat, mapper) {
     
-    model_list <- beta_results$models
+    model_list = ols_results$models
+    validation_dat = dat_oos
+    mapper = ols_mapper
     
-    validation_dat <- dat_oos
+    obs_cpue    <- validation_dat$CPUE_NO_KM2_30
+    obs_effort  <- validation_dat$AREA_SWEPT_KM2_30
+    obs_count   <- validation_dat$COUNT_30
     
-    for(ii in model_list) {
+    results_list <- lapply(names(model_list), function(m_name) {
+      mod <- model_list[[m_name]]
       
-      mod <- model_list[[ii]]
+      preds <- mapper(
+        model = mod,
+        test_row = validation_dat,
+        se_fit = TRUE
+      )
+      
+      # Root mean square error
+      output <- 
+        data.frame(
+          model_name = m_name,
+          rmse       = sqrt(mean((preds$fit - obs_cpue)^2)),
+          rmse_lci   = sqrt(mean((preds$fit_lwr - obs_cpue)^2)),
+          rmse_uci   = sqrt(mean((preds$fit_upr - obs_cpue)^2)),
+          tpe        = 100 * (sum(preds$fit * obs_effort) - sum(obs_count)) / sum(obs_count),
+          tpe_lci    = 100 * (sum(preds$fit_lwr * obs_effort) - sum(obs_count)) / sum(obs_count),
+          tpe_uci    = 100 * (sum(preds$fit_upr * obs_effort) - sum(obs_count)) / sum(obs_count)
+        )
+      
+      output
+    })
     
-      # OLS case
-      if(is(mod, "lm")) {
-        predictions <- 
-          predict(
-            mod, 
-            type = "response", 
-            newdata = validation_dat, 
-            se.fit = TRUE
-          )
-        
-        validation_dat$fit <- validation_dat$CPUE_NO_KM2_30 * predictions$fit
-        validation_dat$fit_lci <- validation_dat$CPUE_NO_KM2_30 * (predictions$fit - 2*predictions$se.fit)
-        validation_dat$fit_uci <- validation_dat$CPUE_NO_KM2_30 * (predictions$fit + 2*predictions$se.fit)
-        
-      }
-      
-      if(is(mod, "glm")) {
-        
-        predictions <- 
-          predict(
-            object = mod, 
-            type = "precision", 
-            newdata = validation_dat
-          )
-        
-        predictions <- 
-          predict(
-            mod, 
-            type = "terms", 
-            newdata = validation_dat
-          )
-        
-        validation_dat$fit <- validation_dat$CPUE_NO_KM2_30 * predictions$fit
-        validation_dat$fit_lci <- validation_dat$CPUE_NO_KM2_30 * (predictions$fit - 2*predictions$se.fit)
-        validation_dat$fit_uci <- validation_dat$CPUE_NO_KM2_30 * (predictions$fit + 2*predictions$se.fit)
-        
-        
-      }
-      
-      if(is(mod, "glmmTMB")) {
-        
-        
-      }
-
-      
-      validation_dat$fit <- predictions$fit
-      
-    }
+    results <- do.call(what = rbind, args = results_list)
+    results$best <- results$rmse == min(results$rmse)
+    
+    return(results)
     
   }
 
@@ -1172,12 +1064,14 @@ draw_bootstrap_samples <-
     
     for(ii in 1:n_draws) {
       
-      samp <- data.frame(var = sample(x = grouping_var_values, replace = replace, size = n_obs))
+      samp <- 
+        data.frame(
+          var = sample(x = grouping_var_values, replace = replace, size = n_obs)
+          )
       
       draws[[ii]] <-
         dplyr::inner_join(
-          x, 
-          samp, 
+          x, samp, 
           by = setNames("var", grouping_var), 
           relationship = "many-to-many"
       ) |>
@@ -1188,18 +1082,54 @@ draw_bootstrap_samples <-
     
   }
 
+dharma_plots <- 
+  function(model_list, common_name, subset = NULL, nsim = 1000, save_dir) {
+    
+    model_names    <- names(model_list)
+    results        <- vector(mode = "list", length(model_list))
+    names(results) <- model_names
+    
+    for(ii in seq_along(model_list)) {
+      
+      results[[ii]] <- DHARMa::simulateResiduals(model_list[[ii]], n = 1000)
+      
+      fname <- paste0(
+        "DHARMa_", 
+        gsub(x = common_name, pattern = " ", replacement = "_"), 
+        "_", subset,
+        "_", gsub(x = model_names[ii], pattern = " ", replacement = "_"), 
+        ".png")
+      
+      png(here::here(save_dir, fname), width = 169, height = 120, units = "mm", res = 300)
+      print(DHARMa::plotResiduals(results[[ii]]))
+      dev.off()
+      
+    }
+    
+    return(results)
+    
+  }
+
 
 # Fitting Somerton et al. (2002) 1998 data ---------------------------------------------------------
 
 fpc_table_1998 <- data.frame()
 loocv_table_1998 <- data.frame()
-oos_table <- data.frame()
+aic_table_1998 <- data.frame()
+oos_table_1998 <- data.frame()
 
 # Snow crab
 
 # Set species
 species_code <- 68580
 common_name <- "snow crab"
+
+# species_code <- 69322
+# common_name <- "red king crab"
+
+# species_code <- 68560
+# common_name <- "Tanner crab"
+
 seed <- 1337
 n_draws <- 100
 
@@ -1215,23 +1145,39 @@ dat_bootstrap <-
   )
 dat_oos <- cpue_other[cpue_other$SPECIES_CODE == species_code, ]
 
-# Fit models
-# ols_results <- fit_ols(x = dat, bootstrap_samples = dat_bootstrap)
-# beta_results <- fit_betareg(x = dat, bootstrap_samples = dat_bootstrap)
-# binomial_results <- fit_binomial(x = dat, bootstrap_samples = dat_bootstrap)
-# pois_nb_results <- fit_pois_nb(x = dat, bootstrap_samples = dat_bootstrap)
+# Fit models, check convergence
+ols_results <- fit_ols_models(x = dat)
+ccr_results <- fit_ccr_models(x = dat)
+lognormal_results <- fit_lognormal(x = dat)
+count_results <- fit_count_models(x = dat)
 
-ols_results <- fit_ols(x = dat)
-beta_results <- fit_betareg(x = dat)
-binomial_results <- fit_binomial(x = dat)
-pois_nb_results <- fit_pois_nb(x = dat)
+# Twofold CV
+twofold_cv(model_list = ccr_results$models, validation_dat = dat_oos, mapper = ccr_mapper)
+twofold_cv(model_list = lognormal_results$models, validation_dat = dat_oos, mapper = ratio_mapper)
+twofold_cv(model_list = count_results$models, validation_dat = dat_oos, mapper = count_mapper)
+twofold_cv(model_list = ols_results$models, validation_dat = dat_oos, mapper = ols_mapper)
 
+
+# Check DHARMa residuals
+dharma_plots(
+  model_list = c(
+    ols_results$models,
+    ccr_results$models,
+    lognormal_results$models,
+    count_results$models
+  ),
+  common_name = common_name,
+  nsim = 1000,
+  subset = 1998,
+  save_dir = dharma_dir
+)
+
+# Check OLS results
 ols_results$anderson_darling
 ols_results$kurtosis
 ols_results$cor_test
 ols_results$bootstrap_results$ci
 ols_results$fpc
-
 
 p1 <- 
   check_ols_heteroskedasticity(
@@ -1254,223 +1200,39 @@ cowplot::plot_grid(
   p1, p2
 )
 
-
-
-fpc_1998 <- 
-  dplyr::bind_rows(
-  binomial_results$bootstrap_results$ci,
-  ols_results$bootstrap_results$ci,
-  beta_results$bootstrap_results$ci
-)
-
-fpc_table_1998 <- 
-  fpc_1998 |>
-  dplyr::mutate(common_name = common_name) |>
-  dplyr::bind_rows(fpc_table_1998)
-
+# Append cross validation results
 loocv_table_1998 <- 
   dplyr::bind_rows(
-    binomial_results$loocv_table,
     ols_results$loocv_table,
-    beta_results$loocv_table
+    ccr_results$loocv_table,
+    lognormal_results$loocv_table,
+    count_results$loocv_table
   ) |>
   dplyr::arrange(rmse) |>
   dplyr::mutate(common_name = common_name) |>
   dplyr::bind_rows(loocv_table_1998)
 
-oos_table <- 
+
+# Make AIC table that includes convergence checks
+aic_table_1998 <-
+  dplyr::bind_rows(
+    ols_results$aic_table,
+    ccr_results$aic_table,
+    lognormal_results$aic_table,
+    count_results$aic_table
+  ) |>
+  dplyr::bind_rows(aic_table_1998)
+
+# Out-of-sample validation 
+oos_table_1998 <- 
   indpendent_fpc_validation(
     fpc = fpc_1998,
     validation_dat = dat_oos
   ) |> 
   dplyr::arrange(rmse) |>
   dplyr::mutate(common_name = common_name) |>
-  dplyr::bind_rows(oos_table)
+  dplyr::bind_rows(oos_table_1998)
   
-
-# par(mfrow = c(2,2))
-# plot(beta_results$best_model)
-# plot(binomial_results$best_model)
-
-# Tanner crab
-
-species_code <- 68560
-common_name <- "Tanner crab"
-
-# Setup data
-dat <- cpue_1998[cpue_1998$SPECIES_CODE == species_code, ]
-dat_bootstrap <- 
-  draw_bootstrap_samples(
-    x = dat, 
-    seed = seed, 
-    grouping_var = "TOW_PAIR", 
-    n_draws = 1000, 
-    replace = TRUE
-  )
-dat_oos <- cpue_other[cpue_other$SPECIES_CODE == species_code, ]
-
-# Fit models
-ols_results <- fit_ols(x = dat, bootstrap_samples = dat_bootstrap)
-beta_results <- fit_betareg(x = dat, bootstrap_samples = dat_bootstrap)
-binomial_results <- fit_binomial(x = dat, bootstrap_samples = dat_bootstrap)
-
-ols_results$anderson_darling
-ols_results$kurtosis
-ols_results$cor_test
-ols_results$bootstrap_results$ci
-ols_results$fpc
-
-
-p1 <- 
-  check_ols_heteroskedasticity(
-    dat = dat, 
-    model = ols_results$best_model, 
-    predictor = "CPUE_NO_KM2_15", 
-    x_axis_name = expression(CPUE[15]*' (#/'*km^2*')')
-  )
-
-p2 <- 
-  check_ols_heteroskedasticity(
-    dat = dat, 
-    model = ols_results$best_model, 
-    predictor = "CPUE_NO_KM2_30", 
-    x_axis_name = expression(CPUE[30]*' (#/'*km^2*')')
-  )
-
-
-cowplot::plot_grid(
-  p1, p2
-)
-
-
-
-fpc_1998 <- 
-  dplyr::bind_rows(
-    binomial_results$bootstrap_results$ci,
-    ols_results$bootstrap_results$ci,
-    beta_results$bootstrap_results$ci
-  )
-
-fpc_table_1998 <- 
-  fpc_1998 |>
-  dplyr::mutate(common_name = common_name) |>
-  dplyr::bind_rows(fpc_table_1998)
-
-loocv_table_1998 <- 
-  dplyr::bind_rows(
-    binomial_results$loocv_table,
-    ols_results$loocv_table,
-    beta_results$loocv_table
-  ) |>
-  dplyr::arrange(rmse) |>
-  dplyr::mutate(common_name = common_name) |>
-  dplyr::bind_rows(loocv_table_1998)
-
-oos_table <- 
-  indpendent_fpc_validation(
-    fpc = fpc_1998,
-    validation_dat = dat_oos
-  ) |> 
-  dplyr::arrange(rmse) |>
-  dplyr::mutate(common_name = common_name) |>
-  dplyr::bind_rows(oos_table)
-
-
-# par(mfrow = c(2,2))
-# plot(beta_results$best_model)
-# plot(binomial_results$best_model)
-
-# Red king crab
-
-species_code <- 69322
-common_name <- "red king crab"
-
-# Setup data
-dat <- cpue_1998[cpue_1998$SPECIES_CODE == species_code, ]
-dat_bootstrap <- 
-  draw_bootstrap_samples(
-    x = dat, 
-    seed = seed, 
-    grouping_var = "TOW_PAIR", 
-    n_draws = 1000, 
-    replace = TRUE
-  )
-dat_oos <- cpue_other[cpue_other$SPECIES_CODE == species_code, ]
-
-# Fit models
-ols_results <- fit_ols(x = dat, bootstrap_samples = dat_bootstrap)
-beta_results <- fit_betareg(x = dat, bootstrap_samples = dat_bootstrap)
-binomial_results <- fit_binomial(x = dat, bootstrap_samples = dat_bootstrap)
-
-ols_results$anderson_darling
-ols_results$kurtosis
-ols_results$cor_test
-ols_results$bootstrap_results$ci
-ols_results$fpc
-
-
-p1 <- 
-  check_ols_heteroskedasticity(
-    dat = dat, 
-    model = ols_results$best_model, 
-    predictor = "CPUE_NO_KM2_15", 
-    x_axis_name = expression(CPUE[15]*' (#/'*km^2*')')
-  )
-
-p2 <- 
-  check_ols_heteroskedasticity(
-    dat = dat, 
-    model = ols_results$best_model, 
-    predictor = "CPUE_NO_KM2_30", 
-    x_axis_name = expression(CPUE[30]*' (#/'*km^2*')')
-  )
-
-
-cowplot::plot_grid(
-  p1, p2
-)
-
-
-
-fpc_1998 <- 
-  dplyr::bind_rows(
-    binomial_results$bootstrap_results$ci,
-    ols_results$bootstrap_results$ci,
-    beta_results$bootstrap_results$ci
-  )
-
-fpc_table_1998 <- 
-  fpc_1998 |>
-  dplyr::mutate(common_name = common_name) |>
-  dplyr::bind_rows(fpc_table_1998)
-
-loocv_table_1998 <- 
-  dplyr::bind_rows(
-    binomial_results$loocv_table,
-    ols_results$loocv_table,
-    beta_results$loocv_table
-  ) |>
-  dplyr::arrange(rmse) |>
-  dplyr::mutate(common_name = common_name) |>
-  dplyr::bind_rows(loocv_table_1998)
-
-oos_table <- 
-  indpendent_fpc_validation(
-    fpc = fpc_1998,
-    validation_dat = dat_oos
-  ) |> 
-  dplyr::arrange(rmse) |>
-  dplyr::mutate(common_name = common_name) |>
-  dplyr::bind_rows(oos_table)
-
-
-rownames(fpc_table_1998) <- NULL
-rownames(loocv_table_1998) <- NULL
-rownames(oos_table) <- NULL
-
-oos_table <- 
-  oos_table |>
-  dplyr::mutate(method = ifelse(is.na(method), model_name, method))
 
 
 # Plot cross-year validation results
@@ -1478,11 +1240,11 @@ oos_table <-
 p_rmse_1998 <- 
   ggplot() +
   geom_point(
-    data = oos_table,
+    data = oos_table_1998,
     mapping = aes(x = method, y = rmse),
     size = rel(2.2)) +
   geom_errorbar(
-    data = oos_table,
+    data = oos_table_1998,
     mapping = aes(x = method, ymin = rmse_lci, ymax = rmse_uci),
     width = 0,
     linewidth = 1.05
@@ -1499,11 +1261,11 @@ p_tpe_1998 <-
   ggplot() +
   geom_hline(yintercept = 0, linetype = 2) +
   geom_point(
-    data = oos_table,
+    data = oos_table_1998,
     mapping = aes(x = common_name, y = tpe, color = method), position = position_dodge(width = 0.5),
     size = rel(2.2)) +
   geom_errorbar(
-    data = oos_table,
+    data = oos_table_1998,
     mapping = aes(x = common_name, ymin = tpe_lci, ymax = tpe_uci, color = method), position = position_dodge(width = 0.5),
     width = 0,
     linewidth = 1.05
@@ -1553,12 +1315,6 @@ xlsx::write.xlsx(
   row.names = FALSE
 )
 
-
-# Predictions for the full data set
-
-cpue_species <- 
-
-fpc_table_1998$ratio[1] * cpue_other
 
 
 

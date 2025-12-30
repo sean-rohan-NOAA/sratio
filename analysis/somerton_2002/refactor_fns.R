@@ -95,11 +95,8 @@ fit_ols <-
     
   }
 
-#' Generic LOOCV
-#' @param mapper A function: function(model, test_row) that returns the predicted CPUE_30
-run_loocv <- function(model_list, dat, mapper) {
-  
-  mapper <- ccr_mapper
+# LOOCV models
+run_loocv <- function(model_list, dat, mapper, ...) {
   
   results_list <- lapply(names(model_list), function(m_name) {
     mod <- model_list[[m_name]]
@@ -108,21 +105,23 @@ run_loocv <- function(model_list, dat, mapper) {
     preds <- numeric(n_obs)
     
     for(jj in 1:n_obs) {
-      # 1. Update model excluding one observation
+      # Update model excluding one observation
       fit_loocv <- update(mod, data = dat[-jj, , drop = FALSE])
       
-      # 2. Use the mapper to get the back-transformed prediction
-      preds[jj] <- mapper(fit_loocv, dat[jj, , drop = FALSE])
+      # Use mapper function to get the back-transformed prediction
+      preds[jj] <- mapper(fit_loocv, dat[jj, , drop = FALSE], ...)
     }
     
-    actual <- dat$CPUE_NO_KM2_30
+    obs <- dat$CPUE_NO_KM2_30
     
-    # Calculate metrics on the REAL scale
-    rmse <- sqrt(mean((preds - actual)^2, na.rm = TRUE))
-    # Total Percentage Error (Bias in total catch)
+    # Root mean square error
+    rmse <- sqrt(mean((preds - obs)^2))
+    
+    # Total percentage error (relative bias in total count)
     tpe  <- 100 * (sum(preds * dat$AREA_SWEPT_KM2_30) - sum(dat$COUNT_30)) / sum(dat$COUNT_30)
     
     data.frame(model_name = m_name, rmse = rmse, tpe = tpe)
+    
   })
   
   results <- do.call(rbind, results_list)
@@ -131,18 +130,41 @@ run_loocv <- function(model_list, dat, mapper) {
 }
 
 
-ols_mapper <- function(model, test_row) {
+# OLS ratio
+ols_mapper <- function(model, test_row, bias_correct = TRUE) {
   pred_log_ratio <- predict(model, newdata = test_row)
   # Applying 0.5 * sigma2 bias correction
   sigma2 <- summary(model)$sigma^2
-  ratio_bc <- exp(pred_log_ratio + 0.5 * sigma2) 
-  return(test_row$CPUE_NO_KM2_15 / ratio_bc)
+  
+  if(bias_correct) { 
+    ratio <- exp(pred_log_ratio + 0.5 * sigma2) 
+    } else {
+    ratio <- exp(pred_log_ratio)
+  }
+  
+  return(test_row$CPUE_NO_KM2_15 / ratio)
 }
 
+# Binomial and beta
 ccr_mapper <- function(model, test_row) {
+  
+  # Set combined count to 1 since it won't be observed but is required for predicting the response;
+  # Although this doesn't have any effect on the predicted proportion since obs weights are not used
+  # when type = "response"
+  test_row$COMBINED_COUNT <- 1
+  
   # Get predicted proportion (inv-logit scale)
   p <- predict(model, newdata = test_row, type = "response")
-  return(test_row$CPUE_NO_KM2_15 * (1 - p) / p)
+  ratio <- (1 - p) / p
+  return(test_row$CPUE_NO_KM2_15 / ratio)
+}
+
+# Poisson and negative binomial
+count_mapper <- function(model, test_row) {
+  # Get predicted counts
+  pred_count <- predict(model, newdata = test_row, type = "response")
+  
+  return(pred_count / test_row$AREA_SWEPT_KM2_30)
 }
 
 
