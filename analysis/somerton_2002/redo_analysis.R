@@ -103,33 +103,22 @@ cpue_1998 <- readRDS(here::here("analysis", "somerton_2002", "data", "cpue_1998.
 
 make_aic_table <- 
   function(model_list) {
-  
-  if(is.null(names(model_list))) {
-    model_names <- 1:length(model_list)
-  } else {
-    model_names <- names(model_list)
-  }
-  
-  results <- data.frame(
-    model_name = model_names,
-    formula = sapply(model_list, function(m) format(formula(m))),
-    aic = round(sapply(model_list, AIC), 2),
-    k = sapply(model_list, function(m) length(coef(m))),
-    stringsAsFactors = FALSE
-  )
-  
-  min_aic <- min(results$aic)
-  results$delta_aic <- results$aic - min_aic
-  
-  candidate_indices <- which(results$delta_aic < 2)
-  candidates <- results[candidate_indices, ]
-  
-  best_row_idx <- candidate_indices[which.min(candidates$k)]
-  
-  results$best <- FALSE
-  results$best[best_row_idx] <- TRUE
-  
-  return(results[order(results$aic), ])
+    
+    results <- data.frame(
+      model_name = names(model_list) %||% seq_along(model_list),
+      formula    = sapply(model_list, function(m) paste(format(formula(m)), collapse = "")),
+      aic        = round(sapply(model_list, AIC), 2),
+      k          = sapply(model_list, function(m) attr(logLik(m), "df")),
+      stringsAsFactors = FALSE
+    )
+    
+    results$delta_aic <- results$aic - min(results$aic)
+    
+    candidates <- results[results$delta_aic < 2, ]
+    best_name <- candidates$model_name[which.min(candidates$k)]
+    results$best <- results$model_name == best_name
+    
+    return(results[order(results$aic), ])
   
 } 
 
@@ -137,8 +126,7 @@ make_aic_table <-
 
 fit_ols <- 
   function(x, bootstrap_samples = NULL) {
-  x = dat
-  bootstrap_samples = dat_bootstrap
+
   # Fit models
   ols1 <- 
     lm(
@@ -193,6 +181,7 @@ fit_ols <-
     )
   
   output <- list(
+    models = model_list,
     best_model = model_list[[loocv_table$model_name[loocv_table$best]]],
     aic_table = aic_table,
     loocv_table = loocv_table,
@@ -331,14 +320,6 @@ boot_ols <-
           model_name = names(model_list)[ii],
           method = "median",
           
-          # log_ratio = quantile(fits$log_ratio, 0.5),
-          # log_ratio_lci    = quantile(fits$log_ratio, 0.025),
-          # log_ratio_uci    = quantile(fits$log_ratio, 0.975),
-          # 
-          # var       = quantile(fits$var, 0.5),
-          # var_lci          = quantile(fits$var, 0.025),
-          # var_uci          = quantile(fits$var, 0.975),
-          
           ratio     = quantile(fits$ratio, 0.5),
           ratio_lci        = quantile(fits$ratio, 0.025),
           ratio_uci        = quantile(fits$ratio, 0.975)
@@ -348,14 +329,6 @@ boot_ols <-
         data.frame(
           model_name = names(model_list)[ii],
           method = "mean",
-          
-          # log_ratio = quantile(fits$log_ratio, 0.5),
-          # log_ratio_lci    = quantile(fits$log_ratio, 0.025),
-          # log_ratio_uci    = quantile(fits$log_ratio, 0.975),
-          # 
-          # var       = quantile(fits$var, 0.5),
-          # var_lci          = quantile(fits$var, 0.025),
-          # var_uci          = quantile(fits$var, 0.975),
           
           ratio  = quantile(fits$ratio_bc, 0.5),
           ratio_lci     = quantile(fits$ratio_bc, 0.025),
@@ -440,31 +413,33 @@ miller_bias_correct <-
 
 fit_betareg <- 
   function(x, bootstrap_samples = NULL) {
+      
+    beta1 <- 
+      glmmTMB::glmmTMB(
+        formula = PROP_15 ~ 1,
+        family = beta_family(link = "logit"),
+        offset = log(EFFORT_RATIO),
+        data = x
+      )
   
-  beta1 <- 
-    betareg::betareg(
-      formula = PROP_15 ~ 1 | 1,
-      link = "logit",
-      offset = log(EFFORT_RATIO),
-      data = x
-    )
-  
-  beta2 <- 
-    betareg::betareg(
-      formula = PROP_15 ~ 1 | LOG_CPUE_NO_KM2_15,
-      link = "logit",
-      offset = log(EFFORT_RATIO),
-      data =  x
-    )
-  
-  beta3 <- 
-    betareg::betareg(
-      formula = PROP_15 ~ 1 | LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
-      link = "logit",
-      offset = log(EFFORT_RATIO),
-      data =  x
-    )
-  
+    beta2 <- 
+      glmmTMB::glmmTMB(
+        formula = PROP_15 ~ 1,
+        dispformula = ~ LOG_CPUE_NO_KM2_15,
+        family = beta_family(link = "logit"),
+        offset = log(EFFORT_RATIO),
+        data = x
+      )
+    
+    beta3 <- 
+      glmmTMB::glmmTMB(
+        formula = PROP_15 ~ 1,
+        dispformula = ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
+        family = beta_family(link = "logit"),
+        offset = log(EFFORT_RATIO),
+        data = x
+      )
+
   model_list <- 
     list(
       beta1 = beta1,
@@ -478,7 +453,7 @@ fit_betareg <-
     )
   
   loocv_table <-
-    loocv_betareg_binomial(
+    loocv_betareg(
       model = model_list,
       dat = x,
       method = "beta"
@@ -494,6 +469,7 @@ fit_betareg <-
   }
   
   output <- list(
+    models = model_list,
     best_model = model_list[[loocv_table$model_name[loocv_table$best]]],
     aic_table = aic_table,
     loocv_table = loocv_table,
@@ -519,11 +495,133 @@ fit_betareg <-
   
   }
 
+
+
+loocv_betareg <- 
+  function(model_list, dat, method) {
+    
+    results <- 
+      data.frame(
+        model_name = names(model_list),
+        formula = sapply(model_list, function(m) format(formula(m))),
+        rmse = numeric(length(model_list)),
+        method = method
+      )
+    
+    for(ii in seq_along(model_list)) {
+      
+      cat("loocv ", names(model_list)[ii], "\n")
+      mod <- model_list[[ii]]
+      n_obs <- nrow(dat)
+      
+      sq_errors <- rep(Inf, n_obs)
+      fit_r <- rep(Inf, n_obs)
+      
+      for(jj in 1:n_obs) {  
+        
+        train_dat <- dat[-jj, , drop = FALSE]
+        test_dat  <- dat[jj, , drop = FALSE]
+        
+        fit_loocv <- update(mod, data = train_dat)
+        
+        # Predict proportion
+        fit_r[jj] <- exp(fixef(fit_loocv)$cond['(Intercept)'])
+        
+      }
+      
+      sq_errors <- (dat$CPUE_NO_KM2_15 /fit_r  - dat$CPUE_NO_KM2_30)^2
+      
+      fit <- dat$CPUE_NO_KM2_15 / fit_r * dat$AREA_SWEPT_KM2_30
+      
+      results$rmse[ii] <- sqrt(mean(sq_errors))
+      results$tpe[ii] <- 100 * (sum(fit)-sum(dat$COUNT_30))/sum(dat$COUNT_30)
+      
+    }
+    
+    results$best <- results$rmse == min(results$rmse)
+    
+    return(results)
+    
+  }
+
+boot_betareg <- 
+  function(model_list, boot_samples_list) {
+    
+    model_fits <- vector(mode = "list", length = length(model_list))
+    names(model_fits) <- names(model_list)
+    
+    bootstrap_results <- data.frame()
+    
+    for(ii in seq_along(model_list)) {
+      
+      cat(names(model_list)[ii], "\n")
+      
+      mod <- model_list[[ii]]
+      
+      fits <- data.frame()
+      
+      for(jj in 1:length(boot_samples_list)) {
+        
+        if(jj%%100 == 0) {
+          cat(jj, "\n")
+        }
+        
+        boot_fit <- update(mod, data = boot_samples_list[[jj]])
+        
+        coef <- 
+          fixef(boot_fit) |> 
+          as.list() |>
+          do.call(what = rbind) |>
+          as.data.frame()
+        
+        type <- rownames(coef)
+        rownames(coef) <- NULL
+        coef$type <- type
+        coef$model_name <- names(model_list)[ii]
+        
+        fits <- dplyr::bind_rows(
+          fits,
+          coef
+        )
+        
+      }
+      
+      value_cols <- names(fits)[!(names(fits) %in% c("type", "model_name"))]
+      
+      ci <- 
+        fits %>%
+        dplyr::group_by(
+          dplyr::across(
+            dplyr::all_of(c("type", "model_name")))
+        ) %>%
+        dplyr::summarise(
+          dplyr::across(
+            dplyr::all_of(value_cols),
+            list(
+              median = ~median(.x, na.rm = TRUE),
+              lci = ~quantile(.x, probs = 0.025),
+              uci = ~quantile(.x, probs = 0.975)
+            ),
+            .names = "{.col}_{.fn}"
+          ),
+          .groups = "drop"
+        )
+      
+      model_fits[[ii]] <- fits
+      
+    }
+    
+    output <- 
+      list(
+        ci = bootstrap_results,
+        fits = model_fits
+      )
+    
+  }
+
+
 fit_binomial <- 
   function(x, bootstrap_samples = NULL) {
-    
-    x = dat
-    bootstrap_samples = dat_bootstrap
     
     binomial1 <-
       glm(
@@ -544,11 +642,12 @@ fit_binomial <-
         model_list 
       )
     
-    loocv_table <- loocv_betareg_binomial(
-      model_list = model_list,
-      dat = x,
-      method = "binomial"
-    )
+    loocv_table <- 
+      loocv_betareg_binomial(
+        model_list = model_list,
+        dat = x,
+        method = "binomial"
+      )
     
     bootstrap_results <- NA
     
@@ -560,6 +659,7 @@ fit_binomial <-
     }
     
     output <- list(
+      models = model_list,
       best_model = model_list[[loocv_table$model_name[loocv_table$best]]],
       aic_table = aic_table,
       loocv_table = loocv_table,
@@ -584,8 +684,7 @@ fit_binomial <-
   }
 
 
-
-loocv_betareg_binomial <- 
+loocv_binomial <- 
   function(model_list, dat, method) {
   
   results <- 
@@ -630,11 +729,8 @@ loocv_betareg_binomial <-
   
 }
 
-boot_betareg_binomial <- 
+boot_binomial <- 
   function(model_list, boot_samples_list) {
-    
-    # model_list = model_list
-    # boot_samples_list = bootstrap_samples
     
     model_fits <- vector(mode = "list", length = length(model_list))
     names(model_fits) <- names(model_list)
@@ -669,13 +765,264 @@ boot_betareg_binomial <-
         data.frame(
           model_name = names(model_list)[ii],
           
-          ratio     = quantile(fits$ratio, 0.5),
-          ratio_lci        = quantile(fits$ratio, 0.025),
-          ratio_uci        = quantile(fits$ratio, 0.975)
+          ratio = quantile(fits$ratio, 0.5),
+          ratio_lci = quantile(fits$ratio, 0.025),
+          ratio_uci = quantile(fits$ratio, 0.975)
         ) |>
         dplyr::bind_rows(
           bootstrap_results
         )
+      
+    }
+    
+    output <- 
+      list(
+        ci = bootstrap_results,
+        fits = model_fits
+      )
+    
+  }
+
+
+
+fit_pois_nb <- 
+  function(x, bootstrap_samples = NULL) {
+    
+    poisson1 <-
+      glmmTMB::glmmTMB(
+        formula = COUNT_30 ~ COUNT_15,
+        family = poisson(link = "log"),
+        offset = log(1/EFFORT_RATIO),
+        data = x
+      )
+    
+    poisson2 <-
+      glmmTMB::glmmTMB(
+        formula = COUNT_30 ~ COUNT_15 + I(COUNT_15^2),
+        family = poisson(link = "log"),
+        offset = log(1/EFFORT_RATIO),
+        data = x
+      )
+    
+    nbin1 <-
+      glmmTMB::glmmTMB(
+        formula = COUNT_30 ~ COUNT_15,
+        family = glmmTMB::nbinom1(link = "log"),
+        offset = log(1/EFFORT_RATIO),
+        data = x
+      )
+    
+    nbin2 <-
+      glmmTMB::glmmTMB(
+        formula = COUNT_30 ~ COUNT_15,
+        family = glmmTMB::nbinom1(link = "log"),
+        offset = log(1/EFFORT_RATIO),
+        disp = ~ CPUE_NO_KM2_15,
+        data = x
+      )
+    
+    nbin3 <-
+      glmmTMB::glmmTMB(
+        formula = COUNT_30 ~ COUNT_15,
+        family = glmmTMB::nbinom1(link = "log"),
+        offset = log(1/EFFORT_RATIO),
+        disp = ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
+        data = x
+      )
+    
+    nbin4 <-
+      glmmTMB::glmmTMB(
+        formula = COUNT_30 ~ COUNT_15 + I(COUNT_15^2),
+        family = glmmTMB::nbinom1(link = "log"),
+        offset = log(1/EFFORT_RATIO),
+        data = x
+      )
+    
+    nbin5 <-
+      glmmTMB::glmmTMB(
+        formula = COUNT_30 ~ COUNT_15 + I(COUNT_15^2),
+        family = glmmTMB::nbinom1(link = "log"),
+        offset = log(1/EFFORT_RATIO),
+        disp = ~ LOG_CPUE_NO_KM2_15,
+        data = x
+      )
+    
+    nbin6 <-
+      glmmTMB::glmmTMB(
+        formula = COUNT_30 ~ COUNT_15 + I(COUNT_15^2),
+        family = glmmTMB::nbinom1(link = "log"),
+        offset = log(1/EFFORT_RATIO),
+        disp = ~  LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
+        data = x
+      )
+    
+    model_list <- 
+      list(
+        poisson1 = poisson1,
+        poisson2 = poisson2,
+        nbin1 = nbin1,
+        nbin2 = nbin2,
+        nbin3 = nbin3,
+        nbin4 = nbin4,
+        nbin5 = nbin5,
+        nbin6 = nbin6
+      )
+    
+    aic_table <- 
+      dplyr::bind_rows(
+        make_aic_table(
+          model_list[grepl(pattern = "poisson", x = names(model_list))]
+        ),
+        make_aic_table(
+          model_list[grepl(pattern = "nbin", x = names(model_list))]
+        )
+      )
+    
+    loocv_table <- 
+      loocv_pois_nb(
+        model_list = model_list,
+        dat = x,
+        method = ""
+      )
+    
+    bootstrap_results <- NA
+    
+    if(!is.null(bootstrap_samples)) {
+      
+      cat("Starting bootstrap fits\n")
+      
+      bootstrap_results <- boot_pois_nb(
+        model_list = model_list,
+        boot_samples_list = bootstrap_samples
+      )
+    }
+    
+    output <- list(
+      models = model_list,
+      best_model = model_list[[loocv_table$model_name[loocv_table$best]]],
+      aic_table = aic_table,
+      loocv_table = loocv_table,
+      bootstrap_results = bootstrap_results,
+      fpc = NA
+    )
+    
+    return(output)
+    
+  }
+
+
+
+loocv_pois_nb <- 
+  function(model_list, dat, method) {
+    
+    results <- 
+      data.frame(
+        model_name = names(model_list),
+        formula = sapply(model_list, function(m) format(formula(m))),
+        rmse = numeric(length(model_list)),
+        method = method
+      )
+    
+    for(ii in seq_along(model_list)) {
+      
+      cat(names(model_list)[ii], "\n")
+      mod <- model_list[[ii]]
+      n_obs <- nrow(dat)
+      
+      sq_errors <- rep(Inf, n_obs)
+      fit <- rep(Inf, n_obs)
+      
+      for(jj in 1:n_obs) {  
+        
+        train_dat <- dat[-jj, , drop = FALSE]
+        test_dat  <- dat[jj, , drop = FALSE]
+        
+        fit_loocv <- update(mod, data = train_dat)
+        
+        # Predict counts
+        fit[jj] <- predict(fit_loocv, newdata = test_dat, type = "response")
+        
+        obs <- test_dat$CPUE_NO_KM2_30
+        
+        sq_errors[jj] <- (fit[jj]/test_dat$AREA_SWEPT_KM2_30 - obs)^2
+        
+      }
+      
+      results$rmse[ii] <- sqrt(mean(sq_errors))
+      results$tpe[ii] <- 100 * (sum(fit)-sum(dat$COUNT_30))/sum(dat$COUNT_30)
+      
+    }
+    
+    results$best <- results$rmse == min(results$rmse)
+    
+    return(results)
+    
+  }
+
+boot_pois_nb <- 
+  function(model_list, boot_samples_list) {
+    
+    model_fits <- vector(mode = "list", length = length(model_list))
+    names(model_fits) <- names(model_list)
+    
+    bootstrap_results <- data.frame()
+    
+    for(ii in seq_along(model_list)) {
+      
+      cat(names(model_list)[ii], "\n")
+      
+      mod <- model_list[[ii]]
+      
+      fits <- data.frame()
+      
+      for(jj in 1:length(boot_samples_list)) {
+        
+        if(jj%%100 == 0) {
+          cat(jj, "\n")
+        }
+        
+        boot_fit <- update(mod, data = boot_samples_list[[jj]])
+        
+        coef <- 
+          fixef(boot_fit) |> 
+          as.list() |>
+          do.call(what = rbind) |>
+          as.data.frame()
+        
+        type <- rownames(coef)
+        rownames(coef) <- NULL
+        coef$type <- type
+        coef$model_name <- names(model_list)[ii]
+        
+        fits <- dplyr::bind_rows(
+          fits,
+          coef
+        )
+        
+      }
+      
+      value_cols <- names(fits)[!(names(fits) %in% c("type", "model_name"))]
+      
+      ci <- 
+        fits %>%
+        dplyr::group_by(
+          dplyr::across(
+            dplyr::all_of(c("type", "model_name")))
+          ) %>%
+        dplyr::summarise(
+          dplyr::across(
+            dplyr::all_of(value_cols),
+            list(
+              median = ~median(.x, na.rm = TRUE),
+              lci = ~quantile(.x, probs = 0.025),
+              uci = ~quantile(.x, probs = 0.975)
+              ),
+            .names = "{.col}_{.fn}"
+          ),
+          .groups = "drop"
+        )
+      
+      model_fits[[ii]] <- fits
       
     }
     
@@ -747,6 +1094,70 @@ indpendent_fpc_validation <-
 
 
 
+twofold_cv <- 
+  function(model_list, validation_dat) {
+    
+    model_list <- beta_results$models
+    
+    validation_dat <- dat_oos
+    
+    for(ii in model_list) {
+      
+      mod <- model_list[[ii]]
+    
+      # OLS case
+      if(is(mod, "lm")) {
+        predictions <- 
+          predict(
+            mod, 
+            type = "response", 
+            newdata = validation_dat, 
+            se.fit = TRUE
+          )
+        
+        validation_dat$fit <- validation_dat$CPUE_NO_KM2_30 * predictions$fit
+        validation_dat$fit_lci <- validation_dat$CPUE_NO_KM2_30 * (predictions$fit - 2*predictions$se.fit)
+        validation_dat$fit_uci <- validation_dat$CPUE_NO_KM2_30 * (predictions$fit + 2*predictions$se.fit)
+        
+      }
+      
+      if(is(mod, "glm")) {
+        
+        predictions <- 
+          predict(
+            object = mod, 
+            type = "precision", 
+            newdata = validation_dat
+          )
+        
+        predictions <- 
+          predict(
+            mod, 
+            type = "terms", 
+            newdata = validation_dat
+          )
+        
+        validation_dat$fit <- validation_dat$CPUE_NO_KM2_30 * predictions$fit
+        validation_dat$fit_lci <- validation_dat$CPUE_NO_KM2_30 * (predictions$fit - 2*predictions$se.fit)
+        validation_dat$fit_uci <- validation_dat$CPUE_NO_KM2_30 * (predictions$fit + 2*predictions$se.fit)
+        
+        
+      }
+      
+      if(is(mod, "glmmTMB")) {
+        
+        
+      }
+
+      
+      validation_dat$fit <- predictions$fit
+      
+    }
+    
+  }
+
+
+
 draw_bootstrap_samples <- 
   function(x, seed = NULL, grouping_var, n_draws = 1000, replace = TRUE) {
     
@@ -790,6 +1201,7 @@ oos_table <- data.frame()
 species_code <- 68580
 common_name <- "snow crab"
 seed <- 1337
+n_draws <- 100
 
 # Setup data
 dat <- cpue_1998[cpue_1998$SPECIES_CODE == species_code, ]
@@ -798,15 +1210,21 @@ dat_bootstrap <-
     x = dat, 
     seed = seed, 
     grouping_var = "TOW_PAIR", 
-    n_draws = 1000, 
+    n_draws = n_draws, 
     replace = TRUE
   )
 dat_oos <- cpue_other[cpue_other$SPECIES_CODE == species_code, ]
 
 # Fit models
-ols_results <- fit_ols(x = dat, bootstrap_samples = dat_bootstrap)
-beta_results <- fit_betareg(x = dat, bootstrap_samples = dat_bootstrap)
-binomial_results <- fit_binomial(x = dat, bootstrap_samples = dat_bootstrap)
+# ols_results <- fit_ols(x = dat, bootstrap_samples = dat_bootstrap)
+# beta_results <- fit_betareg(x = dat, bootstrap_samples = dat_bootstrap)
+# binomial_results <- fit_binomial(x = dat, bootstrap_samples = dat_bootstrap)
+# pois_nb_results <- fit_pois_nb(x = dat, bootstrap_samples = dat_bootstrap)
+
+ols_results <- fit_ols(x = dat)
+beta_results <- fit_betareg(x = dat)
+binomial_results <- fit_binomial(x = dat)
+pois_nb_results <- fit_pois_nb(x = dat)
 
 ols_results$anderson_darling
 ols_results$kurtosis
@@ -1056,33 +1474,42 @@ oos_table <-
 
 
 # Plot cross-year validation results
-ggplot() +
+
+p_rmse_1998 <- 
+  ggplot() +
   geom_point(
     data = oos_table,
-    mapping = aes(x = method, y = rmse)) +
+    mapping = aes(x = method, y = rmse),
+    size = rel(2.2)) +
   geom_errorbar(
     data = oos_table,
     mapping = aes(x = method, ymin = rmse_lci, ymax = rmse_uci),
-    width = 0
+    width = 0,
+    linewidth = 1.05
   ) +
+  scale_y_continuous(name = expression(RMSE*' (#/'*km^2*')')) +
   facet_wrap(~common_name, scales = "free_y") +
+  theme_bw() +
   theme(
     axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
-    axis.title = element_blank()
+    axis.title.x = element_blank()
   )
 
-ggplot() +
+p_tpe_1998 <- 
+  ggplot() +
   geom_hline(yintercept = 0, linetype = 2) +
   geom_point(
     data = oos_table,
-    mapping = aes(x = common_name, y = tpe, color = method), position = position_dodge(width = 0.5)) +
+    mapping = aes(x = common_name, y = tpe, color = method), position = position_dodge(width = 0.5),
+    size = rel(2.2)) +
   geom_errorbar(
     data = oos_table,
     mapping = aes(x = common_name, ymin = tpe_lci, ymax = tpe_uci, color = method), position = position_dodge(width = 0.5),
-    width = 0
+    width = 0,
+    linewidth = 1.05
   ) +
   scale_y_continuous(name = "Total percentage error (%)", limits = c(-100, 100), oob = oob_squish, expand = c(0, 0)) +
-  scale_color_colorblind() +
+  scale_color_colorblind(name = "Method") +
   theme_bw() +
   theme(axis.title.x = element_blank())
 
@@ -1110,11 +1537,9 @@ fpc_table_1998_output <-
     sex_stage = "all"
   ) |>
   dplyr::mutate(
-    log_ratio = round(log_ratio, 4),
-    var = round(var, 4),
     ratio = paste0(round(ratio, 3), " (", round(ratio_lci, 3), "-", round(ratio_uci, 3), ")")
   ) |>
-  dplyr::select(common_name, years, model_name, method, log_ratio, var, ratio)
+  dplyr::select(common_name, years, model_name, method, ratio)
 
 xlsx::write.xlsx(
   loocv_table_1998_output, 
