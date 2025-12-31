@@ -11,7 +11,7 @@ library(here)
 
 # Somerton's archived data
 
-# somerton_catch <- 
+# somerton_catch <-
 #   rbind(
 #     read.table(file = here::here("analysis", "somerton_2002", "data", "Cb2.txt"),
 #                header = TRUE, na.strings = ".") |>
@@ -32,7 +32,7 @@ library(here)
 #   dplyr::select(-name) |>
 #   tidyr::pivot_wider(values_from = "value", names_from = "TREATMENT", names_prefix = "COUNT_")
 # 
-# somerton_effort <- 
+# somerton_effort <-
 #   read.table(file = here::here("analysis", "somerton_2002", "data", "Cb1.txt"),
 #              header = TRUE, na.strings = ".") |>
 #   dplyr::select(TOW_PAIR = OBS, EFFORT15, EFFORT30, VESSEL) |>
@@ -43,9 +43,10 @@ library(here)
 #                 VESSEL = factor(VESSEL)) |>
 #   tidyr::pivot_wider(values_from = "value", names_from = "TREATMENT", names_prefix = "AREA_SWEPT_KM2_")
 # 
-# cpue_1998 <- 
+# cpue_1998 <-
 #   dplyr::inner_join(somerton_catch, somerton_effort) |>
 #   dplyr::mutate(
+#     YEAR = 1998,
 #     CPUE_NO_KM2_15 = COUNT_15 / AREA_SWEPT_KM2_15,
 #     CPUE_NO_KM2_30 = COUNT_30 / AREA_SWEPT_KM2_30,
 #     LOG_CPUE_NO_KM2_30 = log(CPUE_NO_KM2_30),
@@ -63,7 +64,7 @@ library(here)
 # 
 # # 1995 + 2021-2024 experiments
 # 
-# cpue_other <- 
+# cpue_other <-
 #   sratio::data_1530$size |>
 #   dplyr::filter(SPECIES_CODE %in% c(68580, 68560, 69322)) |>
 #   dplyr::mutate(
@@ -96,12 +97,9 @@ library(here)
 #   dplyr::filter(CPUE_NO_KM2_15 > 0, CPUE_NO_KM2_30 > 0)
 # 
 # saveRDS(object = cpue_other, file = here::here("analysis", "somerton_2002", "data", "cpue_other.rds"))
-#   
 
-dharma_dir <- here::here("analysis", "somerton_2002", "plots", "dharma")
-obs_pred_dir <- here::here("analysis", "somerton_2002", "plots", "obs_pred_dir")
-dir.create(dharma_dir, showWarnings = FALSE)
-dir.create(obs_pred_dir, showWarnings = FALSE)
+
+
 
 # Load data ----
 
@@ -256,7 +254,7 @@ fit_lognormal <-
     lognormal1 <- 
       glmmTMB::glmmTMB(
         formula = CPUE_RATIO ~ 1,
-        family = lognormal(link = "log"),
+        family = glmmTMB::lognormal(link = "log"),
         weight = sqrt(COMBINED_COUNT),
         data = x
       )
@@ -655,8 +653,8 @@ fit_ols_models <-
   
   loocv_table <- 
     rbind(
-      run_loocv(model_list = model_list, dat = dat, mapper = ols_mapper, bias_correct = TRUE),
-      run_loocv(model_list = model_list, dat = dat, mapper = ols_mapper, bias_correct = FALSE)
+      run_loocv(model_list = model_list, dat = x, mapper = ols_mapper, bias_correct = TRUE),
+      run_loocv(model_list = model_list, dat = x, mapper = ols_mapper, bias_correct = FALSE)
     )
   
   loocv_table$method <- c("OLS mean", "OLS median")
@@ -730,7 +728,7 @@ fit_lognormal <-
       )
     
     loocv_table <- 
-        run_loocv(model_list = model_list, dat = dat, mapper = ratio_mapper)
+        run_loocv(model_list = model_list, dat = x, mapper = ratio_mapper)
     
     output <- list(
       models = model_list,
@@ -861,7 +859,7 @@ fit_ccr_models <-
       )
     
     loocv_table <-
-      run_loocv(model_list = model_list, dat = dat, mapper = ccr_mapper)
+      run_loocv(model_list = model_list, dat = x, mapper = ccr_mapper)
     
     bootstrap_results <- NA
     
@@ -982,7 +980,7 @@ fit_count_models <-
       )
     
     loocv_table <- 
-      run_loocv(model_list = model_list, dat = dat, mapper = count_mapper)
+      run_loocv(model_list = model_list, dat = x, mapper = count_mapper)
     
     bootstrap_results <- NA
     
@@ -1131,9 +1129,9 @@ ccr_mapper <- function(model, test_row, se_fit = FALSE) {
     p_lwr     <- p$fit - 2* p$se.fit
     p_upr     <- p$fit + 2* p$se.fit 
     
-    ratio     <- (1 - p$fit) / p$fit
-    ratio_lwr <- (1 - p_lwr) / p_lwr
-    ratio_upr <- (1 - p_upr) / p_upr
+    ratio     <-  p$fit / (1 - p$fit)
+    ratio_lwr <-  p_lwr / (1 - p_lwr)
+    ratio_upr <-  p_upr / (1 - p_upr)
     
     ratio     <- inv_link(ratio)
     ratio_lwr <- inv_link(ratio_lwr)
@@ -1149,7 +1147,7 @@ ccr_mapper <- function(model, test_row, se_fit = FALSE) {
   } else {
     # LOOCV; Get predicted proportion (inv-logit scale)
     p <- predict(model, newdata = test_row, type = "response")
-    ratio <- (1 - p) / p
+    ratio <- p / (1 - p)
     output <- test_row$CPUE_NO_KM2_15 / ratio
   }
 
@@ -1475,9 +1473,9 @@ ccr_mapper <- function(model, test_row, se_fit = FALSE) {
     p_lwr     <- p$fit - 2* p$se.fit
     p_upr     <- p$fit + 2* p$se.fit 
     
-    ratio     <- (1 - p$fit) / p$fit
-    ratio_lwr <- (1 - p_lwr) / p_lwr
-    ratio_upr <- (1 - p_upr) / p_upr
+    ratio     <- p$fit / (1 - p$fit)
+    ratio_lwr <- p_lwr / (1 - p_lwr)
+    ratio_upr <- p_upr / (1 - p_upr)
     
     ratio     <- inv_link(ratio)
     ratio_lwr <- inv_link(ratio_lwr)
@@ -1493,7 +1491,7 @@ ccr_mapper <- function(model, test_row, se_fit = FALSE) {
   } else {
     # LOOCV; Get predicted proportion (inv-logit scale)
     p <- predict(model, newdata = test_row, type = "response")
-    ratio <- (1 - p) / p
+    ratio <- p / (1 - p)
     output <- test_row$CPUE_NO_KM2_15 / ratio
   }
 
@@ -1701,200 +1699,305 @@ dharma_plots <-
     
   }
 
+run_analysis <- 
+  function(dat, dat_oos = NULL, common_name, subset_name, contrast_name = NULL) {
+    
+    fits_dir <- here::here("analysis", "somerton_2002", "plots", paste0(subset_name, "_fits"))
+    dharma_dir <- here::here("analysis", "somerton_2002", "plots", paste0(subset_name, "_fits"), "dharma")
+    obs_pred_dir <- here::here("analysis", "somerton_2002", "plots", paste0(subset_name, "_fits"), "obs_pred_dir")
+    dir.create(fits_dir, showWarnings = FALSE)
+    dir.create(dharma_dir, showWarnings = FALSE)
+    dir.create(obs_pred_dir, showWarnings = FALSE)
+    
+    
+    # Fit models, check convergence
+    ols_results <- fit_ols_models(x = dat)
+    ccr_results <- fit_ccr_models(x = dat)
+    lognormal_results <- fit_lognormal(x = dat)
+    count_results <- fit_count_models(x = dat)
+    
+    # Two-fold CV 
+    if(!is.null(dat_oos)) {
+      
+      oos_table <- 
+        dplyr::bind_rows(
+          run_twofold_cv(
+            model_list = ccr_results$models, 
+            validation_dat = dat_oos, 
+            mapper = ccr_mapper, 
+            common_name = common_name,
+            subset = contrast_name,
+            save_dir = obs_pred_dir
+          ),
+          run_twofold_cv(
+            model_list = lognormal_results$models, 
+            validation_dat = dat_oos, 
+            mapper = ratio_mapper, 
+            common_name = common_name,
+            subset = contrast_name,
+            save_dir = obs_pred_dir
+          ),
+          run_twofold_cv(
+            model_list = count_results$models, 
+            validation_dat = dat_oos, 
+            mapper = count_mapper, 
+            common_name = common_name,
+            subset = contrast_name,
+            save_dir = obs_pred_dir
+          ),
+          run_twofold_cv(
+            model_list = ols_results$models, 
+            validation_dat = dat_oos, 
+            mapper = ols_mapper, 
+            common_name = common_name,
+            subset = contrast_name,
+            save_dir = obs_pred_dir,
+            bias_correct = TRUE
+          ) |>
+            dplyr::mutate(method = "OLS mean"),
+          run_twofold_cv(
+            model_list = ols_results$models, 
+            validation_dat = dat_oos, 
+            mapper = ols_mapper, 
+            common_name = common_name,
+            subset = contrast_name,
+            save_dir = obs_pred_dir,
+            bias_correct = FALSE
+          ) |>
+            dplyr::mutate(method = "OLS median")
+        ) |>
+        dplyr::mutate(common_name = common_name) |> 
+        dplyr::arrange(rmse) |>
+        dplyr::mutate(method = ifelse(is.na(method), model_name, method))
+      
+    }
+    
+    # Check DHARMa residuals
+    dharma_plots(
+      model_list = c(
+        ols_results$models,
+        ccr_results$models,
+        lognormal_results$models,
+        count_results$models
+      ),
+      common_name = common_name,
+      nsim = 1000,
+      subset = subset_name,
+      save_dir = dharma_dir
+    )
+    
+    p1 <- 
+      check_ols_heteroskedasticity(
+        dat = dat, 
+        model = ols_results$best_model, 
+        predictor = "CPUE_NO_KM2_15", 
+        x_axis_name = expression(CPUE[15]*' (#/'*km^2*')')
+      )
+    
+    p2 <- 
+      check_ols_heteroskedasticity(
+        dat = dat, 
+        model = ols_results$best_model, 
+        predictor = "CPUE_NO_KM2_30", 
+        x_axis_name = expression(CPUE[30]*' (#/'*km^2*')')
+      )
+    
+    p_heteroskedasticity <- cowplot::plot_grid(p1, p2)
+    
+    # Make AIC table that includes convergence checks
+    aic_table <-
+      dplyr::bind_rows(
+        ols_results$aic_table,
+        ccr_results$aic_table,
+        lognormal_results$aic_table,
+        count_results$aic_table
+      ) |>
+      dplyr::mutate(common_name = common_name)
+    
+    # Append cross validation results
+    loocv_table <- 
+      dplyr::bind_rows(
+        ols_results$loocv_table,
+        ccr_results$loocv_table,
+        lognormal_results$loocv_table,
+        count_results$loocv_table
+      ) |>
+      dplyr::arrange(rmse) |>
+      dplyr::mutate(common_name = common_name) |> 
+      dplyr::mutate(method = ifelse(is.na(method), model_name, method))
+    
+    converged_table <-
+      aic_table |>
+      dplyr::select(model_name, common_name, pass_check) |>
+      dplyr::inner_join(
+        loocv_table
+      )
+    
+    output <- 
+      list(
+        dat = dat,
+        dat_oos = dat_oos,
+        contrast_name = contrast_name,
+        subset_name = subset_name,
+        common_name = common_name,
+        ols_results = ols_results, 
+        ccr_results = ccr_results, 
+        lognormal_results = lognormal_results, 
+        count_results = count_results,
+        loocv_table = loocv_table,
+        aic_table = aic_table,
+        oos_table = oos_table,
+        converged_table = converged_table,
+        p_heteroskedasticity = p_heteroskedasticity
+      )
+    
+    return(output)
+    
+  }
+
 
 # Fitting Somerton et al. (2002) 1998 data ---------------------------------------------------------
 
-seed <- 1337
-n_draws <- 100
+# seed <- 1337
+# n_draws <- 100
 
-fpc_table_1998 <- data.frame()
-loocv_table_1998 <- data.frame()
-aic_table_1998 <- data.frame()
-oos_table_1998 <- data.frame()
-
-subset_name <- 1998
-contrast_name <- "1998FitVsOther"
-
-set_species <- 
+set_species_2002 <- 
   data.frame(
     species_code = c(68560, 68580, 69322),
     common_name = c("Tanner crab", "snow crab", "red king crab")
   )
 
-for(kk in 1:nrow(set_species)) {
+results_2002 <- vector(mode = "list", length = nrow(set_species_2002))
+names(results_2002) <- set_species_2002$common_name
+
+for(kk in 1) {
+  # for(kk in 1:nrow(set_species_2002)) {
   
-  # Set species
-  species_code <- set_species$species_code[kk]
-  common_name <- set_species$common_name[kk]
+  species_code <- set_species_2002$species_code[kk]
   
   # Setup data
-  dat <- cpue_1998[cpue_1998$SPECIES_CODE == species_code, ]
-  dat_bootstrap <- 
-    draw_bootstrap_samples(
-      x = dat, 
-      seed = seed, 
-      grouping_var = "TOW_PAIR", 
-      n_draws = n_draws, 
-      replace = TRUE
+  
+  # dat_bootstrap <- 
+  #   draw_bootstrap_samples(
+  #     x = cpue_1998[cpue_1998$SPECIES_CODE == species_code, ], 
+  #     seed = seed, 
+  #     grouping_var = "TOW_PAIR", 
+  #     n_draws = n_draws, 
+  #     replace = TRUE
+  #   )
+  
+  results_2002[[kk]] <- 
+    run_analysis(
+      dat = cpue_1998[cpue_1998$SPECIES_CODE == species_code, ], 
+      dat_oos = cpue_other[cpue_other$SPECIES_CODE == species_code, ], 
+      common_name = set_species_2002$common_name[kk], 
+      subset_name = "2002", 
+      contrast_name = "2002FitVsOther"
     )
-  dat_oos <- cpue_other[cpue_other$SPECIES_CODE == species_code, ]
-  
-  # Fit models, check convergence
-  ols_results <- fit_ols_models(x = dat)
-  ccr_results <- fit_ccr_models(x = dat)
-  lognormal_results <- fit_lognormal(x = dat)
-  count_results <- fit_count_models(x = dat)
-  
-  # Two-fold CV 
-  oos_table_1998 <- 
-    dplyr::bind_rows(
-      run_twofold_cv(
-        model_list = ccr_results$models, 
-        validation_dat = dat_oos, 
-        mapper = ccr_mapper, 
-        common_name = common_name,
-        subset = contrast_name,
-        save_dir = obs_pred_dir
-      ),
-      run_twofold_cv(
-        model_list = lognormal_results$models, 
-        validation_dat = dat_oos, 
-        mapper = ratio_mapper, 
-        common_name = common_name,
-        subset = contrast_name,
-        save_dir = obs_pred_dir
-      ),
-      run_twofold_cv(
-        model_list = count_results$models, 
-        validation_dat = dat_oos, 
-        mapper = count_mapper, 
-        common_name = common_name,
-        subset = contrast_name,
-        save_dir = obs_pred_dir
-      ),
-      run_twofold_cv(
-        model_list = ols_results$models, 
-        validation_dat = dat_oos, 
-        mapper = ols_mapper, 
-        common_name = common_name,
-        subset = contrast_name,
-        save_dir = obs_pred_dir,
-        bias_correct = TRUE
-      ) |>
-        dplyr::mutate(method = "OLS mean"),
-      run_twofold_cv(
-        model_list = ols_results$models, 
-        validation_dat = dat_oos, 
-        mapper = ols_mapper, 
-        common_name = common_name,
-        subset = contrast_name,
-        save_dir = obs_pred_dir,
-        bias_correct = FALSE
-      ) |>
-        dplyr::mutate(method = "OLS median")
-    ) |>
-    dplyr::mutate(common_name = common_name) |>
-    dplyr::bind_rows(
-      oos_table_1998
-    ) |> 
-    dplyr::arrange(rmse)
-  
-  # Check DHARMa residuals
-  dharma_plots(
-    model_list = c(
-      ols_results$models,
-      ccr_results$models,
-      lognormal_results$models,
-      count_results$models
-    ),
-    common_name = common_name,
-    nsim = 1000,
-    subset = subset_name,
-    save_dir = dharma_dir
-  )
-  
-  # Check OLS results
-  ols_results$anderson_darling
-  ols_results$kurtosis
-  ols_results$cor_test
-  
-  p1 <- 
-    check_ols_heteroskedasticity(
-      dat = dat, 
-      model = ols_results$best_model, 
-      predictor = "CPUE_NO_KM2_15", 
-      x_axis_name = expression(CPUE[15]*' (#/'*km^2*')')
-    )
-  
-  p2 <- 
-    check_ols_heteroskedasticity(
-      dat = dat, 
-      model = ols_results$best_model, 
-      predictor = "CPUE_NO_KM2_30", 
-      x_axis_name = expression(CPUE[30]*' (#/'*km^2*')')
-    )
-  
-  cowplot::plot_grid(
-    p1, p2
-  )
-  
-  # Make AIC table that includes convergence checks
-  aic_table_1998 <-
-    dplyr::bind_rows(
-      ols_results$aic_table,
-      ccr_results$aic_table,
-      lognormal_results$aic_table,
-      count_results$aic_table
-    ) |>
-    dplyr::mutate(common_name = common_name) |>
-    dplyr::bind_rows(aic_table_1998)
-  
-  # Append cross validation results
-  loocv_table_1998 <- 
-    dplyr::bind_rows(
-      ols_results$loocv_table,
-      ccr_results$loocv_table,
-      lognormal_results$loocv_table,
-      count_results$loocv_table
-    ) |>
-    dplyr::arrange(rmse) |>
-    dplyr::mutate(common_name = common_name) |>
-    dplyr::bind_rows(loocv_table_1998)
   
 }
 
-loocv_table_1998 <- 
-  loocv_table_1998 |> 
-  dplyr::mutate(method = ifelse(is.na(method), model_name, method))
-
-oos_table_1998 <-
-  oos_table_1998 |>
-  dplyr::mutate(method = ifelse(is.na(method), model_name, method))
 
 
-converged_1998 <-
-  aic_table_1998 |>
-  dplyr::select(model_name, common_name, pass_check) |>
-  dplyr::inner_join(
-    loocv_table_1998
+
+# Check OLS results
+ols_results$anderson_darling
+ols_results$kurtosis
+ols_results$cor_test
+  
+
+# All years (no twofold CV) ------------------------------------------------------------------------
+set_species_all <- 
+  data.frame(
+    species_code = c(68560, 68560, 68580, 68580, 69322, 69322),
+    sex = c("M", "F", "M", "F", "M", "F"),
+    common_name = 
+      c(
+        "Tanner crab (male)", 
+        "Tanner crab (female)", 
+        "snow crab (male)", 
+        "snow crab (female)", 
+        "red king crab (male)", 
+        "red king crab (female)"
+      )
   )
 
+results_all <- vector(mode = "list", length = nrow(set_species_all))
+names(results_all) <- set_species_all$common_name
 
-oos_table_ols_1998 <- 
-  dplyr::filter(oos_table_1998, model_name == "ols1") |>
-  dplyr::arrange(common_name, rmse)
+for(kk in 1:nrow(set_species_all)) {
+  
+  species_code <- set_species_all$species_code[kk]
+  sex <- set_species_all$sex[kk]
+  
+  dat <- dplyr::bind_rows(
+    cpue_1998[cpue_1998$SPECIES_CODE == species_code & cpue_1998$SEX == sex, ],
+    cpue_other[cpue_other$SPECIES_CODE == species_code & cpue_other$SEX == sex, ]
+  )
+  
+  results_all[[kk]] <- 
+    run_analysis(
+      dat = , 
+      common_name = set_species_all$common_name[kk], 
+      subset_name = "All"
+    )
+  
+}
+
+
+# Fit 1998 (2CV: other years 2CV) ------------------------------------------------------------------
+results_1998 <- vector(mode = "list", length = nrow(set_species_all))
+names(results_1998) <- set_species_all$common_name
+
+for(ll in 1:nrow(set_species_all)) {
+  
+  species_code <- set_species_all$species_code[ll]
+  sex <- set_species_all$sex[ll]
+  
+  results_all[[ll]] <- 
+    run_analysis(
+      dat = cpue_1998[cpue_1998$SPECIES_CODE == species_code & cpue_1998$SEX == sex, ], 
+      dat_oos = cpue_other[cpue_other$SPECIES_CODE == species_code & cpue_other$SEX == sex, ], 
+      common_name = set_species_all$common_name[ll], 
+      subset_name = 1998,
+      contrast_name = "1998FitVsOther"
+    )
+  
+}
+
+
+# Fit 1995 + 2021 to 2024 (2CV: 1998 2CV) ----------------------------------------------------------
+results_other <- vector(mode = "list", length = nrow(set_species_all))
+names(results_other) <- set_species_all$common_name
+
+for(ll in 1:nrow(set_species_all)) {
+  
+  species_code <- set_species_all$species_code[ll]
+  sex <- set_species_all$sex[ll]
+  
+  results_all[[ll]] <- 
+    run_analysis(
+      dat = cpue_other[cpue_other$SPECIES_CODE == species_code & cpue_other$SEX == sex, ], 
+      dat_oos = cpue_1998[cpue_1998$SPECIES_CODE == species_code & cpue_1998$SEX == sex, ], 
+      common_name = set_species_all$common_name[ll], 
+      subset_name = "Other",
+      contrast_name = "OtherFitVs1998"
+    )
+  
+}
+
 
 # Plot cross-year validation results
 
-p_ols_1998 <-
+p_ols <-
   ggplot() +
     geom_hline(yintercept = 0, linetype = 2) +
   geom_point(
-    data = oos_table_ols_1998,
+    data = oos_table_ols,
              mapping = aes(x = common_name, y = tpe, color = method), position = position_dodge(width = 0.5)
     ) +
     geom_errorbar(
-      data = oos_table_ols_1998,
+      data = oos_table_ols,
       mapping = aes(
         x = common_name, ymin = tpe_lci, ymax = tpe_uci, color = method
       ),
@@ -1913,7 +2016,7 @@ p_ols_1998 <-
           legend.title = element_text(size = 8))
 
 png(
-  filename = here::here("analysis", "somerton_2002", "plots", "1998_fits", "TPE_OLS_other_years_from_1998.png"),
+  filename =  here::here(fits_dir, "TPE_OLS_other_years_from_1998.png"),
   width = 80,
   height = 80, 
   res = 300, 
@@ -1992,283 +2095,4 @@ xlsx::write.xlsx(
   file = here::here("analysis", "somerton_2002", "plots", "fpc_table_1998.xlsx"), 
   row.names = FALSE
 )
-
-
-# Fitting to 1995 and 2021-2024 data  --------------------------------------------------------------
-
-fpc_table_other <- data.frame()
-loocv_table_other <- data.frame()
-aic_table_other <- data.frame()
-oos_table_other <- data.frame()
-
-subset_name <- "All years"
-contrast_name <- 
-
-  set_species <- 
-  data.frame(
-    species_code = c(68560, 68560, 68580, 68580, 69322, 69322),
-    sex = c("M", "F", "M", "F", "M", "F"),
-    common_name = 
-      c(
-        "Tanner crab (male)", 
-        "Tanner crab (female)", 
-        "snow crab (male)", 
-        "snow crab (female)", 
-        "red king crab (male)", 
-        "red king crab (female)"
-      ),
-  )
-
-for(kk in 1:nrow(set_species)) {
-  
-  # Set species
-  species_code <- set_species$species_code[kk]
-  common_name <- set_species$common_name[kk]
-  sex <- set_species$sex[kk]
-  
-  # Setup data
-  dat <- cpue_all[
-    cpue_all$SPECIES_CODE == species_code & 
-      cpue_all$YEAR != 1998 &
-      cpue_all$SEX == sex, ]
-  
-  dat_bootstrap <- 
-    draw_bootstrap_samples(
-      x = dat, 
-      seed = seed, 
-      grouping_var = "TOW_PAIR", 
-      n_draws = n_draws, 
-      replace = TRUE
-    )
-  dat_oos <- cpue_other[cpue_other$SPECIES_CODE == species_code, ]
-  
-  # Fit models, check convergence
-  ols_results <- fit_ols_models(x = dat)
-  ccr_results <- fit_ccr_models(x = dat)
-  lognormal_results <- fit_lognormal(x = dat)
-  count_results <- fit_count_models(x = dat)
-  
-  # Check DHARMa residuals
-  dharma_plots(
-    model_list = c(
-      ols_results$models,
-      ccr_results$models,
-      lognormal_results$models,
-      count_results$models
-    ),
-    common_name = common_name,
-    nsim = 1000,
-    subset = subset_name,
-    save_dir = dharma_dir
-  )
-  
-  oos_table_1998 <- 
-    dplyr::bind_rows(
-      run_twofold_cv(
-        model_list = ccr_results$models, 
-        validation_dat = dat_oos, 
-        mapper = ccr_mapper, 
-        common_name = common_name,
-        subset = contrast_name,
-        save_dir = obs_pred_dir
-      ),
-      run_twofold_cv(
-        model_list = lognormal_results$models, 
-        validation_dat = dat_oos, 
-        mapper = ratio_mapper, 
-        common_name = common_name,
-        subset = contrast_name,
-        save_dir = obs_pred_dir
-      ),
-      run_twofold_cv(
-        model_list = count_results$models, 
-        validation_dat = dat_oos, 
-        mapper = count_mapper, 
-        common_name = common_name,
-        subset = contrast_name,
-        save_dir = obs_pred_dir
-      ),
-      run_twofold_cv(
-        model_list = ols_results$models, 
-        validation_dat = dat_oos, 
-        mapper = ols_mapper, 
-        common_name = common_name,
-        subset = contrast_name,
-        save_dir = obs_pred_dir,
-        bias_correct = TRUE
-      ) |>
-        dplyr::mutate(method = "OLS mean"),
-      run_twofold_cv(
-        model_list = ols_results$models, 
-        validation_dat = dat_oos, 
-        mapper = ols_mapper, 
-        common_name = common_name,
-        subset = contrast_name,
-        save_dir = obs_pred_dir,
-        bias_correct = FALSE
-      ) |>
-        dplyr::mutate(method = "OLS median")
-    ) |>
-    dplyr::bind_rows(
-      oos_table_1998
-    ) |> 
-    dplyr::arrange(rmse) |>
-    dplyr::mutate(common_name = common_name)
-  
-  # Check OLS results
-  ols_results$anderson_darling
-  ols_results$kurtosis
-  ols_results$cor_test
-  
-  p1 <- 
-    check_ols_heteroskedasticity(
-      dat = dat, 
-      model = ols_results$best_model, 
-      predictor = "CPUE_NO_KM2_15", 
-      x_axis_name = expression(CPUE[15]*' (#/'*km^2*')')
-    )
-  
-  p2 <- 
-    check_ols_heteroskedasticity(
-      dat = dat, 
-      model = ols_results$best_model, 
-      predictor = "CPUE_NO_KM2_30", 
-      x_axis_name = expression(CPUE[30]*' (#/'*km^2*')')
-    )
-  
-  cowplot::plot_grid(
-    p1, p2
-  )
-  
-  # Make AIC table that includes convergence checks
-  aic_table_all <-
-    dplyr::bind_rows(
-      ols_results$aic_table,
-      ccr_results$aic_table,
-      lognormal_results$aic_table,
-      count_results$aic_table
-    ) |>
-    dplyr::mutate(common_name = common_name) |>
-    dplyr::bind_rows(aic_table_all)
-  
-  # Append cross validation results
-  loocv_table_all <- 
-    dplyr::bind_rows(
-      ols_results$loocv_table,
-      ccr_results$loocv_table,
-      lognormal_results$loocv_table,
-      count_results$loocv_table
-    ) |>
-    dplyr::arrange(rmse) |>
-    dplyr::mutate(common_name = common_name) |>
-    dplyr::bind_rows(loocv_table_all)
-  
-}
-
-
-# Fitting to the full data set ---------------------------------------------------------------------
-
-fpc_table_all <- data.frame()
-loocv_table_all <- data.frame()
-aic_table_all <- data.frame()
-oos_table_all <- data.frame()
-subset_name <- "All years"
-
-set_species <- 
-  data.frame(
-    species_code = c(68560, 68580, 69322),
-    common_name = c("Tanner crab", "snow crab", "red king crab")
-  )
-
-seed <- 1337
-n_draws <- 100
-
-for(kk in 1:nrow(set_species)) {
-  
-  # Set species
-  species_code <- set_species$species_code[kk]
-  common_name <- set_species$common_name[kk]
-  
-  # Setup data
-  dat <- cpue_all[cpue_all$SPECIES_CODE == species_code, ]
-  dat_bootstrap <- 
-    draw_bootstrap_samples(
-      x = dat, 
-      seed = seed, 
-      grouping_var = "TOW_PAIR", 
-      n_draws = n_draws, 
-      replace = TRUE
-    )
-  dat_oos <- cpue_other[cpue_other$SPECIES_CODE == species_code, ]
-  
-  # Fit models, check convergence
-  ols_results <- fit_ols_models(x = dat)
-  ccr_results <- fit_ccr_models(x = dat)
-  lognormal_results <- fit_lognormal(x = dat)
-  count_results <- fit_count_models(x = dat)
-  
-  # Check DHARMa residuals
-  dharma_plots(
-    model_list = c(
-      ols_results$models,
-      ccr_results$models,
-      lognormal_results$models,
-      count_results$models
-    ),
-    common_name = common_name,
-    nsim = 1000,
-    subset = subset_name,
-    save_dir = dharma_dir
-  )
-  
-  # Check OLS results
-  ols_results$anderson_darling
-  ols_results$kurtosis
-  ols_results$cor_test
-  
-  p1 <- 
-    check_ols_heteroskedasticity(
-      dat = dat, 
-      model = ols_results$best_model, 
-      predictor = "CPUE_NO_KM2_15", 
-      x_axis_name = expression(CPUE[15]*' (#/'*km^2*')')
-    )
-  
-  p2 <- 
-    check_ols_heteroskedasticity(
-      dat = dat, 
-      model = ols_results$best_model, 
-      predictor = "CPUE_NO_KM2_30", 
-      x_axis_name = expression(CPUE[30]*' (#/'*km^2*')')
-    )
-  
-  cowplot::plot_grid(
-    p1, p2
-  )
-  
-  # Make AIC table that includes convergence checks
-  aic_table_all <-
-    dplyr::bind_rows(
-      ols_results$aic_table,
-      ccr_results$aic_table,
-      lognormal_results$aic_table,
-      count_results$aic_table
-    ) |>
-    dplyr::mutate(common_name = common_name) |>
-    dplyr::bind_rows(aic_table_all)
-  
-  # Append cross validation results
-  loocv_table_all <- 
-    dplyr::bind_rows(
-      ols_results$loocv_table,
-      ccr_results$loocv_table,
-      lognormal_results$loocv_table,
-      count_results$loocv_table
-    ) |>
-    dplyr::arrange(rmse) |>
-    dplyr::mutate(common_name = common_name) |>
-    dplyr::bind_rows(loocv_table_all)
-  
-}
-
 
