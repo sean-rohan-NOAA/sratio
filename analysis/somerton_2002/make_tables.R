@@ -24,6 +24,20 @@ load(here::here(output_dir, "results_all.rda"))
 load(here::here(output_dir, "results_1998.rda"))
 
 
+# Setup CPUE data
+
+cpue_dat <-
+  lapply(results_all, 
+         FUN = function(results) {
+           results$dat
+         }
+  ) |>
+  do.call(what = rbind) |>
+  dplyr::mutate(
+    common_name = paste0(common_name, " (", ifelse(SEX == 'M', "male", "female"), ")")
+  )
+
+
 # Make RMSE tables by combining LOOCV, OOS (two-fold CV), and diagnostic (AIC) tables.
 tables_rmse <- 
   function(results_obj, save_dir) {
@@ -117,7 +131,7 @@ combine_fits <- function(results_obj) {
 }
   
 
-# Make final RMSE table ----
+# Make RMSE tables ----
 
 response_type <- 
   data.frame(
@@ -144,7 +158,6 @@ rmse_95_2124 <-
     save_dir = project_dir
   )
 
-
 # RMSE table for converged models -- model with the lowest RMSE for each type
 
 best_rmse <- 
@@ -169,20 +182,225 @@ write.csv(
 )
 
 
+# Review fits --------------------------------------------------------------------------------------
+
+p_bias_method <- 
+  ggplot() +
+  geom_vline(xintercept = 0, linetype = 2) +
+  geom_vline(xintercept = c(-10,10), linetype = 3) +
+  geom_point(data = compare_perf_among_models,
+             mapping = aes(y = method, x = pbias, color = type, shape = common_name)) +
+  geom_text(
+    data = compare_perf_among_models |>
+      dplyr::group_by(method, type) |>
+      dplyr::summarise(n = n()),
+    mapping = aes(x = -54, y = method, label = n, color = type),
+    size = 3
+  ) +
+  scale_color_tableau(name = "Response type") +
+  scale_x_continuous(name = "PBIAS (%)", breaks = seq(-50, 100, 25)) +
+  scale_shape(name = "Species/sex", solid = FALSE) +
+  theme_bw() +
+  theme(axis.title.y = element_blank(),
+        legend.title = element_text(size = 8),
+        legend.text = element_text(size = 8),
+        axis.title.x = element_text(size = 9),
+        axis.text = element_text(size = 8),
+        panel.grid.minor = element_blank(),
+        legend.key.height = unit(3.5, "mm"))
+
+png(filename = here::here("analysis", "somerton_2002", "plots", "PBIAS_by_method_type_species.png"),
+    width = 169,
+    height = 169,
+    units = "mm",
+    res = 600)
+print(p_bias_method)
+dev.off()
+
 do.call(what = rbind, rmse_all) |>
   dplyr::filter(method == "OLS mean")
 
-# 2CV prediction performance for the 'best' models in each category
 
+# Supplementary table of all RMSEs for models that converged ----
+# Compare models that converged
+all_rmse <- 
+  do.call(what = rbind, rmse_all) |>
+  dplyr::inner_join(response_type ) |>
+  dplyr::filter(pass_check == TRUE) |>
+  dplyr::select(common_name, type, method, rmse, pbias) |>
+  dplyr::left_join(
+    do.call(what = rbind, rmse_95_2124) |>
+      dplyr::inner_join(response_type ) |>
+      dplyr::filter(pass_check == TRUE) |>
+      dplyr::select(common_name, type, method, rmse_1998 = rmse, pbias_1998 = pbias)
+  ) |>
+  dplyr::left_join(
+    do.call(what = rbind, rmse_1998) |>
+      dplyr::inner_join(response_type) |>
+      dplyr::filter(pass_check == TRUE) |>
+      dplyr::select(common_name, type, method, rmse_95_2124 = rmse, pbias_95_2124 = pbias)
+  ) |>
+  dplyr::arrange(
+    common_name, rmse
+  )
+
+compare_perf_among_models <- 
+  do.call(what = rbind, rmse_all) |>
+  dplyr::filter(pass_check == TRUE) |>
+  dplyr::group_by(
+    common_name
+  ) |>
+  dplyr::mutate(
+    rel_rmse = rmse/min(rmse)
+  ) |>
+  dplyr::inner_join(
+    response_type
+  ) |>
+  dplyr::mutate(
+    method = factor(method, levels = response_type$method)
+  )
+  
+xlsx::write.xlsx(all_rmse, file = here::here("analysis", "somerton_2002", "plots", "rmse_all_converged.xlsx"), row.names = FALSE)
+
+# Somerton FPC fits
+somerton_estimates <-
+  data.frame(
+    common_name = c("snow crab (male)", "snow crab (female)", "red king crab (male)", "red king crab (female)", "Tanner crab (male)", "Tanner crab (female)"),
+    fpc = c(1.78, 1.78, 1.244, 1.244, 1.68, 1.68)
+  )
+
+# Plot converged models for each species 
+
+## Show fits for each converged model
+all_fits <- 
+  lapply(
+    X = names(results_all),
+    FUN = function(spname) {
+      
+      results_all[[spname]]$fit_table |>
+        dplyr::mutate(
+          method = ifelse(is.na(method), model_name, method)) |>
+        dplyr::inner_join(all_rmse) |>
+        dplyr::inner_join(response_type)
+    }
+  )
+
+species_model_labs <- 
+  all_rmse |>
+  dplyr::mutate(
+    rmse = round(rmse),
+    pbias = format(round(pbias, 1), nsmall = 1),
+    label = paste0("RMSE=",rmse, "\nPBIAS=",trimws(pbias))
+  )
+
+p_all_models_by_species <- vector(mode = "list", length = length(all_fits))
+
+for(hh in 1:length(all_fits)) {
+  
+  sel_common_name <- all_fits[[hh]]$common_name[1]
+  
+  p_all_models_by_species[[hh]] <- 
+    ggplot() +
+    geom_abline(slope =1 , intercept = 0, linetype = 2) +
+    geom_point(
+      data = dplyr::filter(cpue_dat, common_name == sel_common_name),
+      mapping = aes(x = CPUE_NO_KM2_15, y = CPUE_NO_KM2_30),
+      color = "grey50",
+      size = 0.7
+    ) +
+    geom_ribbon(
+      data = all_fits[[hh]],
+      mapping = aes(x = CPUE_NO_KM2_15, ymin = fit_lwr, ymax = fit_upr, fill = type),
+      alpha = 0.3
+    ) +
+    geom_path(
+      data = all_fits[[hh]],
+      mapping = aes(x = CPUE_NO_KM2_15, y = fit, color = type)
+    ) +
+    ggpp::geom_text_npc(
+      data = dplyr::filter(species_model_labs, common_name == sel_common_name),
+      mapping = aes(npcx = 0.02, npcy = .97, label = method),
+      size = 2) +
+    ggpp::geom_text_npc(
+      data = dplyr::filter(species_model_labs, common_name == sel_common_name),
+      mapping = aes(npcx = 0.97, npcy = .05, label = label ),
+      size = 2) +
+    facet_wrap(~factor(method, levels = response_type$method)) +
+    scale_x_log10(name = expression(CPUE[15]*' (#/'*km^2*')')) +
+    scale_y_log10(name = expression(CPUE[30]*' (#/'*km^2*')')) +
+    scale_color_colorblind(name = "Type") +
+    scale_fill_colorblind(name = "Type") +
+    ggtitle(paste(sel_common_name, "fits")) +
+    theme_bw() +
+    theme(
+      legend.position = "bottom",
+      strip.background = element_blank(),
+      strip.text = element_blank(),
+      legend.title.position = "top",
+      legend.title = element_text(size = 8),
+      legend.text = element_text(size = 8),
+      axis.text = element_text(size = 8),    
+      axis.title = element_text(size = 8.5),
+      legend.key.height = unit(2.5, "mm"),
+      legend.key.width = unit(2.5, "mm")
+    ) +
+    guides(color = guide_legend(nrow = 1, byrow = TRUE))
+  
+  png(filename = here::here("analysis", "somerton_2002", "plots", paste0("fits_obs_by_species_method_", sel_common_name, ".png")),
+      width = 254,
+      height = 150,
+      units = "mm",
+      res = 600)
+  print(p_all_models_by_species[[hh]])
+  dev.off()
+  
+}
+
+
+# Select best models after diagnostic checks (outside of R) ----------------------------------------
+
+# Models were screened for goodness-of-fit based on DHARMa residuals (sometimes QQ plots when 
+# DHARMa residuals failed to generate (ccr_bin models). Spreadsheet includes an explanation of
+# why each model was ultimately selected.
+
+final_models <- 
+  xlsx::read.xlsx(
+  file = here::here("analysis", "somerton_2002", "data", "best_models.xlsx"),
+  sheetIndex = 1
+) |>
+  dplyr::inner_join(
+    dplyr::select(all_rmse, method, common_name, rmse, pbias)
+  ) |>
+  dplyr::ungroup() |>
+  dplyr::group_by(common_name) |>
+  dplyr::mutate(w = sqrt(rmse)^-2/ sum(sqrt(rmse)^-2)) |>
+  dplyr::arrange(
+    desc(common_name), type
+  )
+
+xlsx::write.xlsx(
+  final_models |>
+    dplyr::mutate(
+      rmse = round(rmse),
+      pbias = format(round(pbias, 1), nsmall = 1),
+      w = format(round(w, 3), nsmall = 1)
+    ) |>
+    as.data.frame(),
+  file = here::here("analysis", "somerton_2002", "plots", "final_models.xlsx"),
+  row.names = FALSE
+)
+
+
+# 2CV prediction performance for the 'best' models in each category
 oos_performance <- 
   dplyr::bind_rows(
-    best_rmse |>
+    final_models |>
       dplyr::inner_join(
         do.call(what = rbind, rmse_95_2124) |>
           dplyr::inner_join(response_type) |>
           dplyr::select(common_name, type, type_abbv, method, oos_rmse, oos_rmse_lci, oos_rmse_uci, oos_pbias, oos_pbias_lci, oos_pbias_uci, contrast_name)
       ),
-    best_rmse |>
+    final_models |>
       dplyr::inner_join(
         do.call(what = rbind, rmse_1998) |>
           dplyr::inner_join(response_type) |>
@@ -232,102 +450,7 @@ p_oos_pbias <-
     legend.key.width = unit(2.5, "mm")
   )
 
-# Compare models that converged
 
-  
-
-compare_perf_among_models <- 
-  do.call(what = rbind, rmse_all) |>
-  dplyr::filter(pass_check == TRUE) |>
-  dplyr::group_by(
-    common_name
-  ) |>
-  dplyr::mutate(
-    rel_rmse = rmse/min(rmse)
-  ) |>
-  dplyr::inner_join(
-    response_type
-  ) |>
-  dplyr::mutate(
-    method = factor(method, levels = response_type$method)
-  )
-# ggplot() +
-#   geom_point(data = compare_perf_among_models,
-#              mapping = aes(y = method, x = rel_rmse, color = common_name),
-#              shape = 21) +
-#   scale_color_viridis_d(name = "Common name", option = "H") +
-#   scale_x_continuous(name = "RMSE/min(RMSE)") +
-#   theme_bw() +
-#   theme(legend.position = "inside",
-#         legend.position.inside = c(0.8, 0.8),
-#         axis.title.y = element_blank())
-
-p_bias_method <- 
-  ggplot() +
-  geom_vline(xintercept = 0, linetype = 2) +
-  geom_vline(xintercept = c(-10,10), linetype = 3) +
-  geom_point(data = compare_perf_among_models,
-             mapping = aes(y = method, x = pbias, color = type, shape = common_name)) +
-  geom_text(
-    data = compare_perf_among_models |>
-      dplyr::group_by(method, type) |>
-      dplyr::summarise(n = n()),
-    mapping = aes(x = -54, y = method, label = n, color = type),
-    size = 3
-  ) +
-  scale_color_tableau(name = "Response type") +
-  scale_x_continuous(name = "PBIAS (%)", breaks = seq(-50, 100, 25)) +
-  scale_shape(name = "Species/sex", solid = FALSE) +
-  theme_bw() +
-  theme(axis.title.y = element_blank(),
-        legend.title = element_text(size = 8),
-        legend.text = element_text(size = 8),
-        axis.title.x = element_text(size = 9),
-        axis.text = element_text(size = 8),
-        panel.grid.minor = element_blank(),
-        legend.key.height = unit(3.5, "mm"))
-
-png(filename = here::here("analysis", "somerton_2002", "plots", "PBIAS_by_method_type_species.png"),
-    width = 169,
-    height = 169,
-    units = "mm",
-    res = 600)
-print(p_bias_method)
-dev.off()
-
-
-# ggplot() +
-#   geom_text(data = compare_perf_among_models,
-#              mapping = aes(x = pbias, y = rel_rmse, color = type, label = method)) +
-#   scale_x_continuous(name = "|PBIAS| (%)") +
-#   scale_y_continuous(name = "RMSE") +
-#   theme_bw() +
-#   theme(legend.position = "inside",
-#         legend.position.inside = c(0.8, 0.8),
-#         axis.title.y = element_blank())
-
-
-# Supplementary table of all RMSEs for models that converged ----
-all_rmse <- 
-  do.call(what = rbind, rmse_all) |>
-  dplyr::inner_join(response_type ) |>
-  dplyr::filter(pass_check == TRUE) |>
-  dplyr::select(common_name, type, method, rmse, pbias) |>
-  dplyr::left_join(
-    do.call(what = rbind, rmse_95_2124) |>
-      dplyr::inner_join(response_type ) |>
-      dplyr::filter(pass_check == TRUE) |>
-      dplyr::select(common_name, type, method, rmse_1998 = rmse, pbias_1998 = pbias)
-  ) |>
-  dplyr::left_join(
-    do.call(what = rbind, rmse_1998) |>
-      dplyr::inner_join(response_type) |>
-      dplyr::filter(pass_check == TRUE) |>
-      dplyr::select(common_name, type, method, rmse_95_2124 = rmse, pbias_95_2124 = pbias)
-  ) |>
-  dplyr::arrange(
-    common_name, rmse
-  )
 
 
 # Plot fits for the best-fit model in each category
@@ -341,26 +464,56 @@ best_fits <-
   do.call(what = rbind) |>
   dplyr::mutate(method = ifelse(model_name == "ols1", method, model_name)) |>
   dplyr::inner_join(
-    best_rmse
+    final_models
   ) |>
   dplyr::left_join(
     response_type
   )
 
-cpue_dat <-
-  lapply(results_all, 
-         FUN = function(results) {
-           results$dat
-         }
+
+best_fits |>
+  dplyr::group_by(common_name, type, model_name) |>
+  dplyr::summarise(fit_mean = round(mean(CPUE_NO_KM2_15/fit), 2),
+                   fit_min = round(min(CPUE_NO_KM2_15/fit), 2),
+                   fit_max = round(max(CPUE_NO_KM2_15/fit), 2),
+                   fit_lwr_mean = round(mean(CPUE_NO_KM2_15/fit_lwr), 2),
+                   fit_lwr_min = round(min(CPUE_NO_KM2_15/fit_lwr), 2), 
+                   fit_lwr_max = round(max(CPUE_NO_KM2_15/fit_lwr), 2), 
+                   fit_upr_mean = round(mean(CPUE_NO_KM2_15/fit_upr), 2),
+                   fit_upr_min = round(min(CPUE_NO_KM2_15/fit_upr), 2), 
+                   fit_upr_max = round(max(CPUE_NO_KM2_15/fit_upr), 2)
   ) |>
-  do.call(what = rbind) |>
-  dplyr::mutate(
-    common_name = paste0(common_name, " (", ifelse(SEX == 'M', "male", "female"), ")")
+  as.data.frame() |>
+  xlsx::write.xlsx(
+    file = here::here("analysis", "somerton_2002", "plots", "mean_fpc_by_species.xlsx"),
+    row.names = FALSE
   )
 
 
+# How common were density effects among best-fit models?
+model_formulas <- 
+  lapply(results_all, 
+         FUN = function(results) {
+           dplyr::select(results$aic_table, common_name, model_name, formula, disp)
+         }
+  ) |>
+  do.call(what = rbind) |>
+  dplyr::right_join(
+    dplyr::mutate(final_models, model_name = ifelse(method %in% c("OLS median", "OLS mean"), "ols1", method))
+  )
 
+# True = no effect on the mean
+table(grepl(pattern = " ~ 1", x = model_formulas$formula))
+table(grepl(pattern = " ~ 1", x = model_formulas$formula), model_formulas$common_name)
 
+# True = no effect on thevariance
+table(grepl(pattern = "~1", x = model_formulas$disp[model_formulas$type != "Ratio"]), model_formulas$type[model_formulas$type != "Ratio"])
+table(grepl(pattern = "~1", x = model_formulas$disp[model_formulas$type != "Ratio"]), 
+      model_formulas$common_name[model_formulas$type != "Ratio"])
+
+dplyr::filter(model_formulas, common_name == "red king crab (male)")
+
+# Observed versus fitted
 p_obs_fit <- 
   ggplot() +
   geom_abline(slope = 1, intercept = 0, linetype = 2) +
@@ -399,16 +552,68 @@ p_obs_fit <-
     axis.title = element_text(size = 8.5),
     legend.key.height = unit(2.5, "mm"),
     legend.key.width = unit(2.5, "mm")
-  )+ # Set legend to horizontal position
+  ) +
   guides(color = guide_legend(nrow = 2, byrow = TRUE))
 
 
-# Somerton FPC fits
-somerton_estimates <-
-  data.frame(
-    common_name = c("snow crab (male)", "snow crab (female)", "red king crab (male)", "red king crab (female)", "Tanner crab (male)", "Tanner crab (female)"),
-    fpc = c(1.78, 1.78, 1.244, 1.244, 1.68, 1.68)
+rmse_labs <- 
+  final_models |>
+  dplyr::mutate(
+    rmse = round(rmse),
+    pbias = format(round(pbias, 1), nsmall = 1),
+    w = format(round(w, 3), nsmall = 1),
+    label = paste0(method, "\nRMSE=",rmse, "\nPBIAS=",trimws(pbias))
   )
+
+p_obs_fit_multipanel <- 
+  ggplot() +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  geom_point(
+    data = cpue_dat,
+    mapping = aes(x = CPUE_NO_KM2_15, y = CPUE_NO_KM2_30, color = factor(YEAR), shape = factor(YEAR)),
+    size = 1
+  ) +
+  geom_ribbon(
+    data = best_fits, 
+    mapping = aes(x = CPUE_NO_KM2_15, ymin = fit_lwr, ymax = fit_upr,),
+    alpha = 0.1
+  ) +
+  geom_path(data = best_fits, 
+            mapping = aes(x = CPUE_NO_KM2_15, y = fit)) +
+  geom_path(data = dplyr::inner_join(best_fits, somerton_estimates),
+            mapping = aes(x = CPUE_NO_KM2_15, y = CPUE_NO_KM2_15/fpc),
+            color = "red",
+            linetype = 3) +
+  ggpp::geom_text_npc(
+    data = rmse_labs,
+    mapping = aes(npcx = 0.02, npcy = .97, label = label),
+    size = 2.5) +
+  facet_grid(type~common_name, scales = "free_x") +
+  scale_x_log10(name = expression(CPUE[15]*' (#/'*km^2*')')) +
+  scale_y_log10(name = expression(CPUE[30]*' (#/'*km^2*')')) +
+  scale_color_colorblind(name = "Year") +
+  scale_shape(name = "Year") +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    # legend.title.position = "top",
+    legend.title = element_text(size = 8),
+    legend.text = element_text(size = 8),
+    axis.text = element_text(size = 8),    
+    axis.title = element_text(size = 8.5),
+    legend.key.height = unit(2.5, "mm"),
+    legend.key.width = unit(2.5, "mm")
+  ) +
+  guides(color = guide_legend(nrow = 1, byrow = TRUE))
+
+png(filename = here::here("analysis", "somerton_2002", "plots", "fits_obs_by_year_method.png"),
+    width = 254,
+    height = 150,
+    units = "mm",
+    res = 600)
+print(p_obs_fit_multipanel)
+dev.off()
+
 
 p_fishing_power <- 
   ggplot() +
@@ -454,9 +659,10 @@ p_multipanel_fpc <-
   cowplot::plot_grid(
     p_obs_fit,
     p_fishing_power,
-    p_oos_pbias,
+    # p_oos_pbias,
     align = "hv",
-    ncol = 3
+    ncol = 2
+    # ncol = 3
   )
 
 png(
@@ -487,6 +693,10 @@ p_fishing_power_multipanel <-
   ) +
   geom_path(data = dplyr::arrange(best_fits, CPUE_NO_KM2_15), 
             mapping = aes(x = CPUE_NO_KM2_15, y = CPUE_NO_KM2_15/fit, color = type)) +
+  ggpp::geom_text_npc(
+    data = rmse_labs,
+    mapping = aes(npcx = 0.02, npcy = .97, label = label),
+    size = 2.5) +
   geom_rug(
     data = cpue_dat,
     mapping = aes(x = CPUE_NO_KM2_15),
@@ -500,10 +710,10 @@ p_fishing_power_multipanel <-
   scale_fill_colorblind(name = "Type") +
   theme_bw() +
   theme(
-    legend.position = "right",
+    legend.position = "bottom",
     legend.title = element_text(size = 8),
     legend.text = element_text(size = 8),
-    strip.text.x = element_text(size = 5.75),
+    strip.text.x = element_text(size = 6.75),
     strip.text.y = element_text(size = 8),
     axis.text.x = element_text(size = 8, angle = 45, hjust = 1, vjust = 1),    
     axis.text.y = element_text(size = 8),    
@@ -514,8 +724,8 @@ p_fishing_power_multipanel <-
 
 png(
   filename = here::here("analysis", "somerton_2002", "plots", "fpc_fit_all_years_multipanel.png"), 
-  width = 169, 
-  height = 169,
+  width = 254, 
+  height = 150,
   units = "mm",
   res = 600
 )

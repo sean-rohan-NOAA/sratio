@@ -1333,12 +1333,6 @@ for(kk in 1:nrow(set_species_2002)) {
 }
 
 save(results_2002, file = here::here("analysis", "somerton_2002", "output", "results_2002.rda"))
-
-
-# Check OLS results
-# ols_results$anderson_darling
-# ols_results$kurtosis
-# ols_results$cor_test
   
 
 # All years (no twofold CV) ------------------------------------------------------------------------
@@ -1530,4 +1524,20 @@ png(
 print(p_rmse_1998)
 dev.off()
 
+
+test <- results_all[[4]]$fit_table
+
+
+ggplot() +
+  geom_path(
+    data = dplyr::mutate(
+      test, method = ifelse(is.na(method), model_name, method)) |>
+      dplyr::inner_join(response_type),
+    mapping = aes(x = CPUE_NO_KM2_15, y = fit, color = type)
+  ) +
+  geom_abline(slope =1 , intercept = 0, linetype = 2) +
+  scale_x_log10() +
+  scale_y_log10() +
+  scale_color_colorblind() +
+  facet_wrap(~method)
 
