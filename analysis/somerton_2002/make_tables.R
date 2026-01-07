@@ -184,6 +184,47 @@ write.csv(
 
 # Review fits --------------------------------------------------------------------------------------
 
+# Compare models that converged
+all_rmse <- 
+  do.call(what = rbind, rmse_all) |>
+  dplyr::inner_join(response_type ) |>
+  dplyr::filter(pass_check == TRUE) |>
+  dplyr::select(common_name, type, method, rmse, pbias) |>
+  dplyr::left_join(
+    do.call(what = rbind, rmse_95_2124) |>
+      dplyr::inner_join(response_type ) |>
+      dplyr::filter(pass_check == TRUE) |>
+      dplyr::select(common_name, type, method, rmse_1998 = rmse, pbias_1998 = pbias)
+  ) |>
+  dplyr::left_join(
+    do.call(what = rbind, rmse_1998) |>
+      dplyr::inner_join(response_type) |>
+      dplyr::filter(pass_check == TRUE) |>
+      dplyr::select(common_name, type, method, rmse_95_2124 = rmse, pbias_95_2124 = pbias)
+  ) |>
+  dplyr::arrange(
+    common_name, rmse
+  )
+
+
+compare_perf_among_models <- 
+  do.call(what = rbind, rmse_all) |>
+  dplyr::filter(pass_check == TRUE) |>
+  dplyr::group_by(
+    common_name
+  ) |>
+  dplyr::mutate(
+    rel_rmse = rmse/min(rmse)
+  ) |>
+  dplyr::inner_join(
+    response_type
+  ) |>
+  dplyr::mutate(
+    method = factor(method, levels = response_type$method)
+  )
+
+xlsx::write.xlsx(all_rmse, file = here::here("analysis", "somerton_2002", "plots", "rmse_all_converged.xlsx"), row.names = FALSE)
+
 p_bias_method <- 
   ggplot() +
   geom_vline(xintercept = 0, linetype = 2) +
@@ -221,46 +262,6 @@ do.call(what = rbind, rmse_all) |>
   dplyr::filter(method == "OLS mean")
 
 
-# Supplementary table of all RMSEs for models that converged ----
-# Compare models that converged
-all_rmse <- 
-  do.call(what = rbind, rmse_all) |>
-  dplyr::inner_join(response_type ) |>
-  dplyr::filter(pass_check == TRUE) |>
-  dplyr::select(common_name, type, method, rmse, pbias) |>
-  dplyr::left_join(
-    do.call(what = rbind, rmse_95_2124) |>
-      dplyr::inner_join(response_type ) |>
-      dplyr::filter(pass_check == TRUE) |>
-      dplyr::select(common_name, type, method, rmse_1998 = rmse, pbias_1998 = pbias)
-  ) |>
-  dplyr::left_join(
-    do.call(what = rbind, rmse_1998) |>
-      dplyr::inner_join(response_type) |>
-      dplyr::filter(pass_check == TRUE) |>
-      dplyr::select(common_name, type, method, rmse_95_2124 = rmse, pbias_95_2124 = pbias)
-  ) |>
-  dplyr::arrange(
-    common_name, rmse
-  )
-
-compare_perf_among_models <- 
-  do.call(what = rbind, rmse_all) |>
-  dplyr::filter(pass_check == TRUE) |>
-  dplyr::group_by(
-    common_name
-  ) |>
-  dplyr::mutate(
-    rel_rmse = rmse/min(rmse)
-  ) |>
-  dplyr::inner_join(
-    response_type
-  ) |>
-  dplyr::mutate(
-    method = factor(method, levels = response_type$method)
-  )
-  
-xlsx::write.xlsx(all_rmse, file = here::here("analysis", "somerton_2002", "plots", "rmse_all_converged.xlsx"), row.names = FALSE)
 
 # Somerton FPC fits
 somerton_estimates <-

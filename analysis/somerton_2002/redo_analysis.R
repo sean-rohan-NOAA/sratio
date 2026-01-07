@@ -248,9 +248,7 @@ fit_lognormal <-
         fixed_formula = c(
           CPUE_RATIO ~ 1,
           CPUE_RATIO ~ LOG_CPUE_NO_KM2_15,
-          CPUE_RATIO ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
-          CPUE_RATIO ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2) + I(LOG_CPUE_NO_KM2_15^3),
-          CPUE_RATIO ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2) + I(LOG_CPUE_NO_KM2_15^3) + I(LOG_CPUE_NO_KM2_15^4)
+          CPUE_RATIO ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2)
         ),
         disp = NA
       )
@@ -264,7 +262,7 @@ fit_lognormal <-
           glmmTMB::glmmTMB(
             formula = lognormal_formulas$fixed_formula[[index]],
             family = lognormal(link = "identity"),
-            weight = sqrt(COMBINED_COUNT),
+            # weight = sqrt(COMBINED_COUNT),
             data = x
           )
         
@@ -311,9 +309,7 @@ fit_ccr_models <-
         fixed_formula = c(
           PROP_15 ~ 1,
           PROP_15 ~ LOG_CPUE_NO_KM2_15,
-          PROP_15 ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
-          PROP_15 ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2) + I(LOG_CPUE_NO_KM2_15^3),
-          PROP_15 ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2) + I(LOG_CPUE_NO_KM2_15^3) + I(LOG_CPUE_NO_KM2_15^4)
+          PROP_15 ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2)
         ),
         disp_formula =
           c(
@@ -423,9 +419,7 @@ fit_prop_models <-
         fixed_formula = c(
           cbind(COUNT_15, COUNT_30) ~ 1,
           cbind(COUNT_15, COUNT_30) ~ LOG_CPUE_NO_KM2_15,
-          cbind(COUNT_15, COUNT_30) ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
-          cbind(COUNT_15, COUNT_30) ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2) + I(LOG_CPUE_NO_KM2_15^3),
-          cbind(COUNT_15, COUNT_30) ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2) + I(LOG_CPUE_NO_KM2_15^3) + I(LOG_CPUE_NO_KM2_15^4)
+          cbind(COUNT_15, COUNT_30) ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2)
         ),
         disp_formula =
           c(
@@ -531,12 +525,8 @@ fit_count_models <-
         fixed_formula = c(
           COUNT_30 ~ 0 + LOG_CPUE_NO_KM2_15 ,
           COUNT_30 ~ 0 + LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
-          COUNT_30 ~ 0 + LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2) + I(LOG_CPUE_NO_KM2_15^3),
-          COUNT_30 ~ 0 + LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2) + I(LOG_CPUE_NO_KM2_15^3) + I(LOG_CPUE_NO_KM2_15^4),
           COUNT_30 ~ LOG_CPUE_NO_KM2_15,
-          COUNT_30 ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
-          COUNT_30 ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2) + I(LOG_CPUE_NO_KM2_15^3),
-          COUNT_30 ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2) + I(LOG_CPUE_NO_KM2_15^3) + I(LOG_CPUE_NO_KM2_15^4)
+          COUNT_30 ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2)
         ),
         disp_formula =
           c(
