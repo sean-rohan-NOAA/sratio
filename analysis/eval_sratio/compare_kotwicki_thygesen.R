@@ -10,7 +10,7 @@ library(sratio)
 # 20 size classes
 sim_settings <- 
   expand.grid(
-    density = c(6, 10, 20, 50),
+    density = c(8, 12, 20, 40),
     effort1 = 1,
     effort2 = 0.5,
     q_ratio = 1,
