@@ -7,188 +7,129 @@ library(ggplot2)
 library(dplyr)
 library(here)
 
-# Prep data -- move this to a separate file
+gear_codes <- 
+  data.frame(
+    GEAR = c("PNE", "83-112"),
+    TREATMENT = factor(c(172, 44))
+  )
 
-# Somerton's archived data
+species_codes <-
+  data.frame(
+    SPECIES_CODE = c(21740, 21720, 20510, 30060, 30420, 30152, 30051, 30052, 30020, 10115, 10110, 10112, 10130, 471, 420, 435, 440, 455, 472, 475, 477, 480, 485,  68580),
+    COMMON_NAME = c("walleye pollock", "Pacific cod", "sablefish", "Pacific ocean perch", "northern rockfish", "dusky rockfish", "BS/RE rockfish",  "BS/RE rockfish", "shortspine thornyhead", "Greenland turbot", "arrowtooth flounder", "Kamchatka flounder", "flathead sole", rep("skates", 10),"snow crab")
+  )
 
-somerton_catch <-
-  rbind(
-    read.table(file = here::here("analysis", "somerton_2002", "data", "Cb2.txt"),
-               header = TRUE, na.strings = ".") |>
-      dplyr::mutate(SPECIES_CODE = 68560),
-    read.table(file = here::here("analysis", "somerton_2002", "data", "Co2.txt"),
-               header = TRUE, na.strings = ".") |>
-      dplyr::mutate(SPECIES_CODE = 68580),
-    read.table(file = here::here("analysis", "somerton_2002", "data", "RK2.txt"),
-               header = TRUE, na.strings = ".") |>
-      dplyr::mutate(SPECIES_CODE = 69322)
-  ) |>
-  dplyr::mutate(CATCH15F = CATCH15T-CATCH15M,
-                CATCH30F = CATCH30T-CATCH30M) |>
-  dplyr::select(TOW_PAIR = OBS, SPECIES_CODE, CATCH15M, CATCH30M, CATCH15F, CATCH30F) |>
-  tidyr::pivot_longer(cols = c("CATCH15M", "CATCH30M", "CATCH15F", "CATCH30F")) |>
-  dplyr::mutate(TREATMENT = factor(ifelse(stringr::str_detect(name, "30"), 30, 15)),
-                SEX = factor(ifelse(stringr::str_detect(name, "F"), "F", "M"))) |>
-  dplyr::select(-name) |>
-  tidyr::pivot_wider(values_from = "value", names_from = "TREATMENT", names_prefix = "COUNT_")
-
-somerton_effort <-
-  read.table(file = here::here("analysis", "somerton_2002", "data", "Cb1.txt"),
-             header = TRUE, na.strings = ".") |>
-  dplyr::select(TOW_PAIR = OBS, EFFORT15, EFFORT30, VESSEL) |>
-  tidyr::pivot_longer(cols = c("EFFORT15", "EFFORT30")) |>
-  dplyr::mutate(TREATMENT = factor(ifelse(stringr::str_detect(name, "30"), 30, 15))) |>
-  dplyr::select(-name) |>
-  dplyr::mutate(value = value/100,
-                VESSEL = factor(VESSEL)) |>
-  tidyr::pivot_wider(values_from = "value", names_from = "TREATMENT", names_prefix = "AREA_SWEPT_KM2_")
-
-cpue_1998 <-
-  dplyr::inner_join(somerton_catch, somerton_effort) |>
-  dplyr::mutate(
-    YEAR = 1998,
-    CPUE_NO_KM2_15 = COUNT_15 / AREA_SWEPT_KM2_15,
-    CPUE_NO_KM2_30 = COUNT_30 / AREA_SWEPT_KM2_30,
-    LOG_CPUE_NO_KM2_30 = log(CPUE_NO_KM2_30),
-    LOG_CPUE_NO_KM2_15 = log(CPUE_NO_KM2_15),
-    CPUE_LOG_RATIO = log(CPUE_NO_KM2_15/CPUE_NO_KM2_30),
-    CPUE_RATIO = CPUE_NO_KM2_15/CPUE_NO_KM2_30,
-    COMBINED_COUNT = ceiling(COUNT_30 + COUNT_15),
-    PROP_15 = CPUE_NO_KM2_15/(CPUE_NO_KM2_15+CPUE_NO_KM2_30),
-    EFFORT_RATIO = AREA_SWEPT_KM2_15/AREA_SWEPT_KM2_30,
-    COUNT_15 = ceiling(COUNT_15),
-    COUNT_30 = ceiling(COUNT_30),
-    common_name = sratio::species_code_label(SPECIES_CODE, type = "common_name")) |>
-  dplyr::filter(CPUE_NO_KM2_15 > 0, CPUE_NO_KM2_30 > 0)
-
-saveRDS(object = cpue_1998, file = here::here("analysis", "somerton_2002", "data", "cpue_1998.rds"))
-
-
-# 1995 + 2021-2024 experiments
-
-cpue_other <-
-  sratio::data_1530$size |>
-  dplyr::filter(SPECIES_CODE %in% c(68580, 68560, 69322)) |>
-  dplyr::mutate(
-    SEX = ifelse(SEX == 1, "M", "F"),
-    MATCHUP = paste0("O", MATCHUP)
-                ) |>
-  dplyr::group_by(VESSEL, CRUISE, HAUL, SPECIES_CODE, SEX) |>
-  dplyr::summarise(COUNT = ceiling(sum(SAMPLING_FACTOR))) |>
+dat <- 
+  sratio::data_ss$catch |>
   dplyr::inner_join(
-    dplyr::select(
-      sratio::data_1530$haul,
-      VESSEL, CRUISE, HAUL, AREA_SWEPT_KM2, TREATMENT, YEAR, TOW_PAIR = MATCHUP
-    )
+    sratio::data_ss$haul,
+    by = c("VESSEL", "CRUISE", "HAUL", "HAULJOIN", "MATCHUP")
   ) |>
-  dplyr::ungroup() |>
-  dplyr::filter(YEAR != 1998) |>
-  dplyr::select(-VESSEL, -CRUISE, -HAUL) |>
-  tidyr::pivot_wider(values_from = c("COUNT", "AREA_SWEPT_KM2"), names_from = TREATMENT, values_fill = 0) |>
   dplyr::mutate(
-    CPUE_NO_KM2_15 = COUNT_15 / AREA_SWEPT_KM2_15,
-    CPUE_NO_KM2_30 = COUNT_30 / AREA_SWEPT_KM2_30,
-    LOG_CPUE_NO_KM2_30 = log(CPUE_NO_KM2_30),
-    LOG_CPUE_NO_KM2_15 = log(CPUE_NO_KM2_15),
-    CPUE_LOG_RATIO = log(CPUE_NO_KM2_15/CPUE_NO_KM2_30),
-    CPUE_RATIO = CPUE_NO_KM2_15/CPUE_NO_KM2_30,
-    COMBINED_COUNT = ceiling(COUNT_30 + COUNT_15),
-    PROP_15 = CPUE_NO_KM2_15/(CPUE_NO_KM2_15+CPUE_NO_KM2_30),
-    EFFORT_RATIO = AREA_SWEPT_KM2_15/AREA_SWEPT_KM2_30,
-    common_name = sratio::species_code_label(SPECIES_CODE, type = "common_name")) |>
-  dplyr::filter(CPUE_NO_KM2_15 > 0, CPUE_NO_KM2_30 > 0)
-
-saveRDS(object = cpue_other, file = here::here("analysis", "somerton_2002", "data", "cpue_other.rds"))
-
-
-
-
-# Load data ----
-
-cpue_other <- readRDS(here::here("analysis", "somerton_2002", "data", "cpue_other.rds"))
-cpue_1998 <- readRDS(here::here("analysis", "somerton_2002", "data", "cpue_1998.rds"))
+    common_name = factor(SPECIES_CODE, levels = species_codes$SPECIES_CODE, labels = species_codes$COMMON_NAME)
+    ) |>
+  dplyr::select(
+    common_name, COUNT = NUMBER_FISH, AREA_SWEPT_KM2, TREATMENT, MATCHUP
+  ) |>
+  dplyr::group_by(common_name, AREA_SWEPT_KM2, TREATMENT, MATCHUP) |> # Combine skate counts
+  dplyr::summarise(COUNT = sum(COUNT, na.rm = TRUE)) |>
+  dplyr::ungroup() |>
+  tidyr::pivot_wider(
+    values_from = c("COUNT", "AREA_SWEPT_KM2"), names_from = TREATMENT, values_fill = 0
+  ) |>
+  dplyr::mutate(
+    CPUE_NO_KM2_172 = COUNT_172 / AREA_SWEPT_KM2_172,
+    CPUE_NO_KM2_44 = COUNT_44 / AREA_SWEPT_KM2_44,
+    LOG_CPUE_NO_KM2_44 = log(CPUE_NO_KM2_44),
+    LOG_CPUE_NO_KM2_172 = log(CPUE_NO_KM2_172),
+    CPUE_LOG_RATIO = log(CPUE_NO_KM2_172/CPUE_NO_KM2_44),
+    CPUE_RATIO = CPUE_NO_KM2_172/CPUE_NO_KM2_44,
+    COMBINED_COUNT = ceiling(COUNT_44 + COUNT_172),
+    PROP_172 = CPUE_NO_KM2_172/(CPUE_NO_KM2_172+CPUE_NO_KM2_44),
+    EFFORT_RATIO = AREA_SWEPT_KM2_172/AREA_SWEPT_KM2_44) |>
+  dplyr::filter(CPUE_NO_KM2_172 > 0, CPUE_NO_KM2_44 > 0)
 
 
 # Model-fitting functions --------------------------------------------------------------------------
 
-fit_ols_models <- 
+fit_ols_models <-
   function(x) {
 
-  # Fit models
-  ols1 <- 
-    lm(
-      formula = CPUE_LOG_RATIO ~ 1,
-      data = x
+    # Fit models
+    ols1 <-
+      lm(
+        formula = CPUE_LOG_RATIO ~ 1,
+        data = x
+      )
+
+    model_list <-
+      list(
+        ols1 = ols1
+      )
+
+    aic_table <-
+      make_aic_table(
+        model_list = model_list
+      )
+
+    loocv_table <-
+      rbind(
+        run_loocv(model_list = model_list, dat = x, mapper = ols_mapper, bias_correct = TRUE),
+        run_loocv(model_list = model_list, dat = x, mapper = ols_mapper, bias_correct = FALSE)
+      )
+
+    loocv_table$method <- c("OLS mean", "OLS median")
+
+    fit_table <-
+      rbind(
+        predict_fits(model_list = model_list, dat = x, mapper = ols_mapper, bias_correct = TRUE) |>
+          dplyr::mutate(method = "OLS mean"),
+        predict_fits(model_list = model_list, dat = x,  mapper = ols_mapper, bias_correct = FALSE) |>
+          dplyr::mutate(method = "OLS median")
+      )
+
+    output <- list(
+      models = model_list,
+      best_model = model_list[[loocv_table$model_name[loocv_table$best][1]]],
+      aic_table = aic_table,
+      loocv_table = loocv_table,
+      fit_table = fit_table
     )
-  
-  model_list <- 
-    list(
-      ols1 = ols1
+
+    output[['cor_test']] <- list(
+      CPUE_44 = summary(lm(abs(rstandard(output[['best_model']]))~I(log(x$CPUE_NO_KM2_44)))),
+      CPUE_172 = summary(lm(abs(rstandard(output[['best_model']]))~I(log(x$CPUE_NO_KM2_172))))
     )
-  
-  aic_table <- 
-    make_aic_table(
-      model_list = model_list
-  )
-  
-  loocv_table <- 
-    rbind(
-      run_loocv(model_list = model_list, dat = x, mapper = ols_mapper, bias_correct = TRUE),
-      run_loocv(model_list = model_list, dat = x, mapper = ols_mapper, bias_correct = FALSE)
-    )
-  
-  loocv_table$method <- c("OLS mean", "OLS median")
-  
-  fit_table <- 
-    rbind(
-      predict_fits(model_list = model_list, dat = x, mapper = ols_mapper, bias_correct = TRUE) |>
-        dplyr::mutate(method = "OLS mean"),
-      predict_fits(model_list = model_list, dat = x,  mapper = ols_mapper, bias_correct = FALSE) |>
-        dplyr::mutate(method = "OLS median")
-    )
-  
-  output <- list(
-    models = model_list,
-    best_model = model_list[[loocv_table$model_name[loocv_table$best][1]]],
-    aic_table = aic_table,
-    loocv_table = loocv_table,
-    fit_table = fit_table
-  )
-  
-  output[['cor_test']] <- list(
-    CPUE_30 = summary(lm(abs(rstandard(output[['best_model']]))~I(log(x$CPUE_NO_KM2_30)))),
-    CPUE_15 = summary(lm(abs(rstandard(output[['best_model']]))~I(log(x$CPUE_NO_KM2_15))))
-  )
-  
-  output[['anderson_darling']] <- nortest::ad.test(rstandard(output[['best_model']]))
-  output[['kurtosis']] <- e1071::kurtosis(rstandard(output[['best_model']]), type = 2)
-  
-  fpc <- miller_bias_correct(output[['best_model']])
-  fpc$model_name <- loocv_table$model_name[loocv_table$best][1]
-  
-  fpc <- 
-    dplyr::bind_rows(
-      fpc |>
-        dplyr::select(-ratio, -ratio_lci, -ratio_uci) |>
-        dplyr::rename(ratio = ratio_bc, ratio_lci = ratio_bc_lci, ratio_uci = ratio_bc_uci) |>
-        dplyr::mutate(method = "OLS mean"),
-      fpc |>
-        dplyr::select(-ratio_bc, -ratio_bc_lci, -ratio_bc_uci) |>
-        dplyr::mutate(method = "OLS median")
-    )
-  
-  output$fpc <- fpc
-  
-  # Make diagnostic plots for the best-fit model
-  return(output)
-  
+
+    output[['anderson_darling']] <- nortest::ad.test(rstandard(output[['best_model']]))
+    output[['kurtosis']] <- e1071::kurtosis(rstandard(output[['best_model']]), type = 2)
+
+    fpc <- miller_bias_correct(output[['best_model']])
+    fpc$model_name <- loocv_table$model_name[loocv_table$best][1]
+
+    fpc <-
+      dplyr::bind_rows(
+        fpc |>
+          dplyr::select(-ratio, -ratio_lci, -ratio_uci) |>
+          dplyr::rename(ratio = ratio_bc, ratio_lci = ratio_bc_lci, ratio_uci = ratio_bc_uci) |>
+          dplyr::mutate(method = "OLS mean"),
+        fpc |>
+          dplyr::select(-ratio_bc, -ratio_bc_lci, -ratio_bc_uci) |>
+          dplyr::mutate(method = "OLS median")
+      )
+
+    output$fpc <- fpc
+
+    # Make diagnostic plots for the best-fit model
+    return(output)
+
   }
 
-miller_bias_correct <- 
+miller_bias_correct <-
   function(mod) {
-    
+
     if(all(names(coef(mod)) == "(Intercept)")) {
-      
+
       log_ratio <- coef(mod)["(Intercept)"]
       var <- summary(mod)$sigma^2
       se <- summary(mod)$coefficients[, 2]
@@ -198,7 +139,7 @@ miller_bias_correct <-
       ratio_bc <- exp(log_ratio + 0.5 * var)
       ratio_bc_lci <- exp(log_ratio - 2 * se + 0.5 * var)
       ratio_bc_uci <- exp(log_ratio + 2 * se + 0.5 * var)
-      
+
       output <- data.frame(
         log_ratio = unname(log_ratio),
         var = unname(var),
@@ -209,18 +150,18 @@ miller_bias_correct <-
         ratio_bc_lci = ratio_bc_lci,
         ratio_bc_uci = ratio_bc_uci
       )
-      
+
       rownames(output) <- NULL
-      
+
     } else {
-      
+
       log_ratio <- coef(mod)[[1]]
-      
+
       fit <- data.frame(
-        LOG_CPUE_NO_KM2_30 = 
+        LOG_CPUE_NO_KM2_44 =
           seq(min(mod$model[,2]), max(mod$model[,2]), by = 0.01)
       )
-      
+
       fit$log_ratio <- predict(mod, newdata = fit)
       fit$se <- predict(mod, newdata = fit, se.fit = TRUE)$se.fit
       var <- summary(mod)$sigma^2
@@ -228,15 +169,15 @@ miller_bias_correct <-
       fit$fit_bc <- exp(fit$log_ratio + 0.5 * var)
       fit$ratio_lci <- exp(fit$log_ratio - 2 * fit$se + 0.5 * var)
       fit$ratio_uci <- exp(fit$log_ratio + 2 * fit$se + 0.5 * var)
-      
+
       output <-
         list(fit = fit,
              pars = c("var" = var, "log_ratio" = log_ratio))
-      
+
     }
-    
+
     return(output)
-    
+
   }
 
 fit_lognormal <-
@@ -247,8 +188,8 @@ fit_lognormal <-
       expand.grid(
         fixed_formula = c(
           CPUE_RATIO ~ 1,
-          CPUE_RATIO ~ LOG_CPUE_NO_KM2_15,
-          CPUE_RATIO ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2)
+          CPUE_RATIO ~ LOG_CPUE_NO_KM2_172,
+          CPUE_RATIO ~ poly(LOG_CPUE_NO_KM2_172, 2)
         ),
         disp = NA
       )
@@ -273,7 +214,7 @@ fit_lognormal <-
       )
     
     names(lognormal_models_list) <- paste0("lognormal", lognormal_index)
-
+    
     # Only carry forward models that pass initial checks
     aic_table <- make_aic_table(lognormal_models_list)
     
@@ -307,15 +248,15 @@ fit_ccr_models <-
     ccr_beta_formulas <- 
       expand.grid(
         fixed_formula = c(
-          PROP_15 ~ 1,
-          PROP_15 ~ LOG_CPUE_NO_KM2_15,
-          PROP_15 ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2)
+          PROP_172 ~ 1,
+          PROP_172 ~ LOG_CPUE_NO_KM2_172,
+          PROP_172 ~ poly(LOG_CPUE_NO_KM2_172, 2)
         ),
         disp_formula =
           c(
             ~ 1,
-            ~ LOG_CPUE_NO_KM2_15,
-            ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2)
+            ~ LOG_CPUE_NO_KM2_172,
+            ~ poly(LOG_CPUE_NO_KM2_172, 2)
           )
       )
     
@@ -328,7 +269,7 @@ fit_ccr_models <-
           glmmTMB::glmmTMB(
             formula = ccr_beta_formulas$fixed_formula[[index]],
             offset = log(EFFORT_RATIO),
-            weight = sqrt(LOG_CPUE_NO_KM2_15),
+            weight = sqrt(LOG_CPUE_NO_KM2_172),
             family = glmmTMB::beta_family(link = "logit"),
             disp = ccr_beta_formulas$disp_formula[[index]],
             data = x
@@ -354,7 +295,7 @@ fit_ccr_models <-
           glmmTMB::glmmTMB(
             formula = ccr_bin_formulas$fixed_formula[[index]],
             offset = log(EFFORT_RATIO),
-            weight = sqrt(LOG_CPUE_NO_KM2_15),
+            weight = sqrt(LOG_CPUE_NO_KM2_172),
             family = binomial(link = "logit"),
             data = x
           )
@@ -417,15 +358,15 @@ fit_prop_models <-
     bb_formulas <- 
       expand.grid(
         fixed_formula = c(
-          cbind(COUNT_15, COUNT_30) ~ 1,
-          cbind(COUNT_15, COUNT_30) ~ LOG_CPUE_NO_KM2_15,
-          cbind(COUNT_15, COUNT_30) ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2)
+          cbind(COUNT_172, COUNT_44) ~ 1,
+          cbind(COUNT_172, COUNT_44) ~ LOG_CPUE_NO_KM2_172,
+          cbind(COUNT_172, COUNT_44) ~ poly(LOG_CPUE_NO_KM2_172, 2)
         ),
         disp_formula =
           c(
             ~ 1,
-            ~ LOG_CPUE_NO_KM2_15,
-            ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2)
+            ~ LOG_CPUE_NO_KM2_172,
+            ~ poly(LOG_CPUE_NO_KM2_172, 2)
           )
       )
     
@@ -523,16 +464,16 @@ fit_count_models <-
     nb_formulas <- 
       expand.grid(
         fixed_formula = c(
-          COUNT_30 ~ 0 + LOG_CPUE_NO_KM2_15 ,
-          COUNT_30 ~ 0 + LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2),
-          COUNT_30 ~ LOG_CPUE_NO_KM2_15,
-          COUNT_30 ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2)
+          COUNT_44 ~ 0 + LOG_CPUE_NO_KM2_172 ,
+          COUNT_44 ~ 0 + poly(LOG_CPUE_NO_KM2_172, 2),
+          COUNT_44 ~ LOG_CPUE_NO_KM2_172,
+          COUNT_44 ~ poly(LOG_CPUE_NO_KM2_172, 2)
         ),
         disp_formula =
           c(
             ~ 1,
-            ~ LOG_CPUE_NO_KM2_15,
-            ~ LOG_CPUE_NO_KM2_15 + I(LOG_CPUE_NO_KM2_15^2)
+            ~ LOG_CPUE_NO_KM2_172,
+            ~ poly(LOG_CPUE_NO_KM2_172, 2)
           )
       )
     
@@ -540,12 +481,12 @@ fit_count_models <-
     
     nb_models_list <- 
       lapply(nb_index, function(index) {
-      
+        
         mod <-
           glmmTMB::glmmTMB(
             formula = nb_formulas$fixed_formula[[index]],
             family = glmmTMB::nbinom1(link = "log"),
-            offset = log(AREA_SWEPT_KM2_30),
+            offset = log(AREA_SWEPT_KM2_44),
             disp = nb_formulas$disp_formula[[index]],
             data = x
           )
@@ -553,8 +494,8 @@ fit_count_models <-
         mod
         
       }
-    
-    )
+      
+      )
     
     names(nb_models_list) <- paste0("nb", nb_index)
     
@@ -571,7 +512,7 @@ fit_count_models <-
           glmmTMB::glmmTMB(
             formula = pois_formulas$fixed_formula[[index]],
             family = poisson(link = "log"),
-            offset = log(AREA_SWEPT_KM2_30),
+            offset = log(AREA_SWEPT_KM2_44),
             data = x
           )
         
@@ -629,27 +570,27 @@ run_loocv <- function(model_list, dat, mapper, ...) {
   results_list <- lapply(names(model_list), function(m_name) {
     mod <- model_list[[m_name]]
     n_obs <- nrow(dat)
-
+    
     preds <- numeric(n_obs)
-
+    
     for(jj in 1:n_obs) {
       # Update model excluding one observation
       fit_loocv <- update(mod, data = dat[-jj, , drop = FALSE])
-
+      
       # Use mapper function to get the back-transformed prediction
       preds[jj] <- mapper(fit_loocv, dat[jj, , drop = FALSE], ...)
     }
-
-    obs <- dat$CPUE_NO_KM2_30
-
+    
+    obs <- dat$CPUE_NO_KM2_44
+    
     # Root mean square error
     rmse <- sqrt(mean((preds - obs)^2))
-
+    
     # Total percentage error (relative bias in total count)
     pbias  <- 100 * (sum(preds - obs)) / sum(obs)
-
+    
     data.frame(model_name = m_name, rmse = rmse, pbias = pbias)
-
+    
   })
   
   results <- do.call(rbind, results_list)
@@ -660,9 +601,9 @@ run_loocv <- function(model_list, dat, mapper, ...) {
 run_twofold_cv <- 
   function(model_list, validation_dat, mapper, subset = NULL, save_dir = NULL, common_name = NULL, ...) {
     
-    obs_cpue    <- validation_dat$CPUE_NO_KM2_30
-    obs_effort  <- validation_dat$AREA_SWEPT_KM2_30
-    obs_count   <- validation_dat$COUNT_30
+    obs_cpue    <- validation_dat$CPUE_NO_KM2_44
+    obs_effort  <- validation_dat$AREA_SWEPT_KM2_44
+    obs_count   <- validation_dat$COUNT_44
     
     results_list <- lapply(names(model_list), function(m_name) {
       mod <- model_list[[m_name]]
@@ -733,7 +674,7 @@ ols_mapper <- function(model, test_row, bias_correct = TRUE, se_fit= FALSE) {
   
   if(se_fit) {
     pred_log_ratio <- predict(model, newdata = test_row, se.fit = TRUE)
-
+    
     if(bias_correct) {
       ratio     <- exp(pred_log_ratio$fit + 0.5 * sigma2)
       ratio_lwr <- exp(pred_log_ratio$fit - 2 * pred_log_ratio$se.fit + 0.5 * sigma2)
@@ -746,9 +687,9 @@ ols_mapper <- function(model, test_row, bias_correct = TRUE, se_fit= FALSE) {
     
     output <- 
       data.frame(
-        fit     = test_row$CPUE_NO_KM2_15 / ratio,
-        fit_lwr = test_row$CPUE_NO_KM2_15 / ratio_lwr,
-        fit_upr = test_row$CPUE_NO_KM2_15 / ratio_upr
+        fit     = test_row$CPUE_NO_KM2_172 / ratio,
+        fit_lwr = test_row$CPUE_NO_KM2_172 / ratio_lwr,
+        fit_upr = test_row$CPUE_NO_KM2_172 / ratio_upr
       )
     
   } else {
@@ -761,7 +702,7 @@ ols_mapper <- function(model, test_row, bias_correct = TRUE, se_fit= FALSE) {
       ratio <- exp(pred_log_ratio)
     }
     
-    output <- test_row$CPUE_NO_KM2_15 / ratio
+    output <- test_row$CPUE_NO_KM2_172 / ratio
   }
   
   return(output)
@@ -786,15 +727,15 @@ ratio_mapper <- function(model, test_row, se_fit = FALSE) {
     
     output <- 
       data.frame(
-      fit =     test_row$CPUE_NO_KM2_15 / ratio,
-      fit_lwr = test_row$CPUE_NO_KM2_15 / ratio_lwr,
-      fit_upr = test_row$CPUE_NO_KM2_15 / ratio_upr
-    )
+        fit =     test_row$CPUE_NO_KM2_172 / ratio,
+        fit_lwr = test_row$CPUE_NO_KM2_172 / ratio_lwr,
+        fit_upr = test_row$CPUE_NO_KM2_172 / ratio_upr
+      )
     
   } else {
     # LOOCV
     ratio <- predict(model, newdata = test_row, type = "response")
-    output <- test_row$CPUE_NO_KM2_15 / ratio
+    output <- test_row$CPUE_NO_KM2_172 / ratio
   }
   
   return(output)
@@ -802,11 +743,11 @@ ratio_mapper <- function(model, test_row, se_fit = FALSE) {
 
 # Binomial and beta-binomial catch comparison rate models
 ccr_mapper <- function(model, test_row, se_fit = FALSE) {
-
+  
   if(se_fit) {
     # Two-fold CV
     inv_link  <- family(model)$linkinv
-
+    
     fit         <- predict(model, newdata = test_row, type = "link", se.fit = TRUE)
     fit_lwr     <- fit$fit - 2* fit$se.fit
     fit_upr     <- fit$fit + 2* fit$se.fit
@@ -815,28 +756,28 @@ ccr_mapper <- function(model, test_row, se_fit = FALSE) {
     ccr     <- inv_link(fit$fit)
     ccr_lwr <- inv_link(fit_lwr)
     ccr_upr <- inv_link(fit_upr)
-
+    
     # Fishing power
     ratio     <-  ccr / (1 - ccr)
     ratio_lwr <-  ccr_lwr / (1 - ccr_lwr)
     ratio_upr <-  ccr_upr / (1 - ccr_upr)
-
-
-
+    
+    
+    
     output <-
       data.frame(
-        fit =     test_row$CPUE_NO_KM2_15 / ratio,
-        fit_lwr = test_row$CPUE_NO_KM2_15 / ratio_lwr,
-        fit_upr = test_row$CPUE_NO_KM2_15 / ratio_upr
+        fit =     test_row$CPUE_NO_KM2_172 / ratio,
+        fit_lwr = test_row$CPUE_NO_KM2_172 / ratio_lwr,
+        fit_upr = test_row$CPUE_NO_KM2_172 / ratio_upr
       )
-
+    
   } else {
     # LOOCV; Get predicted proportion (inv-logit scale)
     ccr <- predict(model, newdata = test_row, type = "response")
     ratio <- ccr / (1 - ccr)
-    output <- test_row$CPUE_NO_KM2_15 / ratio
+    output <- test_row$CPUE_NO_KM2_172 / ratio
   }
-
+  
   return(output)
 }
 
@@ -857,15 +798,15 @@ prop_mapper <- function(model, test_row, se_fit = FALSE) {
     
     output <- 
       data.frame(
-        fit =     (test_row$COUNT_15 / p - test_row$COUNT_15) / test_row$AREA_SWEPT_KM2_30,
-        fit_lwr = (test_row$COUNT_15 / p_lwr - test_row$COUNT_15) / test_row$AREA_SWEPT_KM2_30,
-        fit_upr = (test_row$COUNT_15 / p_upr - test_row$COUNT_15) / test_row$AREA_SWEPT_KM2_30
+        fit =     (test_row$COUNT_172 / p - test_row$COUNT_172) / test_row$AREA_SWEPT_KM2_44,
+        fit_lwr = (test_row$COUNT_172 / p_lwr - test_row$COUNT_172) / test_row$AREA_SWEPT_KM2_44,
+        fit_upr = (test_row$COUNT_172 / p_upr - test_row$COUNT_172) / test_row$AREA_SWEPT_KM2_44
       )
     
   } else {
     # LOOCV; Get predicted proportion (inv-logit scale)
     p <- predict(model, newdata = test_row, type = "response")
-    output <- (test_row$COUNT_15 / p - test_row$COUNT_15) / test_row$AREA_SWEPT_KM2_30
+    output <- (test_row$COUNT_172 / p - test_row$COUNT_172) / test_row$AREA_SWEPT_KM2_44
   }
   
   return(output)
@@ -889,17 +830,17 @@ count_mapper <- function(model, test_row, se_fit = FALSE) {
     
     output <- 
       data.frame(
-        fit =     pred_count / test_row$AREA_SWEPT_KM2_30,
-        fit_lwr = pred_count_lwr / test_row$AREA_SWEPT_KM2_30,
-        fit_upr = pred_count_upr / test_row$AREA_SWEPT_KM2_30
+        fit =     pred_count / test_row$AREA_SWEPT_KM2_44,
+        fit_lwr = pred_count_lwr / test_row$AREA_SWEPT_KM2_44,
+        fit_upr = pred_count_upr / test_row$AREA_SWEPT_KM2_44
       )
     
   } else {
     # LOOCV; Get predicted counts
     pred_count <- predict(model, newdata = test_row, type = "response")
-    output <- pred_count / test_row$AREA_SWEPT_KM2_30
+    output <- pred_count / test_row$AREA_SWEPT_KM2_44
   }
-
+  
   
   return(output)
 }
@@ -909,19 +850,19 @@ count_mapper <- function(model, test_row, se_fit = FALSE) {
 predict_fits <- 
   function(model_list, dat, mapper, ...) {
     
-    log_cpue <- seq(log(min(dat$CPUE_NO_KM2_15)), log(max(dat$CPUE_NO_KM2_15)), length.out = 300)
+    log_cpue <- seq(log(min(dat$CPUE_NO_KM2_172)), log(max(dat$CPUE_NO_KM2_172)), length.out = 300)
     
     fit_data <-
       data.frame(
-        AREA_SWEPT_KM2_15 = 0.02,
-        AREA_SWEPT_KM2_30 = 0.04,
+        AREA_SWEPT_KM2_172 = 0.02,
+        AREA_SWEPT_KM2_44 = 0.04,
         EFFORT_RATIO = 0.02/0.04,
-        LOG_CPUE_NO_KM2_15 = log_cpue,
-        CPUE_NO_KM2_15  = exp(log_cpue),
+        LOG_CPUE_NO_KM2_172 = log_cpue,
+        CPUE_NO_KM2_172  = exp(log_cpue),
         COMBINED_COUNT = 1
       )
     
-    fit_data$COUNT_15 <- fit_data$CPUE_NO_KM2_15*fit_data$AREA_SWEPT_KM2_15
+    fit_data$COUNT_172 <- fit_data$CPUE_NO_KM2_172*fit_data$AREA_SWEPT_KM2_172
     
     results_list <- 
       lapply(
@@ -1014,31 +955,31 @@ make_aic_table <-
 
 check_ols_heteroskedasticity <- 
   function(dat, model, predictor, x_axis_name = "Observation", scale = "log10", residual_fn = rstandard) {
-  
-  if(scale == "log10") {
-    scale_fn <- scale_x_log10
-  } else {
-    scale_fn <- scale_x_continuous
-  }
-  
-  residual_df <-
-    data.frame(
-      Observed = dat[[predictor]],
-      Residual = abs(residual_fn(model))
-    )
-  
-  p1 <- 
-    ggplot(
-      data = residual_df,
-      mapping = aes(x = Observed, y = Residual)) +
-    geom_point() +
-    geom_smooth(method = 'loess') +
-    scale_y_continuous(name = "|Std. residual|") +
-    scale_fn(name = x_axis_name) +
-    theme_bw()
-  
-  return(p1)
-  
+    
+    if(scale == "log10") {
+      scale_fn <- scale_x_log10
+    } else {
+      scale_fn <- scale_x_continuous
+    }
+    
+    residual_df <-
+      data.frame(
+        Observed = dat[[predictor]],
+        Residual = abs(residual_fn(model))
+      )
+    
+    p1 <- 
+      ggplot(
+        data = residual_df,
+        mapping = aes(x = Observed, y = Residual)) +
+      geom_point() +
+      geom_smooth(method = 'loess') +
+      scale_y_continuous(name = "|Std. residual|") +
+      scale_fn(name = x_axis_name) +
+      theme_bw()
+    
+    return(p1)
+    
   }
 
 dharma_plots <- 
@@ -1059,7 +1000,7 @@ dharma_plots <-
       
       fname <- paste0(
         "DHARMa_", 
-        gsub(x = common_name, pattern = " ", replacement = "_"), 
+        gsub(x =  gsub(x = common_name, pattern = " ", replacement = "_"), pattern = "/", replacement = ""), 
         "_", subset,
         "_", gsub(x = model_names[ii], pattern = " ", replacement = "_"), 
         ".png")
@@ -1092,14 +1033,14 @@ draw_bootstrap_samples <-
       samp <- 
         data.frame(
           var = sample(x = grouping_var_values, replace = replace, size = n_obs)
-          )
+        )
       
       draws[[ii]] <-
         dplyr::inner_join(
           x, samp, 
           by = setNames("var", grouping_var), 
           relationship = "many-to-many"
-      ) |>
+        ) |>
         dplyr::mutate(draw = ii)
     }
     
@@ -1111,9 +1052,9 @@ draw_bootstrap_samples <-
 run_analysis <- 
   function(dat, dat_oos = NULL, common_name, subset_name, contrast_name = NULL) {
     
-    fits_dir <- here::here("analysis", "somerton_2002", "plots", paste0(subset_name, "_fits"))
-    dharma_dir <- here::here("analysis", "somerton_2002", "plots", paste0(subset_name, "_fits"), "dharma")
-    obs_pred_dir <- here::here("analysis", "somerton_2002", "plots", paste0(subset_name, "_fits"), "obs_pred_dir")
+    fits_dir <- here::here("analysis", "shelf_slope", "plots", paste0(subset_name, "_fits"))
+    dharma_dir <- here::here("analysis", "shelf_slope", "plots", paste0(subset_name, "_fits"), "dharma")
+    obs_pred_dir <- here::here("analysis", "shelf_slope", "plots", paste0(subset_name, "_fits"), "obs_pred_dir")
     dir.create(fits_dir, showWarnings = FALSE)
     dir.create(dharma_dir, showWarnings = FALSE)
     dir.create(obs_pred_dir, showWarnings = FALSE)
@@ -1186,7 +1127,7 @@ run_analysis <-
             subset = contrast_name,
             save_dir = obs_pred_dir
           )
-          )|>
+        )|>
         dplyr::mutate(common_name = common_name) |> 
         dplyr::arrange(rmse) |>
         dplyr::mutate(method = ifelse(is.na(method), model_name, method))
@@ -1213,7 +1154,7 @@ run_analysis <-
       check_ols_heteroskedasticity(
         dat = dat, 
         model = ols_results$best_model, 
-        predictor = "CPUE_NO_KM2_15", 
+        predictor = "CPUE_NO_KM2_172", 
         x_axis_name = expression(CPUE[15]*' (#/'*km^2*')')
       )
     
@@ -1221,7 +1162,7 @@ run_analysis <-
       check_ols_heteroskedasticity(
         dat = dat, 
         model = ols_results$best_model, 
-        predictor = "CPUE_NO_KM2_30", 
+        predictor = "CPUE_NO_KM2_44", 
         x_axis_name = expression(CPUE[30]*' (#/'*km^2*')')
       )
     
@@ -1262,7 +1203,7 @@ run_analysis <-
       dplyr::mutate(
         common_name = common_name,
         subset_name = subset_name
-        )
+      )
     
     converged_table <-
       aic_table |>
@@ -1296,238 +1237,27 @@ run_analysis <-
     
   }
 
-# Fitting Somerton et al. (2002) 1998 data ---------------------------------------------------------
 
-set_species_2002 <- 
-  data.frame(
-    species_code = c(68560, 68580, 69322),
-    common_name = c("Tanner crab", "snow crab", "red king crab")
-  )
+# Run analysis  ------------------------------------------------------------------------------------
+unique_common_name <- unique(species_codes$COMMON_NAME)
 
-results_2002 <- vector(mode = "list", length = nrow(set_species_2002))
-names(results_2002) <- set_species_2002$common_name
+# Exclude dusky and NRF because of small sample sizes
+unique_common_name <- unique_common_name[!(unique_common_name %in% c("dusky rockfish", "northern rockfish"))]
 
-for(kk in 1:nrow(set_species_2002)) {
+results_all <- vector(mode = "list", length = length(unique_common_name))
+names(results_all) <- unique_common_name
+
+for(kk in 1:length(unique_common_name)) {
   
-  species_code <- set_species_2002$species_code[kk]
-  
-  results_2002[[kk]] <- 
-    run_analysis(
-      dat = cpue_1998[cpue_1998$SPECIES_CODE == species_code, ], 
-      dat_oos = cpue_other[cpue_other$SPECIES_CODE == species_code, ], 
-      common_name = set_species_2002$common_name[kk], 
-      subset_name = "2002", 
-      contrast_name = "2002FitVsOther"
-    )
-  
-}
-
-save(results_2002, file = here::here("analysis", "somerton_2002", "output", "results_2002.rda"))
-  
-
-# All years (no twofold CV) ------------------------------------------------------------------------
-set_species_all <- 
-  data.frame(
-    species_code = c(68560, 68560, 68580, 68580, 69322, 69322),
-    sex = c("M", "F", "M", "F", "M", "F"),
-    common_name = 
-      c(
-        "Tanner crab (male)", 
-        "Tanner crab (female)", 
-        "snow crab (male)", 
-        "snow crab (female)", 
-        "red king crab (male)", 
-        "red king crab (female)"
-      )
-  )
-
-results_all <- vector(mode = "list", length = nrow(set_species_all))
-names(results_all) <- set_species_all$common_name
-
-for(kk in 1:nrow(set_species_all)) {
-  
-  species_code <- set_species_all$species_code[kk]
-  sex <- set_species_all$sex[kk]
-  
-  sel_dat <- dplyr::bind_rows(
-    cpue_1998[cpue_1998$SPECIES_CODE == species_code & cpue_1998$SEX == sex, ],
-    cpue_other[cpue_other$SPECIES_CODE == species_code & cpue_other$SEX == sex, ]
-  )
+  sel_dat <- dplyr::filter(dat, common_name == unique_common_name[kk])
   
   results_all[[kk]] <- 
     run_analysis(
       dat = sel_dat, 
-      common_name = set_species_all$common_name[kk], 
+      common_name = unique_common_name[kk], 
       subset_name = "All"
     )
   
 }
 
-save(results_all, file = here::here("analysis", "somerton_2002", "output", "results_all.rda"))
-
-
-# Fit 1998 (2CV: other years 2CV) ------------------------------------------------------------------
-results_1998 <- vector(mode = "list", length = nrow(set_species_all))
-names(results_1998) <- set_species_all$common_name
-
-for(ll in 1:nrow(set_species_all)) {
-  
-  species_code <- set_species_all$species_code[ll]
-  sex <- set_species_all$sex[ll]
-  
-  results_1998[[ll]] <- 
-    run_analysis(
-      dat = cpue_1998[cpue_1998$SPECIES_CODE == species_code & cpue_1998$SEX == sex, ], 
-      dat_oos = cpue_other[cpue_other$SPECIES_CODE == species_code & cpue_other$SEX == sex, ], 
-      common_name = set_species_all$common_name[ll], 
-      subset_name = 1998,
-      contrast_name = "1998FitVsOther"
-    )
-  
-}
-
-save(results_1998, file = here::here("analysis", "somerton_2002", "output", "results_1998.rda"))
-
-
-# Fit 1995 + 2021 to 2024 (2CV: 1998 2CV) ----------------------------------------------------------
-results_95_2124 <- vector(mode = "list", length = nrow(set_species_all))
-names(results_95_2124) <- set_species_all$common_name
-
-for(ll in 1:nrow(set_species_all)) {
-  
-  species_code <- set_species_all$species_code[ll]
-  sex <- set_species_all$sex[ll]
-  
-  results_95_2124[[ll]] <- 
-    run_analysis(
-      dat = cpue_other[cpue_other$SPECIES_CODE == species_code & cpue_other$SEX == sex, ], 
-      dat_oos = cpue_1998[cpue_1998$SPECIES_CODE == species_code & cpue_1998$SEX == sex, ], 
-      common_name = set_species_all$common_name[ll], 
-      subset_name = "95_2124",
-      contrast_name = "95_2124FitVs1998"
-    )
-  
-}
-
-save(results_95_2124, file = here::here("analysis", "somerton_2002", "output", "results_95_2124.rda"))
-
-# Fit 2021 to 2024 (2CV: 1998 + 1995 2CV) ----------------------------------------------------------
-# results_2124 <- vector(mode = "list", length = nrow(set_species_all))
-# names(results_2124) <- set_species_all$common_name
-# 
-# for(ll in 1:nrow(set_species_all)) {
-# 
-#   species_code <- set_species_all$species_code[ll]
-#   sex <- set_species_all$sex[ll]
-# 
-#   sel_dat <-
-#     cpue_other[cpue_other$SPECIES_CODE == species_code & cpue_other$SEX == sex & cpue_other$YEAR != 1995, ]
-# 
-#   sel_oos <-
-#     dplyr::bind_rows(
-#       cpue_other[cpue_other$SPECIES_CODE == species_code & cpue_other$SEX == sex & cpue_other$YEAR == 1995, ],
-#       cpue_1998[cpue_1998$SPECIES_CODE == species_code & cpue_1998$SEX == sex, ]
-#     )
-# 
-# 
-#   results_2124[[ll]] <-
-#     run_analysis(
-#       dat = sel_dat,
-#       dat_oos = sel_oos,
-#       common_name = set_species_all$common_name[ll],
-#       subset_name = "21to24",
-#       contrast_name = "21to24FitVs95to98"
-#     )
-# 
-# }
-# 
-# save(results_2124, file = here::here("analysis", "somerton_2002", "output", "results_21to24.rda"))
-
-
-
-# Plot cross-year validation results ------------
-
-p_ols <-
-  ggplot() +
-    geom_hline(yintercept = 0, linetype = 2) +
-  geom_point(
-    data = oos_table_ols,
-             mapping = aes(x = common_name, y = pbias, color = method), position = position_dodge(width = 0.5)
-    ) +
-    geom_errorbar(
-      data = oos_table_ols,
-      mapping = aes(
-        x = common_name, ymin = pbias_lci, ymax = pbias_uci, color = method
-      ),
-      position = position_dodge(width = 0.5),
-      width = 0
-    ) +
-    scale_y_continuous(name = "Total percentage error (%)") +
-    scale_color_colorblind(name = "Method") +
-    theme_bw() +
-    theme(axis.title.x = element_blank(),
-          legend.position = "inside",
-          legend.position.inside = c(0.22, 0.82),
-          axis.title.y = element_text(size = 9),
-          axis.text = element_text(size = 8),
-          legend.text = element_text(size = 8),
-          legend.title = element_text(size = 8))
-
-png(
-  filename =  here::here(fits_dir, "PBIAS_OLS_other_years_from_1998.png"),
-  width = 80,
-  height = 80, 
-  res = 300, 
-  units = "mm"
-)
-print(p_ols_1998)
-dev.off()
-
-p_rmse_1998 <-
-  ggplot() +
-  geom_point(
-    data = oos_table_ols_1998,
-    mapping = aes(x = method, y = rmse),
-    size = rel(2.2)) +
-  geom_errorbar(
-    data = oos_table_ols_1998,
-    mapping = aes(x = method, ymin = rmse_lci, ymax = rmse_uci),
-    width = 0,
-    linewidth = 1.05
-  ) +
-  scale_y_continuous(name = expression(RMSE*' (#/'*km^2*')')) +
-  facet_wrap(~common_name, scales = "free_y") +
-  theme_bw() +
-  theme(
-    axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 8),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(size = 9)
-  )
-
-png(
-  filename = here::here("analysis", "somerton_2002", "plots", "1998_fits", "RMSE_OLS_other_years_from_1998.png"),
-  width = 169,
-  height = 60, 
-  res = 300, 
-  units = "mm"
-)
-print(p_rmse_1998)
-dev.off()
-
-
-test <- results_all[[4]]$fit_table
-
-
-ggplot() +
-  geom_path(
-    data = dplyr::mutate(
-      test, method = ifelse(is.na(method), model_name, method)) |>
-      dplyr::inner_join(response_type),
-    mapping = aes(x = CPUE_NO_KM2_15, y = fit, color = type)
-  ) +
-  geom_abline(slope =1 , intercept = 0, linetype = 2) +
-  scale_x_log10() +
-  scale_y_log10() +
-  scale_color_colorblind() +
-  facet_wrap(~method)
-
+save(results_all, file = here::here("analysis", "shelf_slope", "output", "numerical_fit_results.rda"))
