@@ -188,7 +188,7 @@ fit_lognormal <-
       expand.grid(
         fixed_formula = c(
           CPUE_RATIO ~ 1,
-          CPUE_RATIO ~ LOG_CPUE_NO_KM2_172,
+          CPUE_RATIO ~ poly(LOG_CPUE_NO_KM2_172, 1),
           CPUE_RATIO ~ poly(LOG_CPUE_NO_KM2_172, 2)
         ),
         disp = NA
@@ -249,13 +249,13 @@ fit_ccr_models <-
       expand.grid(
         fixed_formula = c(
           PROP_172 ~ 1,
-          PROP_172 ~ LOG_CPUE_NO_KM2_172,
+          PROP_172 ~ poly(LOG_CPUE_NO_KM2_172, 1),
           PROP_172 ~ poly(LOG_CPUE_NO_KM2_172, 2)
         ),
         disp_formula =
           c(
             ~ 1,
-            ~ LOG_CPUE_NO_KM2_172,
+            ~ poly(LOG_CPUE_NO_KM2_172, 1),
             ~ poly(LOG_CPUE_NO_KM2_172, 2)
           )
       )
@@ -359,13 +359,13 @@ fit_prop_models <-
       expand.grid(
         fixed_formula = c(
           cbind(COUNT_172, COUNT_44) ~ 1,
-          cbind(COUNT_172, COUNT_44) ~ LOG_CPUE_NO_KM2_172,
+          cbind(COUNT_172, COUNT_44) ~ poly(LOG_CPUE_NO_KM2_172, 1),
           cbind(COUNT_172, COUNT_44) ~ poly(LOG_CPUE_NO_KM2_172, 2)
         ),
         disp_formula =
           c(
             ~ 1,
-            ~ LOG_CPUE_NO_KM2_172,
+            ~ poly(LOG_CPUE_NO_KM2_172, 1),
             ~ poly(LOG_CPUE_NO_KM2_172, 2)
           )
       )
@@ -464,15 +464,15 @@ fit_count_models <-
     nb_formulas <- 
       expand.grid(
         fixed_formula = c(
-          COUNT_44 ~ 0 + LOG_CPUE_NO_KM2_172 ,
+          COUNT_44 ~ 0 + poly(LOG_CPUE_NO_KM2_172, 1),
           COUNT_44 ~ 0 + poly(LOG_CPUE_NO_KM2_172, 2),
-          COUNT_44 ~ LOG_CPUE_NO_KM2_172,
+          COUNT_44 ~ poly(LOG_CPUE_NO_KM2_172, 1),
           COUNT_44 ~ poly(LOG_CPUE_NO_KM2_172, 2)
         ),
         disp_formula =
           c(
             ~ 1,
-            ~ LOG_CPUE_NO_KM2_172,
+            ~ poly(LOG_CPUE_NO_KM2_172, 1),
             ~ poly(LOG_CPUE_NO_KM2_172, 2)
           )
       )

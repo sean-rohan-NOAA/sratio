@@ -109,6 +109,8 @@ get_ss_data <- function(species_codes) {
     dplyr::filter(HAULJOIN %in% ss_hauls$HAULJOIN,
                   SPECIES_CODE %in% species_codes)
   
+  ss_hauls$NET_HEIGHT[ss_hauls$NET_HEIGHT < 1.7 & ss_hauls$GEAR == 172] <- NA
+  
   data_ss <- list(
     project = "Shelf/Slope Tow Comparison",
     catch = ss_catch,
@@ -148,4 +150,4 @@ get_ss_data <- function(species_codes) {
   
 }
 
-get_ss_data(species_codes = c(21740, 21720, 10130, 10115, 10110, 10112, 471, 68580, 658560, 69322, 30060, 20510))
+get_ss_data(species_codes = c(21740, 21720, 10130, 10115, 10110, 10112, 68580, 658560, 69322, 30060, 20510, 471, 420, 435, 440, 455, 472, 475, 477, 480, 485, 30051, 30052, 30152, 30020, 30420))
