@@ -321,8 +321,7 @@ for(hh in 1:length(all_fits)) {
 # Consideration for RMSE and PBIAS + screening for goodness-of-fit based on 
 # DHARMa residuals
 
-final_models <- 
-  xlsx::read.xlsx2(
+final_models <- xlsx::read.xlsx2(
     file = here::here("analysis", "shelf_slope", "data", "best_models.xlsx"),
     sheetIndex = 1
   ) |>
@@ -330,18 +329,13 @@ final_models <-
     dplyr::select(all_rmse, method, common_name, rmse, pbias)
   ) |>
   dplyr::ungroup() |>
-  dplyr::group_by(common_name) |>
-  # dplyr::mutate(w = sqrt(rmse)^-2/ sum(sqrt(rmse)^-2)) |>
-  dplyr::arrange(
-    desc(common_name), type
-  )
+  dplyr::group_by(common_name)
 
 xlsx::write.xlsx(
   final_models |>
     dplyr::mutate(
       rmse = round(rmse),
-      pbias = format(round(pbias, 1), nsmall = 1)#,
-      # w = format(round(w, 3), nsmall = 1)
+      pbias = format(round(pbias, 1), nsmall = 1)
     ) |>
     as.data.frame(),
   file = here::here("analysis", "shelf_slope", "plots", "final_models.xlsx"),
@@ -409,7 +403,7 @@ table(grepl(pattern = "~1", x = model_formulas$disp[model_formulas$type != "Rati
       model_formulas$common_name[model_formulas$type != "Ratio"])
 
 # Observed versus fitted
-# p_obs_fit <- 
+p_obs_fit <- 
   ggplot() +
   geom_abline(slope = 1, intercept = 0, linetype = 2) +
   geom_point(
@@ -433,9 +427,9 @@ table(grepl(pattern = "~1", x = model_formulas$disp[model_formulas$type != "Rati
   scale_fill_colorblind(name = "Type") +
   theme_bw() +
   theme(
-    legend.position = "bottom",
+    # legend.position = "bottom",
     strip.background = element_blank(),
-    # strip.text = element_blank(),
+    legend.position = "bottom",
     legend.title.position = "top",
     legend.title = element_text(size = 8),
     legend.text = element_text(size = 8),
@@ -451,9 +445,50 @@ rmse_labs <-
   dplyr::mutate(
     rmse = round(rmse),
     pbias = format(round(pbias, 1), nsmall = 1),
-    # w = format(round(w, 3), nsmall = 1),
     label = paste0(method, "\nRMSE=",rmse, "\nPBIAS=",trimws(pbias))
   )
+
+p_obs_fit_multipanel <- 
+  ggplot() +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  geom_point(
+    data = cpue_dat,
+    mapping = aes(x = CPUE_NO_KM2_172, y = CPUE_NO_KM2_44),
+    size = 1
+  ) +
+  geom_ribbon(
+    data = best_fits, 
+    mapping = aes(x = CPUE_NO_KM2_172, ymin = fit_lwr, ymax = fit_upr,),
+    alpha = 0.1
+  ) +
+  geom_path(data = best_fits, 
+            mapping = aes(x = CPUE_NO_KM2_172, y = fit)) +
+  ggpp::geom_text_npc(
+    data = rmse_labs,
+    mapping = aes(npcx = 0.02, npcy = .97, label = label),
+    size = 2.5) +
+  facet_wrap(~common_name, scales = "free_x") +
+  scale_x_log10(name = expression(CPUE[PNE]*' (#/'*km^2*')')) +
+  scale_y_log10(name = expression(CPUE[83-112]*' (#/'*km^2*')')) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    # legend.title.position = "top",
+    legend.title = element_text(size = 8),
+    legend.text = element_text(size = 8),
+    axis.text = element_text(size = 8),    
+    axis.title = element_text(size = 8.5),
+    legend.key.height = unit(2.5, "mm"),
+    legend.key.width = unit(2.5, "mm")
+  )
+
+png(filename = here::here("analysis", "shelf_slope", "plots", "fits_obs_by_year_method.png"),
+    width = 254,
+    height = 150,
+    units = "mm",
+    res = 600)
+print(p_obs_fit_multipanel)
+dev.off()
 
 # p_obs_fit_multipanel <- 
 #   ggplot() +
@@ -501,7 +536,7 @@ rmse_labs <-
 # dev.off()
 
 
-# p_fishing_power <- 
+p_fishing_power <-
   ggplot() +
   geom_abline(slope = 0, intercept = 1, linetype = 2) +
   geom_rug(
@@ -517,8 +552,8 @@ rmse_labs <-
   ) +
   geom_path(data = dplyr::arrange(best_fits, CPUE_NO_KM2_172), 
             mapping = aes(x = CPUE_NO_KM2_172, y = CPUE_NO_KM2_172/fit, color = type)) +
+  scale_x_log10(name = expression(CPUE[PNE]*' (#/'*km^2*')')) +
   facet_wrap(~common_name, scales = "free") +
-  scale_x_log10(name = expression(CPUE[15]*' (#/'*km^2*')')) +
   scale_y_continuous(name = expression('Fishing power ratio ('*q[PNE]/q[83-112]*')'), expand = c(0,0), oob = scales::oob_squish, limits = c(0,3)) +
   scale_color_colorblind(name = "Type") +
   scale_fill_colorblind(name = "Type") +
@@ -526,7 +561,6 @@ rmse_labs <-
   theme(
     legend.position = "none",
     strip.background = element_blank(),
-    # strip.text = element_blank(),
     legend.title.position = "top",
     legend.title = element_text(size = 8),
     legend.text = element_text(size = 8),
@@ -562,11 +596,6 @@ dev.off()
 p_fishing_power_multipanel <-
   ggplot() +
   geom_abline(slope = 0, intercept = 1, linetype = 2) +
-  geom_abline(
-    data = somerton_estimates,
-    mapping = aes(slope = 0, intercept = fpc),
-    linetype = 3, color = "red"
-  ) +
   geom_ribbon(
     data = best_fits,
     mapping = aes(x = CPUE_NO_KM2_172, ymin = CPUE_NO_KM2_172/fit_lwr, ymax = CPUE_NO_KM2_172/fit_upr, fill = type),
@@ -584,9 +613,9 @@ p_fishing_power_multipanel <-
     color = "grey50",
     length = unit(1, "mm")
   ) +
-  facet_grid(type~common_name, scales = "free_x") +
-  scale_x_log10(name = expression(CPUE[15]*' (#/'*km^2*')')) +
-  scale_y_continuous(name = expression('Fishing power ratio ('*q[15]/q[30]*')'), expand = c(0,0), oob = scales::oob_keep) +
+  facet_wrap(~common_name, scales = "free_x") +
+  scale_x_log10(name = expression(CPUE[PNE]*' (#/'*km^2*')')) +
+  scale_y_continuous(name = expression('Fishing power ratio ('*q[PNE]/q[83-112]*')'), expand = c(0,0), oob = scales::oob_squish, limits = c(0,3)) +
   scale_color_colorblind(name = "Type") +
   scale_fill_colorblind(name = "Type") +
   theme_bw() +
