@@ -5,7 +5,9 @@ library(sratio)
 library(cowplot)
 library(fishmethods) # Version 1.13-1
 
-spp_code = 685801
+spp_code = 68560
+
+run_diagnostics = FALSE
 
 # Format data ----
 dat <- 
@@ -27,7 +29,6 @@ dat <-
     CPUE_LOG_RATIO = log(CPUE_RATIO)
   )
 
-
 sel_dat <- dat |> 
   dplyr::filter(
   SPECIES_CODE == spp_code
@@ -42,12 +43,20 @@ num_fpc_log_boot <-
   x = sel_dat$CPUE_NO_KM2_30,
   y = sel_dat$CPUE_NO_KM2_15,
   n_boot = 1000,
-  conf.level = 0.95,
-  return_boot = TRUE
+  conf_level = 0.95,
 )
 
+exp(num_fpc_log_boot$estimate)
 
-# Somerton ratio estimator ---- 
+ggplot() +
+  geom_smooth(mapping = aes(x = sel_dat$CPUE_NO_KM2_15, y = log(sel_dat$CPUE_NO_KM2_30/sel_dat$CPUE_NO_KM2_15)))
+
+plot(sel_dat$CPUE_NO_KM2_15, log(sel_dat$CPUE_NO_KM2_30/sel_dat$CPUE_NO_KM2_15))
+
+hist(log(sel_dat$CPUE_NO_KM2_30/sel_dat$CPUE_NO_KM2_15))
+
+
+# Ratio estimator from Somerton et al. (2002) (biased; just for comparison) ---- 
 # No vessel or sex effects; Miller et al. (1984) bias correction
 
 # Function to extract model intercept, variance, and bias-corrected ratio from Somerton's log-ratio models
@@ -78,8 +87,8 @@ num_fpc_somerton <- somerton_bias_correction(mod_somerton)
 
 num_fpc_kappenman <-
   fishmethods::fpc(
-    cpue1 = sel_dat$CPUE_NO_KM2_15,
-    cpue2 = sel_dat$CPUE_NO_KM2_30,
+    cpue1 = sel_dat$CPUE_NO_KM2_30,
+    cpue2 = sel_dat$CPUE_NO_KM2_15,
     boot_type = "paired",
     decimals = 6,
     nboot = 1000,
@@ -93,9 +102,9 @@ num_mod_zeroint <-
     brms::brm(
       formula = LOG_CPUE_NO_KM2_30 ~ LOG_CPUE_NO_KM2_15 + 0, 
       data = sel_dat, 
-      iter = 10000, 
+      iter = 5000, 
       chains = 4,
-      thin = 5,
+      thin = 2,
       warmup = 2000
     )
   
@@ -104,16 +113,19 @@ num_mod_zeroint <-
   posterior_df$SPECIES_CODE <- spp_code
   
   # Diagnostics
-  pp_check(num_mod_zeroint, type = "dens_overlay", ndraws = 1000)
-  pp_check(num_mod_zeroint, type = "loo_pit_overlay", ndraws = 100)
-  pp_check(num_mod_zeroint, type = "dens_overlay", ndraws = 1000)
-  pp_check(num_mod_zeroint, type = "scatter_avg", ndraws = 100)
-  pp_check(num_mod_zeroint, type = "loo_pit_qq", ndraws = 4000, moment_match = TRUE)
-  pp_check(num_mod_zeroint, type = "pit_ecdf", ndraws = 4000)
   
-  loo_check <- brms::loo(num_mod_zeroint, moment_match = TRUE)
-  
-  loo::pareto_k_values(loo_check)
+  if(run_diagnostics) {
+    pp_check(num_mod_zeroint, type = "dens_overlay", ndraws = 1000)
+    pp_check(num_mod_zeroint, type = "loo_pit_overlay", ndraws = 100)
+    pp_check(num_mod_zeroint, type = "dens_overlay", ndraws = 1000)
+    pp_check(num_mod_zeroint, type = "scatter_avg", ndraws = 100)
+    pp_check(num_mod_zeroint, type = "loo_pit_qq", ndraws = 4000, moment_match = TRUE)
+    pp_check(num_mod_zeroint, type = "pit_ecdf", ndraws = 4000)
+    
+    loo_check <- brms::loo(num_mod_zeroint, moment_match = TRUE)
+    
+    loo::pareto_k_values(loo_check)
+  }
   
   # Generate vector of log(CPUE[15])
   new_x <- data.frame(
@@ -161,7 +173,8 @@ num_mod_zeroint <-
       CPUE_NO_KM2_30_UPR = upper
     )
   
-  p1 <- ggplot() +
+  p1 <- 
+    ggplot() +
     geom_ribbon(data = bc_preds,
                 mapping = aes(x = CPUE_NO_KM2_15, ymin = CPUE_NO_KM2_30_LWR, ymax = CPUE_NO_KM2_30_UPR), alpha = 0.5) +
     geom_path(data = bc_preds,
@@ -178,3 +191,61 @@ num_mod_zeroint <-
   print(p1)
 
 # VAST ----
+
+  
+# Plot to compare numerical methods ----
+  
+  ratio_estimators <-
+    data.frame(
+      fit = c(num_fpc_kappenman$FPC, exp(num_fpc_log_boot$estimate)),
+      lwr = c(num_fpc_kappenman$`Boot_95%_LCI`, exp(num_fpc_log_boot$conf_interval[1])),
+      upr = c(num_fpc_kappenman$`Boot_95%_UCI`, exp(num_fpc_log_boot$conf_interval[2])),
+      fpc_method = c("Randomized Block ANOVA", "Kappenman", "Log-ratio"),
+      intercept = 0,
+    )
+  
+  ratio_estimator_ci <-
+    rbind(ratio_estimators |>
+            dplyr::mutate(cpue = min(sel_dat$CPUE_NO_KM2_15)),
+          ratio_estimators |>
+            dplyr::mutate(cpue = max(sel_dat$CPUE_NO_KM2_15)))
+  
+  regression_estimators <- 
+    bc_preds |>
+    dplyr::mutate(fpc_method = "Zeroint reg. (BC)")
+  
+  bounds <-
+    data.frame(slope = c(1, 0.8, 1.2), intercept = 0, type = c("1:1 line", "0.8 & 1.2", "0.8 & 1.2"))
+  
+  bounds <-
+    merge(
+      bounds, 
+      data.frame(
+        fpc_method = c("Randomized Block ANOVA", "Kappenman", "Log-ratio", "Zeroint reg. (BC)")
+      ), 
+      by = NULL)
+    
+  p_numerical_methods <- 
+    ggplot() +
+    geom_ribbon(data = ratio_estimator_ci, 
+                mapping = aes(x = cpue, ymin = cpue*lwr, ymax = cpue*upr, fill = fpc_method),
+                alpha = 0.2) +
+    geom_path(data = ratio_estimator_ci, 
+                mapping = aes(x = cpue, y = fit*cpue, color = fpc_method)) +
+    geom_ribbon(data = regression_estimators,
+                mapping = aes(x = CPUE_NO_KM2_15, ymin = CPUE_NO_KM2_30_LWR, ymax = CPUE_NO_KM2_30_UPR, fill = fpc_method),
+                alpha = 0.2) +
+    geom_path(data = regression_estimators,
+              mapping = aes(x = CPUE_NO_KM2_15, y = CPUE_NO_KM2_30_FIT, color = fpc_method)) +
+    geom_point(data = sel_dat,
+               mapping = aes(x = CPUE_NO_KM2_15, y = CPUE_NO_KM2_30)) +
+    geom_abline(data = bounds, 
+                mapping = aes(slope = slope, intercept = intercept, linetype = type)) +
+    facet_wrap(~fpc_method) +
+    ggtitle(label = sratio::species_code_label(spp_code, type = "common_name")) +
+    scale_x_log10(name = expression(CPUE[15]*' '*('#'%.%km^-2))) +
+    scale_y_log10(name = expression(CPUE[30]*' '*('#'%.%km^-2))) +
+    scale_linetype_manual(values = c("1:1 line" = 2, "0.8 & 1.2" = 3)) +
+    theme_bw() +
+    theme(legend.title = element_blank())
+  

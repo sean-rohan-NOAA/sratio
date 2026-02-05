@@ -5,7 +5,7 @@ library(sratio)
 # Vector of cruises to include in analyses  ----
 use_cruises <- c(199501, 199801, 202101, 202201, 202301, 202401)
 
-# 1. Retrieve groundfish and crab data from 15/30 hauls ----
+# 1. Retrieve groundfish and crab data from 15/30 hauls --------------------------------------------
 # Assigns matchups
 # Data will be saved as .rda files. Build and install the package to include the data as a built-in data set.
 # Input: None
@@ -21,9 +21,7 @@ source(here::here("analysis", "15_30",  "01_get_data.R"))
 #--------------------------- REBUILD THE PACKAGE BEFORE CONTINUING TO 2 ---------------------------#
 #--------------------------------------------------------------------------------------------------#
 
-start_time <- Sys.time()
-
-# 2. Format the built-in data ----
+# 2. Format the built-in data ----------------------------------------------------------------------
 # Setup data for selectivity ratio and catch-at-size models 
 # Input: 
 #     (1-1) sratio::data_1530
@@ -33,7 +31,7 @@ start_time <- Sys.time()
 source(here::here("analysis", "15_30", "02_prepare_data.R"))
   
 
-# 3. Two-stage bootstrap samples ----
+# 3. Two-stage bootstrap samples -------------------------------------------------------------------
 # Draw two-stage bootstrap samples for selectivity ratio and catch-at-length models using sratio::two_stage_bootstrap and sratio::nested_bootstrap
 # In the two stage bootstrap, matchups are randomly drawn first then lengths are randomly drawn from each match-up and treatment. 
 # Input: 
@@ -41,6 +39,22 @@ source(here::here("analysis", "15_30", "02_prepare_data.R"))
 # Outputs: 
 #     (3-1) ./output/{species_code}/bootstrap_samples_{species_code}.rds
 source(here::here("analysis", "15_30", "03_bootstrap_samples.R"))
+
+# 4. Run selectivity ratio analysis using multiple methods -----------------------------------------
+# species_codes <- c(10110, 21740, 21720, 69322, 693222, 693221, 68560, 685601, 685602, 471, 10210, 10261, 10285, 68580, 685801, 685802)
+species_codes <- c(685801, 685802, 10110, 10210, 21740, 21720, 69322, 693222, 693221, 68560, 685601, 685602)
+
+start_time <- Sys.time()
+
+cat("Run time\n", file = "elapsed.txt")
+
+# for(kk in 1:length(species_codes)) {
+  for(kk in 1:2) {
+  spp_code <- species_codes[kk]
+  source(here::here("analysis", "15_30", "900_selectivity_methods.R"))
+  
+  cat(paste0(Sys.time(), " ", Sys.time()-start_time, "\n"), file = "elapsed.txt", append = TRUE)
+}
 
 # 90. Map of annual samples ----
 # Inputs:
