@@ -231,3 +231,72 @@ saveRDS(
   here::here("analysis", "shelf_slope_gear_selectivity", "data", "bootstrap_binned_comp_wide.rds")
 )
 
+
+# Retrieve length-freq from GAP_PRODUCTS (AFSC internal)
+library(gapindex) # Github: afsc-gap-products/gapindex
+
+channel <- gapindex::get_connected(check_access = FALSE)
+
+analysis_taxa <- 
+  data.frame(
+    SPECIES_CODE = c(21740, 21720, 30060, 10110, 10112, 10130, 420, 435, 440, 455, 471, 472, 475, 477, 480, 485),
+    GROUP_CODE = c("walleye pollock", "Pacific cod", "Pacific ocean perch", "arrowtooth flounder", "Kamchatka flounder", "flathead sole", rep("skates", 10))
+  )
+
+taxa_levels <- unique(analysis_taxa$GROUP_CODE)
+
+bss_dat <- 
+  gapindex::get_data(
+    year_set = 2002:2025,
+    survey_set = c("BSS", "EBS"),
+    spp_codes = analysis_taxa,
+    pull_lengths = TRUE,
+    channel = channel
+  )
+
+bss_cpue <- gapindex::calc_cpue(bss_dat)
+
+bss_biomass_stratum <- 
+  gapindex::calc_biomass_stratum(
+    gapdata = bss_dat, 
+    cpue = bss_cpue
+  )
+
+bss_biomass_subarea <- 
+  gapindex::calc_biomass_subarea(
+    gapdata = bss_dat, 
+    biomass_stratum = bss_biomass_stratum
+  )
+
+bss_sizecomp_stratum <- 
+  gapindex::calc_sizecomp_stratum(
+    gapdata = bss_dat, 
+    cpue = bss_cpue, 
+    abundance_stratum = bss_biomass_stratum
+  )
+
+bss_sizecomp_subarea <- 
+  gapindex::calc_sizecomp_subarea(
+    gapdata = bss_dat, 
+    sizecomp_stratum = bss_sizecomp_stratum
+  )
+
+sizecomp_plot_data <- 
+  bss_sizecomp_subarea |>
+  dplyr::filter(AREA_ID %in% c(99900, 99905)) |>
+  dplyr::group_by(SURVEY_DEFINITION_ID, AREA_ID, SPECIES_CODE, LENGTH_MM) |>
+  dplyr::summarize(POPULATION_COUNT = sum(POPULATION_COUNT, na.rm = TRUE)) |>
+  dplyr::mutate(LENGTH_CM = LENGTH_MM/10) |>
+  dplyr::ungroup()
+
+sizecomp_plot_data <- 
+  bss_sizecomp_subarea |>
+  dplyr::filter(AREA_ID %in% c(99900, 99905)) |>
+  dplyr::group_by(SURVEY_DEFINITION_ID, AREA_ID, SPECIES_CODE) |>
+  dplyr::summarize(TOTAL_COUNT = sum(POPULATION_COUNT, na.rm = TRUE)) |>
+  dplyr::ungroup() |>
+  dplyr::inner_join(sizecomp_plot_data) |>
+  dplyr::mutate(PROP = POPULATION_COUNT/TOTAL_COUNT,
+                SURVEY = ifelse(SURVEY_DEFINITION_ID == 78, "EBS Slope", "EBS Shelf"))
+
+saveRDS(object = sizecomp_plot_data, file = here::here("analysis", "shelf_slope_gear_selectivity", "sizecomp_plot_data.rds"))

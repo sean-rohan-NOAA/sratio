@@ -116,62 +116,75 @@ two_stage_bootstrap <- function(count1,
 }
 
 # Diagnostics --------------------------------------------------------------------------------------
-make_aic_table <- 
-  function(model_list) {
+make_aic_table <- function(model_list) {
+  
+  results <- data.frame(
+    model_name = names(model_list) %||% seq_along(model_list),
+    formula    = sapply(model_list, function(m) paste(format(formula(m)), collapse = "")),
     
-    results <- data.frame(
-      model_name = names(model_list) %||% seq_along(model_list),
-      formula    = sapply(model_list, function(m) paste(format(formula(m)), collapse = "")),
-      
-      # Dispersion formula from glmmTMB
-      disp       = sapply(
-        model_list, 
-        function(m){
-          if(is(m, "lm")) {
-            out <- NA} else{
-              out <- paste(format(m$modelInfo$allForm$dispformula))
-            }
-          out
-        }),
-      aic        = round(sapply(model_list, AIC), 2),
-      k          = sapply(model_list, function(m) attr(logLik(m), "df")),
-      convergence = sapply(
-        model_list, 
-        function(m) {
-          if(is(m, "lm")) {
-            out <- NA} else{
-              out <- m$fit$convergence
-            }
-          out
-        }),
-      pdhess = sapply(
-        model_list, 
-        function(m) {
-          if(is(m, "lm")) {
-            out <- NA} else{
-              out <- m$sdr$pdHess
-            }
-          out
-        }),
-      max_gradient = sapply(
-        model_list, 
-        function(m) {
-          if(is(m, "lm")) {
-            out <- NA} else{
-              out <- max(abs(m$sdr$gradient.fixed))
-            }
-          out
-        }),
-      stringsAsFactors = FALSE
-    )
-    
-    results$pass_check <- 
-      results$convergence == 0 & results$pdhess & abs(results$max_gradient) < 0.001
-    
-    results$delta_aic <- results$aic - min(results$aic, na.rm = TRUE)
-    
-    candidates <- results[results$delta_aic < 2, ]
-    
-    return(results[order(results$aic), ])
-    
-  } 
+    # Dispersion formula from glmmTMB
+    disp       = sapply(
+      model_list, 
+      function(m){
+        if(is(m, "lm")) {
+          out <- NA} else{
+            out <- paste(format(m$modelInfo$allForm$dispformula))
+          }
+        out
+      }),
+    aic        = round(sapply(model_list, AIC), 2),
+    k          = sapply(model_list, function(m) attr(logLik(m), "df")),
+    convergence = sapply(
+      model_list, 
+      function(m) {
+        if(is(m, "lm")) {
+          out <- NA} else{
+            out <- m$fit$convergence
+          }
+        out
+      }),
+    pdhess = sapply(
+      model_list, 
+      function(m) {
+        if(is(m, "lm")) {
+          out <- NA} else{
+            out <- m$sdr$pdHess
+          }
+        out
+      }),
+    max_gradient = sapply(
+      model_list, 
+      function(m) {
+        if(is(m, "lm")) {
+          out <- NA} else{
+            out <- max(abs(m$sdr$gradient.fixed))
+          }
+        out
+      }),
+    stringsAsFactors = FALSE
+  )
+  
+  results$pass_check <- ifelse(
+    is.na(results$convergence), 
+    TRUE, 
+    results$convergence == 0 & results$pdhess & abs(results$max_gradient) < 0.001
+  )
+  
+  # Calculate delta AIC relative to the best converged model
+  min_aic <- min(results$aic[results$pass_check], na.rm = TRUE)
+  results$delta_aic <- results$aic - min_aic
+  
+  # Identify all valid candidate models with AIC < 2
+  results$in_top_set <- results$delta_aic < 2 & results$pass_check
+  
+  # Identify the most parsimonious model
+  results$best_model <- FALSE
+  if (any(results$in_top_set)) {
+    top_indices <- which(results$in_top_set)
+    best_idx    <- top_indices[order(results$k[top_indices], results$aic[top_indices])[1]]
+    results$best_model[best_idx] <- TRUE
+  }
+  
+  # Return the table ordered by AIC
+  return(results[order(results$aic), ])
+}

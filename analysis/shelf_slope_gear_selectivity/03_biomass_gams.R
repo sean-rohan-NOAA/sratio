@@ -2,6 +2,17 @@
 library(glmmTMB)
 library(DHARMa)
 
+analysis_species <- 
+  data.frame(
+    SPECIES_CODE = c(21740, 21720, 10110, 10112, 30060, 10130, 420, 435, 440, 455, 471, 472, 475, 477, 480, 485),
+    COMMON_NAME = c(
+      "walleye pollock", "Pacific cod", "arrowtooth flounder", "Kamchatka flounder", "Pacific ocean perch", "flathead sole",
+      rep("skates", 10))
+  )
+
+unique_taxa <- unique(analysis_species$COMMON_NAME)
+
+# Load catch data
 catch_data <- readRDS(
   here::here("analysis", "shelf_slope_gear_selectivity", "data", "catch_data.rds")
 )
@@ -21,7 +32,7 @@ for(ii in 1:length(unique_taxa)) {
   fit_dat <- dplyr::filter(
     catch_data_wide, 
     COMMON_NAME == sel_spp,
-    AREA_SWEPT_KM2_172>0, AREA_SWEPT_KM2_44>0
+    AREA_SWEPT_KM2_172>0, AREA_SWEPT_KM2_44>0, WEIGHT_172>0, WEIGHT_44 >0
   )
   
   message(Sys.time(), ": Model 1")
@@ -30,7 +41,7 @@ for(ii in 1:length(unique_taxa)) {
       formula = WEIGHT_172 ~ s(I(log(WEIGHT_44+1)), bs = "tp") + offset(log(AREA_SWEPT_KM2_172/AREA_SWEPT_KM2_44)), 
       dispformula = ~ 1,
       data = fit_dat,
-      family = glmmTMB::tweedie()
+      family = glmmTMB::lognormal()
     )
   
   message(Sys.time(), ": Model 2")
@@ -48,7 +59,7 @@ for(ii in 1:length(unique_taxa)) {
       formula = WEIGHT_172 ~ I(log(WEIGHT_44+1)) + offset(log(AREA_SWEPT_KM2_172/AREA_SWEPT_KM2_44)), 
       dispformula = ~ 1,
       data = fit_dat,
-      family = glmmTMB::tweedie()
+      family = glmmTMB::lognormal()
     )
     
   message(Sys.time(), ": Model 4")
@@ -57,7 +68,7 @@ for(ii in 1:length(unique_taxa)) {
         formula = WEIGHT_172 ~ I(log(WEIGHT_44+1)) + offset(log(AREA_SWEPT_KM2_172/AREA_SWEPT_KM2_44)), 
         dispformula = ~ s(I(log(WEIGHT_44/AREA_SWEPT_KM2_44+1)), bs = "tp"),
         data = fit_dat,
-        family = glmmTMB::tweedie()
+        family = glmmTMB::lognormal()
       )
     
     message(Sys.time(), ": Model 5")
@@ -66,7 +77,7 @@ for(ii in 1:length(unique_taxa)) {
         formula = WEIGHT_172 ~ 0 + I(log(WEIGHT_44+1)) + offset(log(AREA_SWEPT_KM2_172/AREA_SWEPT_KM2_44)), 
         dispformula = ~ 1,
         data = fit_dat,
-        family = glmmTMB::tweedie()
+        family = glmmTMB::lognormal()
       )
     
     message(Sys.time(), ": Model 6")
@@ -75,7 +86,7 @@ for(ii in 1:length(unique_taxa)) {
         formula = WEIGHT_172 ~ 0 + I(log(WEIGHT_44+1)) + offset(log(AREA_SWEPT_KM2_172/AREA_SWEPT_KM2_44)), 
         dispformula = ~ s(I(log(WEIGHT_44/AREA_SWEPT_KM2_44+1)), bs = "tp"),
         data = fit_dat,
-        family = glmmTMB::tweedie()
+        family = glmmTMB::lognormal()
       )
     
     species_models <- list(mod1, mod2, mod3, mod4, mod5, mod6)
@@ -134,7 +145,7 @@ p_gam_fits <-
   geom_ribbon(
     data = fit_df,
     mapping = aes(x = WEIGHT_44, ymin = lwr_response, ymax = upr_response),
-    alpha = 0.5
+    alpha = 0.3
   ) +
   geom_abline(intercept = 0, slope = 1, linetype = 2) +
   geom_path(
@@ -142,7 +153,7 @@ p_gam_fits <-
     mapping = aes(x = WEIGHT_44, y = fit_response)
   ) +
   geom_point(
-    data = catch_data_wide,
+    data = dplyr::filter(catch_data_wide, WEIGHT_44>0 & WEIGHT_172 >0),
     mapping = aes(x = WEIGHT_44,
                   y = WEIGHT_172)
   ) +
@@ -150,3 +161,42 @@ p_gam_fits <-
   scale_y_log10(name = "PNE catch (kg)") +
   facet_wrap(~COMMON_NAME, scales = "free") +
   theme_bw()
+
+
+ggplot() +
+  # geom_hline(yintercept = 1) +
+  geom_path(
+    data = fit_df,
+    mapping = aes(x = WEIGHT_44, y = fit_response)
+  ) + 
+  facet_wrap(~COMMON_NAME, scales = "free")
+
+ggplot() +
+  # geom_hline(yintercept = 1) +
+  geom_path(
+    data = fit_df,
+    mapping = aes(x = WEIGHT_44, y = fit_response/WEIGHT_44)
+  ) + 
+  facet_wrap(~COMMON_NAME, scales = "free")
+
+
+ggplot() +
+  geom_histogram(
+    data = dplyr::filter(catch_data_wide, WEIGHT_172 > 0, WEIGHT_44 >0),
+    mapping = aes(x = WEIGHT_172/AREA_SWEPT_KM2_172 / (WEIGHT_172/AREA_SWEPT_KM2_172+WEIGHT_44/AREA_SWEPT_KM2_44))
+  ) +
+  facet_wrap(~COMMON_NAME, scales = "free_y")
+
+ggplot() +
+  geom_density(
+    data = dplyr::filter(catch_data_wide, WEIGHT_172 > 0, WEIGHT_44 >0),
+    mapping = aes(x = WEIGHT_172/AREA_SWEPT_KM2_172 / (WEIGHT_172/AREA_SWEPT_KM2_172+WEIGHT_44/AREA_SWEPT_KM2_44))
+  ) +
+  facet_wrap(~COMMON_NAME, scales = "free_y")
+
+ggplot() +
+  geom_point(
+    data = catch_data_wide,
+    mapping = aes(x = WEIGHT_172/AREA_SWEPT_KM2_172, y = WEIGHT_172/AREA_SWEPT_KM2_172 / (WEIGHT_172/AREA_SWEPT_KM2_172+WEIGHT_44/AREA_SWEPT_KM2_44))
+  ) +
+  facet_wrap(~COMMON_NAME, scales = "free_x")
