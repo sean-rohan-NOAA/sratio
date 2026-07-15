@@ -1,0 +1,22 @@
+"COMMON_NAME","model_name","aic","k","convergence","max_gradient","delta_aic"
+"walleye pollock","bb_mod8",1666.3,6,0,0.0004881737794733,0
+"walleye pollock","bb_mod9",1668.3,7,0,3.07273806451902e-06,2
+"walleye pollock","bb_mod6",1684.85,6,0,5.63817852992088e-05,18.55
+"Pacific cod","bin_mod2",359.24,3,0,5.48585665285373e-05,0
+"Pacific cod","bin_mod1",359.85,2,0,1.0633707812735e-05,0.610000000000014
+"Pacific cod","bb_mod2",361.18,4,0,7.36762730113583e-05,1.94
+"Pacific ocean perch","bb_mod2",589.45,4,0,0.000837700220827742,0
+"Pacific ocean perch","bb_mod5",590.08,5,0,8.18743478419037e-05,0.629999999999995
+"Pacific ocean perch","bb_mod3",591.45,5,0,3.40095913813343e-05,2
+"arrowtooth flounder","bb_mod8",1402.48,6,0,6.33440326254231e-05,0
+"arrowtooth flounder","bb_mod9",1404.48,7,0,7.83103742962865e-07,2
+"arrowtooth flounder","bb_mod7",1407.14,5,0,2.48009642838665e-05,4.66000000000008
+"Kamchatka flounder","bin_mod2",426.99,3,0,0.000295435334976446,0
+"Kamchatka flounder","bb_mod2",427.94,4,0,0.000235396998675697,0.949999999999989
+"Kamchatka flounder","bin_mod3",428.99,4,0,2.46505328371782e-07,2
+"flathead sole","bb_mod7",1274.26,5,0,7.87459462814333e-06,0
+"flathead sole","bb_mod8",1276.08,6,0,0.00041241504023759,1.81999999999994
+"flathead sole","bb_mod9",1278.08,7,0,6.59164188558936e-05,3.81999999999994
+"skates","bin_mod2",1087.73,3,0,0.000289561611818812,0
+"skates","bb_mod2",1087.91,4,0,0.000176401347165012,0.180000000000064
+"skates","bb_mod5",1089.28,5,0,0.000844742334571436,1.54999999999995

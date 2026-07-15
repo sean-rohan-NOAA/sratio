@@ -18,28 +18,42 @@ sim_matern_clusters <-
     cluster_density_n_km2,
     cluster_radius_m,
     open_boundary = TRUE,
-    seed, 
+    seed = NULL, 
     draws
   ) {
+    
+    # fish_density_n_km2 = 1000
+    # grid_dim_m = c(3000, 3000)
+    # cluster_density_n_km2 = 1
+    # cluster_radius_m = 400
+    # open_boundary = TRUE
+    # # seed = seed
+    # draws = 1
     
     cluster_points <- vector(mode = "list", length = draws)
     random_points <- vector(mode = "list", length = draws)
     
-    set.seed(seed)
+    if(!is.null(seed)) {
+      set.seed(seed)
+    }
     
     for(ii in 1:draws) {
       
       # Simulate Poisson point process ----
       
       # Poisson fish
-      n_points <- rpois(1, fish_density_n_km2 * prod(grid_dim_m) / 1e6)
+      n_points <- rpois(1, fish_density_n_km2 * prod(grid_dim_m + 2*cluster_radius_m) / 1e6)
       
       # Assign coordinates to points
-      x_m <- grid_dim_m[1] * runif(n_points)
+      xx_pois <- (max(grid_dim_m) + 2 * cluster_radius_m) * runif(n_points) - cluster_radius_m
       
-      y_m <- grid_dim_m[2] * runif(n_points)
+      yy_pois <- (max(grid_dim_m) + 2 * cluster_radius_m) * runif(n_points) - cluster_radius_m
       
-      draw <- rep(ii, n_points)
+      x_m <- xx_pois[xx_pois <= grid_dim_m[1] & yy_pois <= grid_dim_m[2] & xx_pois >= 0 & yy_pois >= 0]
+      
+      y_m <- yy_pois[xx_pois <= grid_dim_m[1] & yy_pois <= grid_dim_m[2] & xx_pois >= 0 & yy_pois >= 0]
+      
+      draw <- rep(ii, length(x_m))
       
       random_points[[ii]] <-
         cbind(x_m,
@@ -54,8 +68,11 @@ sim_matern_clusters <-
       # Coordinates for cluster centers
       if(open_boundary) {
         # Case where points can 'spill' over the boundary
-        x_cluster <- grid_dim_m[1] * runif(n_clusters)
-        y_cluster <- grid_dim_m[2] * runif(n_clusters)
+        x_cluster <- (max(grid_dim_m) + 2 * cluster_radius_m) * runif(n_clusters) - cluster_radius_m
+        y_cluster <- (max(grid_dim_m) + 2 * cluster_radius_m) * runif(n_clusters) - cluster_radius_m
+        
+        # x_cluster <- max(grid_dim_m) * runif(n_clusters)
+        # y_cluster <- max(grid_dim_m) * runif(n_clusters)
       } else {
         # Case where clusters are seeded at least the distance of the radius away from the boundary
         x_cluster <- cluster_radius_m + (grid_dim_m[1] - 2 * cluster_radius_m) * runif(n_clusters)
@@ -76,9 +93,13 @@ sim_matern_clusters <-
       yy0 <- rho*sin(theta)
       
       # Translate relative point coordinates to clusters centers
-      x_m <- rep(x_cluster, cluster_sizes) + xx0
+      xx1 <- rep(x_cluster, cluster_sizes) + xx0
       
-      y_m <- rep(y_cluster, cluster_sizes) + yy0
+      yy1 <- rep(y_cluster, cluster_sizes) + yy0
+      
+      x_m <- xx1[xx1 <= grid_dim_m[1] & yy1 <= grid_dim_m[2] & xx1 >= 0 & yy1 >= 0]
+      
+      y_m <- yy1[xx1 <= grid_dim_m[1] & yy1 <= grid_dim_m[2] & xx1 >= 0 & yy1 >= 0]
       
       cluster_points[[ii]] <- 
         cbind(x_m,
