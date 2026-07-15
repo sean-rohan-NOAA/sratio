@@ -5,6 +5,7 @@ library(glmmTMB)
 library(scales)
 library(dplyr)
 library(ggpp)
+library(stringr)
 
 
 project_dir <- here::here("analysis", "somerton_2002")
@@ -38,6 +39,8 @@ cpue_dat <-
   )
 
 
+
+
 # Make RMSE tables by combining LOOCV, OOS (two-fold CV), and diagnostic (AIC) tables.
 tables_rmse <- 
   function(results_obj, save_dir) {
@@ -56,10 +59,11 @@ tables_rmse <-
           dplyr::inner_join(
             x[['loocv_table']],
             x[['aic_table']]
-          )|>
+          ) |>
           dplyr::select(
             common_name,
             method,
+            # method_label,
             rmse,
             pbias,
             convergence,
@@ -131,11 +135,12 @@ combine_fits <- function(results_obj) {
 }
   
 
+
 # Make RMSE tables ----
 
 response_type <- 
   data.frame(
-    method = c("OLS median", "OLS mean", paste0("lognormal", 1:5),  paste0("ccr_beta", 1:15), paste0("ccr_bin", 1:5), paste0("bin", 1:5), paste0("bb", 1:15), paste0("pois", 1:8), paste0("nb", 1:24)),
+    method = c("OLS median", "OLS mean", paste0("LN", 1:5),  paste0("CCR_BB", 1:15), paste0("CCR_BIN", 1:5), paste0("BIN", 1:5), paste0("BB", 1:15), paste0("POIS", 1:8), paste0("NB", 1:24)),
     type = c(rep("Ratio", 7), rep("CCR", 20), rep("Proportion", 20), rep("Count", 32)),
     type_abbv = c(rep("Ratio", 7), rep("CCR", 20), rep("Prop", 20), rep("Count", 32))
   )
@@ -230,12 +235,12 @@ p_bias_method <-
   geom_vline(xintercept = 0, linetype = 2) +
   geom_vline(xintercept = c(-10,10), linetype = 3) +
   geom_point(data = compare_perf_among_models,
-             mapping = aes(y = method, x = pbias, color = type, shape = common_name)) +
+             mapping = aes(y = method_label, x = pbias, color = type, shape = common_name)) +
   geom_text(
     data = compare_perf_among_models |>
-      dplyr::group_by(method, type) |>
+      dplyr::group_by(method_label, type) |>
       dplyr::summarise(n = n()),
-    mapping = aes(x = -54, y = method, label = n, color = type),
+    mapping = aes(x = -54, y = method_label, label = n, color = type),
     size = 3
   ) +
   scale_color_tableau(name = "Response type") +

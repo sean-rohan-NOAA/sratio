@@ -1,4 +1,3 @@
-# library(sratio)
 library(nortest)
 library(xlsx)
 library(glmmTMB)
@@ -6,101 +5,6 @@ library(DHARMa)
 library(ggplot2)
 library(dplyr)
 library(here)
-
-# Prep data -- move this to a separate file
-
-# Somerton's archived data
-
-somerton_catch <-
-  rbind(
-    read.table(file = here::here("analysis", "somerton_2002", "data", "Cb2.txt"),
-               header = TRUE, na.strings = ".") |>
-      dplyr::mutate(SPECIES_CODE = 68560),
-    read.table(file = here::here("analysis", "somerton_2002", "data", "Co2.txt"),
-               header = TRUE, na.strings = ".") |>
-      dplyr::mutate(SPECIES_CODE = 68580),
-    read.table(file = here::here("analysis", "somerton_2002", "data", "RK2.txt"),
-               header = TRUE, na.strings = ".") |>
-      dplyr::mutate(SPECIES_CODE = 69322)
-  ) |>
-  dplyr::mutate(CATCH15F = CATCH15T-CATCH15M,
-                CATCH30F = CATCH30T-CATCH30M) |>
-  dplyr::select(TOW_PAIR = OBS, SPECIES_CODE, CATCH15M, CATCH30M, CATCH15F, CATCH30F) |>
-  tidyr::pivot_longer(cols = c("CATCH15M", "CATCH30M", "CATCH15F", "CATCH30F")) |>
-  dplyr::mutate(TREATMENT = factor(ifelse(stringr::str_detect(name, "30"), 30, 15)),
-                SEX = factor(ifelse(stringr::str_detect(name, "F"), "F", "M"))) |>
-  dplyr::select(-name) |>
-  tidyr::pivot_wider(values_from = "value", names_from = "TREATMENT", names_prefix = "COUNT_")
-
-somerton_effort <-
-  read.table(file = here::here("analysis", "somerton_2002", "data", "Cb1.txt"),
-             header = TRUE, na.strings = ".") |>
-  dplyr::select(TOW_PAIR = OBS, EFFORT15, EFFORT30, VESSEL) |>
-  tidyr::pivot_longer(cols = c("EFFORT15", "EFFORT30")) |>
-  dplyr::mutate(TREATMENT = factor(ifelse(stringr::str_detect(name, "30"), 30, 15))) |>
-  dplyr::select(-name) |>
-  dplyr::mutate(value = value/100,
-                VESSEL = factor(VESSEL)) |>
-  tidyr::pivot_wider(values_from = "value", names_from = "TREATMENT", names_prefix = "AREA_SWEPT_KM2_")
-
-cpue_1998 <-
-  dplyr::inner_join(somerton_catch, somerton_effort) |>
-  dplyr::mutate(
-    YEAR = 1998,
-    CPUE_NO_KM2_15 = COUNT_15 / AREA_SWEPT_KM2_15,
-    CPUE_NO_KM2_30 = COUNT_30 / AREA_SWEPT_KM2_30,
-    LOG_CPUE_NO_KM2_30 = log(CPUE_NO_KM2_30),
-    LOG_CPUE_NO_KM2_15 = log(CPUE_NO_KM2_15),
-    CPUE_LOG_RATIO = log(CPUE_NO_KM2_15/CPUE_NO_KM2_30),
-    CPUE_RATIO = CPUE_NO_KM2_15/CPUE_NO_KM2_30,
-    COMBINED_COUNT = ceiling(COUNT_30 + COUNT_15),
-    PROP_15 = CPUE_NO_KM2_15/(CPUE_NO_KM2_15+CPUE_NO_KM2_30),
-    EFFORT_RATIO = AREA_SWEPT_KM2_15/AREA_SWEPT_KM2_30,
-    COUNT_15 = ceiling(COUNT_15),
-    COUNT_30 = ceiling(COUNT_30),
-    common_name = sratio::species_code_label(SPECIES_CODE, type = "common_name")) |>
-  dplyr::filter(CPUE_NO_KM2_15 > 0, CPUE_NO_KM2_30 > 0)
-
-saveRDS(object = cpue_1998, file = here::here("analysis", "somerton_2002", "data", "cpue_1998.rds"))
-
-
-# 1995 + 2021-2024 experiments
-
-cpue_other <-
-  sratio::data_1530$size |>
-  dplyr::filter(SPECIES_CODE %in% c(68580, 68560, 69322)) |>
-  dplyr::mutate(
-    SEX = ifelse(SEX == 1, "M", "F"),
-    MATCHUP = paste0("O", MATCHUP)
-                ) |>
-  dplyr::group_by(VESSEL, CRUISE, HAUL, SPECIES_CODE, SEX) |>
-  dplyr::summarise(COUNT = ceiling(sum(SAMPLING_FACTOR))) |>
-  dplyr::inner_join(
-    dplyr::select(
-      sratio::data_1530$haul,
-      VESSEL, CRUISE, HAUL, AREA_SWEPT_KM2, TREATMENT, YEAR, TOW_PAIR = MATCHUP
-    )
-  ) |>
-  dplyr::ungroup() |>
-  dplyr::filter(YEAR != 1998) |>
-  dplyr::select(-VESSEL, -CRUISE, -HAUL) |>
-  tidyr::pivot_wider(values_from = c("COUNT", "AREA_SWEPT_KM2"), names_from = TREATMENT, values_fill = 0) |>
-  dplyr::mutate(
-    CPUE_NO_KM2_15 = COUNT_15 / AREA_SWEPT_KM2_15,
-    CPUE_NO_KM2_30 = COUNT_30 / AREA_SWEPT_KM2_30,
-    LOG_CPUE_NO_KM2_30 = log(CPUE_NO_KM2_30),
-    LOG_CPUE_NO_KM2_15 = log(CPUE_NO_KM2_15),
-    CPUE_LOG_RATIO = log(CPUE_NO_KM2_15/CPUE_NO_KM2_30),
-    CPUE_RATIO = CPUE_NO_KM2_15/CPUE_NO_KM2_30,
-    COMBINED_COUNT = ceiling(COUNT_30 + COUNT_15),
-    PROP_15 = CPUE_NO_KM2_15/(CPUE_NO_KM2_15+CPUE_NO_KM2_30),
-    EFFORT_RATIO = AREA_SWEPT_KM2_15/AREA_SWEPT_KM2_30,
-    common_name = sratio::species_code_label(SPECIES_CODE, type = "common_name")) |>
-  dplyr::filter(CPUE_NO_KM2_15 > 0, CPUE_NO_KM2_30 > 0)
-
-saveRDS(object = cpue_other, file = here::here("analysis", "somerton_2002", "data", "cpue_other.rds"))
-
-
 
 
 # Load data ----
@@ -272,7 +176,7 @@ fit_lognormal <-
       
       )
     
-    names(lognormal_models_list) <- paste0("lognormal", lognormal_index)
+    names(lognormal_models_list) <- paste0("LN", lognormal_index)
 
     # Only carry forward models that pass initial checks
     aic_table <- make_aic_table(lognormal_models_list)
@@ -340,7 +244,7 @@ fit_ccr_models <-
       
       )
     
-    names(ccr_beta_models_list) <- paste0("ccr_beta", ccr_beta_index)
+    names(ccr_beta_models_list) <- paste0("CCR_BB", ccr_beta_index)
     
     # Fit binomial models
     ccr_bin_formulas <- ccr_beta_formulas[, 1, drop = FALSE] |> unique()
@@ -365,7 +269,7 @@ fit_ccr_models <-
       
       )
     
-    names(ccr_bin_models_list) <- paste0("ccr_bin", ccr_bin_index)
+    names(ccr_bin_models_list) <- paste0("CCR_BIN", ccr_bin_index)
     
     
     # Only carry forward models that passed initial checks
@@ -449,7 +353,7 @@ fit_prop_models <-
       
       )
     
-    names(bb_models_list) <- paste0("bb", bb_index)
+    names(bb_models_list) <- paste0("BB", bb_index)
     
     # Fit binomial models
     bin_formulas <- bb_formulas[, 1, drop = FALSE] |> unique()
@@ -473,7 +377,7 @@ fit_prop_models <-
       
       )
     
-    names(bin_models_list) <- paste0("bin", bin_index)
+    names(bin_models_list) <- paste0("BIN", bin_index)
     
     # Only carry forward models that passed initial checks
     aic_table <- 
@@ -556,7 +460,7 @@ fit_count_models <-
     
     )
     
-    names(nb_models_list) <- paste0("nb", nb_index)
+    names(nb_models_list) <- paste0("NB", nb_index)
     
     # Fit Poisson models
     
@@ -581,7 +485,7 @@ fit_count_models <-
       
       )
     
-    names(pois_models_list) <- paste0("pois", pois_index)
+    names(pois_models_list) <- paste0("POIS", pois_index)
     
     aic_table <- 
       dplyr::bind_rows(
@@ -947,6 +851,31 @@ predict_fits <-
     
   }
 
+# classify_formula <- function(formula_str, term_char = "\u03B2") {
+#   
+#   if(is.na(formula_str)) {
+#     formula_str <- "~1"
+#   }
+#   
+#   has_no_intercept <- str_detect(formula_str, "~\\s*(0|\\-1)\\s*\\+")
+#   is_intercept_only <- str_detect(formula_str, "~\\s*1\\s*$")
+#   
+#   intercept_label <- if(is_intercept_only || !has_no_intercept) paste0(term_char, "0") else NULL
+#   
+#   powers <- str_extract_all(formula_str, "(?<=\\^)\\d+") %>% unlist() %>% as.numeric()
+#   
+#   poly_label <- NULL
+#   
+#   if(!is_intercept_only) {
+#     if(length(powers) > 0) {
+#       poly_label <- paste(paste0(term_char, 1:max(powers)), collapse = "+")
+#     } else {
+#       poly_label <- paste0(term_char, 1)
+#     }
+#   }
+#   
+#   return(paste(c(intercept_label, poly_label), collapse = "+"))
+# }
 
 
 # Diagnostics --------------------------------------------------------------------------------------
@@ -1005,6 +934,12 @@ make_aic_table <-
     results$pass_check[grepl(pattern = "ols", x = results$model_name)] <- TRUE
     
     results$delta_aic <- results$aic - min(results$aic, na.rm = TRUE)
+    
+    # results$model_label <- paste0(
+    #   str_remove_all(results$method, "\\d"), "(",
+    #   sapply(results$formula, classify_formula),"; ", 
+    #   sapply(results$disp, classify_formula, term_char = "\u03B3"), ")"
+    # )
     
     candidates <- results[results$delta_aic < 2, ]
     
@@ -1296,6 +1231,8 @@ run_analysis <-
     
   }
 
+
+
 # Fitting Somerton et al. (2002) 1998 data ---------------------------------------------------------
 
 set_species_2002 <- 
@@ -1513,21 +1450,3 @@ png(
 )
 print(p_rmse_1998)
 dev.off()
-
-
-test <- results_all[[4]]$fit_table
-
-
-ggplot() +
-  geom_path(
-    data = dplyr::mutate(
-      test, method = ifelse(is.na(method), model_name, method)) |>
-      dplyr::inner_join(response_type),
-    mapping = aes(x = CPUE_NO_KM2_15, y = fit, color = type)
-  ) +
-  geom_abline(slope =1 , intercept = 0, linetype = 2) +
-  scale_x_log10() +
-  scale_y_log10() +
-  scale_color_colorblind() +
-  facet_wrap(~method)
-
