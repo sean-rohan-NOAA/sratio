@@ -269,7 +269,7 @@ fit_ccr_models <-
       
       )
     
-    names(ccr_bin_models_list) <- paste0("CCR_BIN", ccr_bin_index)
+    names(ccr_bin_models_list) <- paste0("CCR_BI", ccr_bin_index)
     
     
     # Only carry forward models that passed initial checks
@@ -377,7 +377,7 @@ fit_prop_models <-
       
       )
     
-    names(bin_models_list) <- paste0("BIN", bin_index)
+    names(bin_models_list) <- paste0("BI", bin_index)
     
     # Only carry forward models that passed initial checks
     aic_table <- 
@@ -485,7 +485,7 @@ fit_count_models <-
       
       )
     
-    names(pois_models_list) <- paste0("POIS", pois_index)
+    names(pois_models_list) <- paste0("PO", pois_index)
     
     aic_table <- 
       dplyr::bind_rows(

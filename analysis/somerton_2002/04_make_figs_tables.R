@@ -38,7 +38,79 @@ cpue_dat <-
     common_name = paste0(common_name, " (", ifelse(SEX == 'M', "male", "female"), ")")
   )
 
+determine_poly_order <- function(formula_input) {
+  
+  # Helper function to parse a single formula (character or formula object)
+  parse_single <- function(f) {
+    # 1. Convert formula objects to a character string safely
+    if (inherits(f, c("formula", "Formula"))) {
+      f_str <- paste(deparse(f), collapse = " ")
+    } else {
+      f_str <- as.character(f)
+    }
+    
+    # 2. Clean up double-tilde formats (e.g., stripping out the trailing " ~1")
+    f_str <- trimws(f_str)
+    parts <- strsplit(f_str, "\\s*~\\s*")[[1]]
+    if (length(parts) > 2) {
+      if (parts[1] == "") {
+        f_str <- paste0("~ ", parts[2]) # One-sided formula
+      } else {
+        f_str <- paste0(parts[1], " ~ ", parts[2]) # Two-sided formula
+      }
+    }
+    
+    # 3. Convert back to R formula and parse terms
+    f_obj <- as.formula(f_str)
+    t_obj <- terms(f_obj)
+    
+    # 4. Check for the presence of an intercept
+    has_intercept <- attr(t_obj, "intercept") == 1
+    
+    # 5. Extract term labels and find the maximum polynomial degree
+    term_labels <- attr(t_obj, "term.labels")
+    
+    if (length(term_labels) == 0) {
+      max_deg <- 0 # Intercept-only model
+    } else {
+      degrees <- sapply(term_labels, function(label) {
+        # Match poly(x, degree)
+        poly_match <- regmatches(label, regexec("poly\\(.*,\\s*([0-9]+)", label))[[1]]
+        if (length(poly_match) > 1) {
+          return(as.numeric(poly_match[2]))
+        }
+        
+        # Match I(x^degree) or x^degree
+        pow_match <- regmatches(label, regexec("\\^\\s*([0-9]+)", label))[[1]]
+        if (length(pow_match) > 1) {
+          return(as.numeric(pow_match[2]))
+        }
+        
+        # Standard linear terms default to degree 1
+        return(1)
+      })
+      max_deg <- max(degrees)
+    }
+    
+    # 6. Format output based on intercept and degree
+    if (has_intercept) {
+      return(as.character(max_deg))
+    } else {
+      return(paste0("0+", max_deg))
+    }
+  }
+  
+  # Vectorize to support character vectors or lists of formulas
+  if (inherits(formula_input, c("formula", "Formula"))) {
+    return(parse_single(formula_input))
+  } else if (is.list(formula_input) || length(formula_input) > 1) {
+    return(sapply(formula_input, parse_single, USE.NAMES = FALSE))
+  } else {
+    return(parse_single(formula_input))
+  }
+}
 
+# Model name and polynomial order for mean and variance formulas. Zero-intercept models are noted with a leading '0+', i.e., 0+1 for linear 
 
 
 # Make RMSE tables by combining LOOCV, OOS (two-fold CV), and diagnostic (AIC) tables.
@@ -55,21 +127,30 @@ tables_rmse <-
         fname <- 
           here::here(save_dir, "plots", paste0(subset_name, "_fits"),  paste0("rmse_table_", subset_name, "_", common_name, ".xlsx"))
         
+        aic_table <- x[['aic_table']]
+        aic_table$disp[is.na(aic_table$disp)] <- "~1" # Fill OLS order
+        
+        # Get polynomial order for each model
+        aic_table$order_mean <- determine_poly_order(aic_table$formula)
+        aic_table$order_disp <- determine_poly_order(aic_table$disp)
+
+        
         output <-
           dplyr::inner_join(
             x[['loocv_table']],
-            x[['aic_table']]
+            aic_table
           ) |>
           dplyr::select(
             common_name,
             method,
-            # method_label,
             rmse,
             pbias,
             convergence,
             pdhess,
             max_gradient, 
-            pass_check
+            pass_check,
+            order_mean,
+            order_disp
           ) |>
           dplyr::arrange(
             rmse
@@ -140,7 +221,7 @@ combine_fits <- function(results_obj) {
 
 response_type <- 
   data.frame(
-    method = c("OLS median", "OLS mean", paste0("LN", 1:5),  paste0("CCR_BB", 1:15), paste0("CCR_BIN", 1:5), paste0("BIN", 1:5), paste0("BB", 1:15), paste0("POIS", 1:8), paste0("NB", 1:24)),
+    method = c("OLS median", "OLS mean", paste0("LN", 1:5),  paste0("CCR_BB", 1:15), paste0("CCR_BI", 1:5), paste0("BI", 1:5), paste0("BB", 1:15), paste0("PO", 1:8), paste0("NB", 1:24)),
     type = c(rep("Ratio", 7), rep("CCR", 20), rep("Proportion", 20), rep("Count", 32)),
     type_abbv = c(rep("Ratio", 7), rep("CCR", 20), rep("Prop", 20), rep("Count", 32))
   )
@@ -225,9 +306,20 @@ compare_perf_among_models <-
     response_type
   ) |>
   dplyr::mutate(
-    method = factor(method, levels = response_type$method)
+    method = factor(method, levels = response_type$method),
+    method_order = paste0(method, "(", order_mean, "; ", order_disp,")")
   )
 
+used_models <- left_join(
+  response_type,
+  compare_perf_among_models |>
+    dplyr::ungroup() |>
+    dplyr::select(method, method_order) |>
+    unique()) |>
+  dplyr::filter(!is.na(method_order))
+
+compare_perf_among_models$method_order <- factor(compare_perf_among_models$method_order, levels = used_models$method_order)
+  
 xlsx::write.xlsx(all_rmse, file = here::here("analysis", "somerton_2002", "plots", "rmse_all_converged.xlsx"), row.names = FALSE)
 
 p_bias_method <- 
@@ -235,12 +327,12 @@ p_bias_method <-
   geom_vline(xintercept = 0, linetype = 2) +
   geom_vline(xintercept = c(-10,10), linetype = 3) +
   geom_point(data = compare_perf_among_models,
-             mapping = aes(y = method_label, x = pbias, color = type, shape = common_name)) +
+             mapping = aes(y = method_order, x = pbias, color = type, shape = common_name)) +
   geom_text(
     data = compare_perf_among_models |>
-      dplyr::group_by(method_label, type) |>
+      dplyr::group_by(method_order, type) |>
       dplyr::summarise(n = n()),
-    mapping = aes(x = -54, y = method_label, label = n, color = type),
+    mapping = aes(x = -54, y = method_order, label = n, color = type),
     size = 3
   ) +
   scale_color_tableau(name = "Response type") +
@@ -253,6 +345,8 @@ p_bias_method <-
         axis.title.x = element_text(size = 9),
         axis.text = element_text(size = 8),
         panel.grid.minor = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(0.75, 0.3),
         legend.key.height = unit(3.5, "mm"))
 
 png(filename = here::here("analysis", "somerton_2002", "plots", "PBIAS_by_method_type_species.png"),
@@ -568,7 +662,7 @@ rmse_labs <-
     rmse = round(rmse),
     pbias = format(round(pbias, 1), nsmall = 1),
     w = format(round(w, 3), nsmall = 1),
-    label = paste0(method, "\nRMSE=",rmse, "\nPBIAS=",trimws(pbias))
+    label = paste0(method, "\nRMSE=",rmse, "\nPBIAS=",trimws(pbias), "%")
   )
 
 p_obs_fit_multipanel <- 
