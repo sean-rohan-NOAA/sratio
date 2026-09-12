@@ -1,5 +1,15 @@
+library(xlsx)
+library(ggplot2)
+library(ggthemes)
+library(glmmTMB)
+library(scales)
+library(dplyr)
+library(ggpp)
+library(stringr)
+
 # Tables and figures comparing fits to Somerton data
 
+output_dir <- here::here("analysis", "somerton_2002", "output")
 
 load(here::here(output_dir, "results_2002.rda"))
 
@@ -63,17 +73,19 @@ p_oos_2002 <-
   geom_hline(yintercept = 0, linetype = 2) +
   geom_point(
     data = oos_results_2002,
-    mapping = aes(x = common_name, y = pbias, color = method),
-    position = position_dodge(width = 0.5)
+    mapping = aes(x = common_name, y = pbias, shape = method, color = common_name),
+    position = position_dodge(width = 0.5),
+    size = rel(2.2)
   ) +
   geom_errorbar(
     data = oos_results_2002,
-    mapping = aes(x = common_name, ymin = pbias_lci, ymax = pbias_uci, color = method),
+    mapping = aes(x = common_name, ymin = pbias_lci, ymax = pbias_uci, shape = method, color = common_name),
     position = position_dodge(width = 0.5),
     width = 0
   ) +
   scale_y_continuous(name = "PBIAS (%)") +
-  scale_color_manual(values = c("grey", "black")) +
+  scale_shape() +
+  scale_color_manual(guide = FALSE, values = c("#000004FF", "#51127CFF", "#B63679FF")) +
   theme_bw() +
   theme(
     legend.position = "inside",
@@ -84,7 +96,6 @@ p_oos_2002 <-
     axis.title.y = element_text(size = 8.5),
     axis.title.x = element_blank()
   )
-
 
 png(filename = here::here("analysis", "somerton_2002", "plots", "pbias_2002_vs_other.png"),
     width = 80,
